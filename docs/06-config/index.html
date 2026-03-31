@@ -1,0 +1,1656 @@
+
+<!DOCTYPE html>
+
+<html class="no-js" lang="zh">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="一个高效可扩展的WebSocket通信网关" name="description"/>
+<meta content="Ray" name="author"/>
+<link href="https://gorort.rayainfo.cn/06-config/" rel="canonical"/>
+<link href="../05-message/" rel="prev"/>
+<link href="../base-line/" rel="next"/>
+<link href="../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.6" name="generator"/>
+<title>配置管理 - Gort 开发者文档</title>
+<link href="../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
+<link href="../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" rel="stylesheet"/>
+<script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="lime" data-md-color-primary="lime" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#_1">
+          跳转至
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header" data-md-component="header">
+<nav aria-label="页眉" class="md-header__inner md-grid">
+<a aria-label="Gort 开发者文档" class="md-header__button md-logo" data-md-component="logo" href=".." title="Gort 开发者文档">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Gort 开发者文档
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              配置管理
+            
+          </span>
+</div>
+</div>
+</div>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="搜索" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="搜索" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="查找" class="md-search__options">
+<button aria-label="清空当前内容" class="md-search__icon md-icon" tabindex="-1" title="清空当前内容" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="md-header__source">
+<a class="md-source" data-md-component="source" href="https://github.com/DotNetAge/gort" title="前往仓库">
+<div class="md-source__icon md-icon">
+<svg viewbox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+</div>
+<div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<nav aria-label="标签" class="md-tabs" data-md-component="tabs">
+<div class="md-grid">
+<ul class="md-tabs__list">
+<li class="md-tabs__item md-tabs__item--active">
+<a class="md-tabs__link" href="..">
+          
+  
+  
+  Gort
+
+        </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../base-line/">
+          
+  
+  
+  测试报告
+
+        </a>
+</li>
+</ul>
+</div>
+</nav>
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="导航栏" class="md-nav md-nav--primary md-nav--lifted" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Gort 开发者文档" class="md-nav__button md-logo" data-md-component="logo" href=".." title="Gort 开发者文档">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Gort 开发者文档
+  </label>
+<div class="md-nav__source">
+<a class="md-source" data-md-component="source" href="https://github.com/DotNetAge/gort" title="前往仓库">
+<div class="md-source__icon md-icon">
+<svg viewbox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+</div>
+<div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+</div>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_1" type="checkbox"/>
+<label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="">
+<span class="md-ellipsis">
+    
+  
+    Gort
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_1_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_1">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Gort
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="..">
+<span class="md-ellipsis">
+    
+  
+    设计简介
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../01-gateway/">
+<span class="md-ellipsis">
+    
+  
+    Gateway
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../02-channel/">
+<span class="md-ellipsis">
+    
+  
+    Channel
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--section md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_1_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_1_4" id="__nav_1_4_label" tabindex="">
+<span class="md-ellipsis">
+    
+  
+    配置指南
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_1_4_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_1_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    配置指南
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/">
+<span class="md-ellipsis">
+    
+  
+    总览
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/01-channel-dingtalk/">
+<span class="md-ellipsis">
+    
+  
+    钉钉
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/02-channel-feishu/">
+<span class="md-ellipsis">
+    
+  
+    飞书
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/03-channel-telegram/">
+<span class="md-ellipsis">
+    
+  
+    Telegram
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/04-channel-wechat/">
+<span class="md-ellipsis">
+    
+  
+    微信公众号
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/05-channel-whatsapp/">
+<span class="md-ellipsis">
+    
+  
+    WhatsApp
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/06-channel-imessage/">
+<span class="md-ellipsis">
+    
+  
+    iMessage
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/07-channel-messenger/">
+<span class="md-ellipsis">
+    
+  
+    Facebook Messenger
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/08-channel-wecom/">
+<span class="md-ellipsis">
+    
+  
+    企业微信配置指南
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/09-channel-slack/">
+<span class="md-ellipsis">
+    
+  
+    Slack
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/10-channel-discord/">
+<span class="md-ellipsis">
+    
+  
+    Discord
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03-session-manager/">
+<span class="md-ellipsis">
+    
+  
+    SessionManager
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04-middleware/">
+<span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../05-message/">
+<span class="md-ellipsis">
+    
+  
+    Message
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    配置管理
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    配置管理
+  
+
+    
+  </span>
+</a>
+<nav aria-label="目录" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1">
+<span class="md-ellipsis">
+      
+        1. 模块定位
+      
+    </span>
+</a>
+<nav aria-label="1. 模块定位" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11">
+<span class="md-ellipsis">
+      
+        1.1 核心作用
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12">
+<span class="md-ellipsis">
+      
+        1.2 设计目标
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13">
+<span class="md-ellipsis">
+      
+        1.3 配置范围
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2">
+<span class="md-ellipsis">
+      
+        2. 设计决策
+      
+    </span>
+</a>
+<nav aria-label="2. 设计决策" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#21">
+<span class="md-ellipsis">
+      
+        2.1 为什么需要配置优先级？
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#22-map">
+<span class="md-ellipsis">
+      
+        2.2 为什么使用结构体而非 map？
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#23">
+<span class="md-ellipsis">
+      
+        2.3 为什么敏感配置只通过环境变量？
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3">
+<span class="md-ellipsis">
+      
+        3. 配置结构定义
+      
+    </span>
+</a>
+<nav aria-label="3. 配置结构定义" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#31">
+<span class="md-ellipsis">
+      
+        3.1 主配置结构
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#32">
+<span class="md-ellipsis">
+      
+        3.2 渠道配置结构
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4">
+<span class="md-ellipsis">
+      
+        4. 配置来源设计
+      
+    </span>
+</a>
+<nav aria-label="4. 配置来源设计" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#41">
+<span class="md-ellipsis">
+      
+        4.1 配置来源优先级
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#42">
+<span class="md-ellipsis">
+      
+        4.2 环境变量映射
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#43">
+<span class="md-ellipsis">
+      
+        4.3 配置文件格式
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5">
+<span class="md-ellipsis">
+      
+        5. 默认值设计
+      
+    </span>
+</a>
+<nav aria-label="5. 默认值设计" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#51">
+<span class="md-ellipsis">
+      
+        5.1 默认配置
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#52">
+<span class="md-ellipsis">
+      
+        5.2 默认值设置方式
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6">
+<span class="md-ellipsis">
+      
+        6. 配置加载流程
+      
+    </span>
+</a>
+<nav aria-label="6. 配置加载流程" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#61">
+<span class="md-ellipsis">
+      
+        6.1 加载流程
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#62">
+<span class="md-ellipsis">
+      
+        6.2 配置验证
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7">
+<span class="md-ellipsis">
+      
+        7. 与其他模块的关系
+      
+    </span>
+</a>
+<nav aria-label="7. 与其他模块的关系" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#71">
+<span class="md-ellipsis">
+      
+        7.1 依赖关系
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#72">
+<span class="md-ellipsis">
+      
+        7.2 使用方式
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8">
+<span class="md-ellipsis">
+      
+        8. 约束与限制
+      
+    </span>
+</a>
+<nav aria-label="8. 约束与限制" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#81">
+<span class="md-ellipsis">
+      
+        8.1 配置约束
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#82">
+<span class="md-ellipsis">
+      
+        8.2 环境变量约束
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9">
+<span class="md-ellipsis">
+      
+        9. 使用场景
+      
+    </span>
+</a>
+<nav aria-label="9. 使用场景" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#91">
+<span class="md-ellipsis">
+      
+        9.1 开发环境
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#92">
+<span class="md-ellipsis">
+      
+        9.2 生产环境
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#93-docker">
+<span class="md-ellipsis">
+      
+        9.3 Docker 部署
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10">
+<span class="md-ellipsis">
+      
+        10. 相关文档
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    测试报告
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    测试报告
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../base-line/">
+<span class="md-ellipsis">
+    
+  
+    Gort 性能基线文档
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="目录" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1">
+<span class="md-ellipsis">
+      
+        1. 模块定位
+      
+    </span>
+</a>
+<nav aria-label="1. 模块定位" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11">
+<span class="md-ellipsis">
+      
+        1.1 核心作用
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12">
+<span class="md-ellipsis">
+      
+        1.2 设计目标
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13">
+<span class="md-ellipsis">
+      
+        1.3 配置范围
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2">
+<span class="md-ellipsis">
+      
+        2. 设计决策
+      
+    </span>
+</a>
+<nav aria-label="2. 设计决策" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#21">
+<span class="md-ellipsis">
+      
+        2.1 为什么需要配置优先级？
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#22-map">
+<span class="md-ellipsis">
+      
+        2.2 为什么使用结构体而非 map？
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#23">
+<span class="md-ellipsis">
+      
+        2.3 为什么敏感配置只通过环境变量？
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3">
+<span class="md-ellipsis">
+      
+        3. 配置结构定义
+      
+    </span>
+</a>
+<nav aria-label="3. 配置结构定义" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#31">
+<span class="md-ellipsis">
+      
+        3.1 主配置结构
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#32">
+<span class="md-ellipsis">
+      
+        3.2 渠道配置结构
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4">
+<span class="md-ellipsis">
+      
+        4. 配置来源设计
+      
+    </span>
+</a>
+<nav aria-label="4. 配置来源设计" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#41">
+<span class="md-ellipsis">
+      
+        4.1 配置来源优先级
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#42">
+<span class="md-ellipsis">
+      
+        4.2 环境变量映射
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#43">
+<span class="md-ellipsis">
+      
+        4.3 配置文件格式
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5">
+<span class="md-ellipsis">
+      
+        5. 默认值设计
+      
+    </span>
+</a>
+<nav aria-label="5. 默认值设计" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#51">
+<span class="md-ellipsis">
+      
+        5.1 默认配置
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#52">
+<span class="md-ellipsis">
+      
+        5.2 默认值设置方式
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6">
+<span class="md-ellipsis">
+      
+        6. 配置加载流程
+      
+    </span>
+</a>
+<nav aria-label="6. 配置加载流程" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#61">
+<span class="md-ellipsis">
+      
+        6.1 加载流程
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#62">
+<span class="md-ellipsis">
+      
+        6.2 配置验证
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7">
+<span class="md-ellipsis">
+      
+        7. 与其他模块的关系
+      
+    </span>
+</a>
+<nav aria-label="7. 与其他模块的关系" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#71">
+<span class="md-ellipsis">
+      
+        7.1 依赖关系
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#72">
+<span class="md-ellipsis">
+      
+        7.2 使用方式
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8">
+<span class="md-ellipsis">
+      
+        8. 约束与限制
+      
+    </span>
+</a>
+<nav aria-label="8. 约束与限制" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#81">
+<span class="md-ellipsis">
+      
+        8.1 配置约束
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#82">
+<span class="md-ellipsis">
+      
+        8.2 环境变量约束
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9">
+<span class="md-ellipsis">
+      
+        9. 使用场景
+      
+    </span>
+</a>
+<nav aria-label="9. 使用场景" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#91">
+<span class="md-ellipsis">
+      
+        9.1 开发环境
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#92">
+<span class="md-ellipsis">
+      
+        9.2 生产环境
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#93-docker">
+<span class="md-ellipsis">
+      
+        9.3 Docker 部署
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10">
+<span class="md-ellipsis">
+      
+        10. 相关文档
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="_1">配置管理<a class="headerlink" href="#_1" title="Permanent link">¶</a></h1>
+<h2 id="1">1. 模块定位<a class="headerlink" href="#1" title="Permanent link">¶</a></h2>
+<h3 id="11">1.1 核心作用<a class="headerlink" href="#11" title="Permanent link">¶</a></h3>
+<p>配置管理模块负责<strong>统一管理系统的所有配置项</strong>，包括服务器端口、渠道凭证、日志级别等，提供灵活的配置来源和优先级机制。</p>
+<p><strong>一句话定义</strong>：配置管理模块是系统的"设置中心"，统一管理所有可配置项。</p>
+<h3 id="12">1.2 设计目标<a class="headerlink" href="#12" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>目标</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>多来源支持</strong></td>
+<td>支持配置文件、环境变量、命令行参数</td>
+</tr>
+<tr>
+<td><strong>优先级机制</strong></td>
+<td>明确的配置覆盖优先级</td>
+</tr>
+<tr>
+<td><strong>类型安全</strong></td>
+<td>配置项有明确的类型定义</td>
+</tr>
+<tr>
+<td><strong>易于扩展</strong></td>
+<td>新增配置项简单直接</td>
+</tr>
+</tbody>
+</table>
+<h3 id="13">1.3 配置范围<a class="headerlink" href="#13" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>graph TB
+    subgraph "配置管理范围"
+        subgraph "服务器配置"
+            S1[HTTP 端口]
+            S2[WebSocket 端口]
+            S3[Webhook 路径]
+        end
+
+        subgraph "渠道配置"
+            C1[微信 Token]
+            C2[钉钉 AppKey]
+            C3[飞书 AppID]
+        end
+
+        subgraph "运行配置"
+            R1[日志级别]
+            R2[调试模式]
+        end
+    end
+</code></pre>
+<hr/>
+<h2 id="2">2. 设计决策<a class="headerlink" href="#2" title="Permanent link">¶</a></h2>
+<h3 id="21">2.1 为什么需要配置优先级？<a class="headerlink" href="#21" title="Permanent link">¶</a></h3>
+<p><strong>问题背景</strong>：
+- 开发环境和生产环境配置不同
+- 敏感信息不应写入配置文件
+- 临时调试需要快速修改配置</p>
+<p><strong>优先级设计</strong>：</p>
+<pre class="mermaid"><code>graph TB
+    subgraph "优先级（从高到低）"
+        P1[命令行参数<br/>最高优先级]
+        P2[环境变量]
+        P3[配置文件]
+        P4[默认值<br/>最低优先级]
+    end
+
+    P1 --&gt; P2 --&gt; P3 --&gt; P4
+</code></pre>
+<p><strong>理由</strong>：
+1. <strong>命令行参数</strong>：临时调试最方便
+2. <strong>环境变量</strong>：容器化部署的标准方式
+3. <strong>配置文件</strong>：持久化配置，版本控制
+4. <strong>默认值</strong>：开箱即用</p>
+<h3 id="22-map">2.2 为什么使用结构体而非 map？<a class="headerlink" href="#22-map" title="Permanent link">¶</a></h3>
+<p><strong>决策</strong>：配置使用结构体定义，而非 <code>map[string]interface{}</code>。</p>
+<pre class="mermaid"><code>graph TB
+    subgraph "结构体方式 ✅"
+        A1["type Config struct {<br/>  Port int<br/>  Token string<br/>}"]
+        A2["类型安全<br/>IDE 自动补全<br/>编译时检查"]
+    end
+
+    subgraph "Map 方式 ❌"
+        B1["config['port'] = 8080"]
+        B2["运行时错误<br/>无类型提示<br/>难以维护"]
+    end
+
+    style A1 fill:#9f9
+</code></pre>
+<p><strong>理由</strong>：
+1. <strong>类型安全</strong>：编译时检查类型错误
+2. <strong>IDE 支持</strong>：自动补全和跳转
+3. <strong>文档化</strong>：结构体即文档</p>
+<h3 id="23">2.3 为什么敏感配置只通过环境变量？<a class="headerlink" href="#23" title="Permanent link">¶</a></h3>
+<p><strong>决策</strong>：Token、Secret 等敏感配置只支持环境变量，不支持配置文件。</p>
+<pre class="mermaid"><code>graph LR
+    subgraph "敏感配置"
+        T1[微信 Token]
+        T2[钉钉 AppSecret]
+        T3[飞书 AppSecret]
+    end
+
+    subgraph "来源"
+        EV[环境变量 ✅]
+        CF[配置文件 ❌]
+    end
+
+    T1 --&gt; EV
+    T2 --&gt; EV
+    T3 --&gt; EV
+
+    style CF fill:#f99
+</code></pre>
+<p><strong>理由</strong>：
+1. <strong>安全</strong>：避免敏感信息提交到版本控制
+2. <strong>合规</strong>：符合安全最佳实践
+3. <strong>简单</strong>：无需复杂的加密机制</p>
+<hr/>
+<h2 id="3">3. 配置结构定义<a class="headerlink" href="#3" title="Permanent link">¶</a></h2>
+<h3 id="31">3.1 主配置结构<a class="headerlink" href="#31" title="Permanent link">¶</a></h3>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a><span class="c1">// Config 主配置结构</span>
+<a href="#__codelineno-0-2" id="__codelineno-0-2" name="__codelineno-0-2"></a><span class="kd">type</span><span class="w"> </span><span class="nx">Config</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-0-3" id="__codelineno-0-3" name="__codelineno-0-3"></a><span class="w">    </span><span class="nx">Server</span><span class="w">   </span><span class="nx">ServerConfig</span><span class="w">   </span><span class="s">`json:"server"`</span><span class="w">   </span><span class="c1">// 服务器配置</span>
+<a href="#__codelineno-0-4" id="__codelineno-0-4" name="__codelineno-0-4"></a><span class="w">    </span><span class="nx">Channels</span><span class="w"> </span><span class="nx">ChannelsConfig</span><span class="w"> </span><span class="s">`json:"channels"`</span><span class="w"> </span><span class="c1">// 渠道配置</span>
+<a href="#__codelineno-0-5" id="__codelineno-0-5" name="__codelineno-0-5"></a><span class="w">    </span><span class="nx">Log</span><span class="w">      </span><span class="nx">LogConfig</span><span class="w">      </span><span class="s">`json:"log"`</span><span class="w">      </span><span class="c1">// 日志配置</span>
+<a href="#__codelineno-0-6" id="__codelineno-0-6" name="__codelineno-0-6"></a><span class="p">}</span>
+<a href="#__codelineno-0-7" id="__codelineno-0-7" name="__codelineno-0-7"></a>
+<a href="#__codelineno-0-8" id="__codelineno-0-8" name="__codelineno-0-8"></a><span class="c1">// ServerConfig 服务器配置</span>
+<a href="#__codelineno-0-9" id="__codelineno-0-9" name="__codelineno-0-9"></a><span class="kd">type</span><span class="w"> </span><span class="nx">ServerConfig</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-0-10" id="__codelineno-0-10" name="__codelineno-0-10"></a><span class="w">    </span><span class="nx">HTTPPort</span><span class="w">     </span><span class="kt">int</span><span class="w">    </span><span class="s">`json:"http_port"`</span><span class="w">     </span><span class="c1">// HTTP 服务端口</span>
+<a href="#__codelineno-0-11" id="__codelineno-0-11" name="__codelineno-0-11"></a><span class="w">    </span><span class="nx">WSPort</span><span class="w">       </span><span class="kt">int</span><span class="w">    </span><span class="s">`json:"ws_port"`</span><span class="w">       </span><span class="c1">// WebSocket 服务端口</span>
+<a href="#__codelineno-0-12" id="__codelineno-0-12" name="__codelineno-0-12"></a><span class="w">    </span><span class="nx">WebhookPath</span><span class="w">  </span><span class="kt">string</span><span class="w"> </span><span class="s">`json:"webhook_path"`</span><span class="w">  </span><span class="c1">// Webhook 路径前缀</span>
+<a href="#__codelineno-0-13" id="__codelineno-0-13" name="__codelineno-0-13"></a><span class="w">    </span><span class="nx">ReadTimeout</span><span class="w">  </span><span class="kt">int</span><span class="w">    </span><span class="s">`json:"read_timeout"`</span><span class="w">  </span><span class="c1">// 读超时（秒）</span>
+<a href="#__codelineno-0-14" id="__codelineno-0-14" name="__codelineno-0-14"></a><span class="w">    </span><span class="nx">WriteTimeout</span><span class="w"> </span><span class="kt">int</span><span class="w">    </span><span class="s">`json:"write_timeout"`</span><span class="w"> </span><span class="c1">// 写超时（秒）</span>
+<a href="#__codelineno-0-15" id="__codelineno-0-15" name="__codelineno-0-15"></a><span class="p">}</span>
+<a href="#__codelineno-0-16" id="__codelineno-0-16" name="__codelineno-0-16"></a>
+<a href="#__codelineno-0-17" id="__codelineno-0-17" name="__codelineno-0-17"></a><span class="c1">// ChannelsConfig 渠道配置集合</span>
+<a href="#__codelineno-0-18" id="__codelineno-0-18" name="__codelineno-0-18"></a><span class="kd">type</span><span class="w"> </span><span class="nx">ChannelsConfig</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-0-19" id="__codelineno-0-19" name="__codelineno-0-19"></a><span class="w">    </span><span class="nx">WeChat</span><span class="w">   </span><span class="nx">WeChatConfig</span><span class="w">   </span><span class="s">`json:"wechat"`</span><span class="w">   </span><span class="c1">// 微信配置</span>
+<a href="#__codelineno-0-20" id="__codelineno-0-20" name="__codelineno-0-20"></a><span class="w">    </span><span class="nx">DingTalk</span><span class="w"> </span><span class="nx">DingTalkConfig</span><span class="w"> </span><span class="s">`json:"dingtalk"`</span><span class="w"> </span><span class="c1">// 钉钉配置</span>
+<a href="#__codelineno-0-21" id="__codelineno-0-21" name="__codelineno-0-21"></a><span class="w">    </span><span class="nx">Feishu</span><span class="w">   </span><span class="nx">FeishuConfig</span><span class="w">   </span><span class="s">`json:"feishu"`</span><span class="w">   </span><span class="c1">// 飞书配置</span>
+<a href="#__codelineno-0-22" id="__codelineno-0-22" name="__codelineno-0-22"></a><span class="p">}</span>
+<a href="#__codelineno-0-23" id="__codelineno-0-23" name="__codelineno-0-23"></a>
+<a href="#__codelineno-0-24" id="__codelineno-0-24" name="__codelineno-0-24"></a><span class="c1">// LogConfig 日志配置</span>
+<a href="#__codelineno-0-25" id="__codelineno-0-25" name="__codelineno-0-25"></a><span class="kd">type</span><span class="w"> </span><span class="nx">LogConfig</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-0-26" id="__codelineno-0-26" name="__codelineno-0-26"></a><span class="w">    </span><span class="nx">Level</span><span class="w">  </span><span class="kt">string</span><span class="w"> </span><span class="s">`json:"level"`</span><span class="w">  </span><span class="c1">// 日志级别</span>
+<a href="#__codelineno-0-27" id="__codelineno-0-27" name="__codelineno-0-27"></a><span class="w">    </span><span class="nx">Format</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="s">`json:"format"`</span><span class="w"> </span><span class="c1">// 输出格式</span>
+<a href="#__codelineno-0-28" id="__codelineno-0-28" name="__codelineno-0-28"></a><span class="w">    </span><span class="nx">Output</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="s">`json:"output"`</span><span class="w"> </span><span class="c1">// 输出目标</span>
+<a href="#__codelineno-0-29" id="__codelineno-0-29" name="__codelineno-0-29"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="32">3.2 渠道配置结构<a class="headerlink" href="#32" title="Permanent link">¶</a></h3>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-1-1" id="__codelineno-1-1" name="__codelineno-1-1"></a><span class="c1">// WeChatConfig 微信配置</span>
+<a href="#__codelineno-1-2" id="__codelineno-1-2" name="__codelineno-1-2"></a><span class="kd">type</span><span class="w"> </span><span class="nx">WeChatConfig</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-1-3" id="__codelineno-1-3" name="__codelineno-1-3"></a><span class="w">    </span><span class="nx">Enabled</span><span class="w"> </span><span class="kt">bool</span><span class="w">   </span><span class="s">`json:"enabled"`</span><span class="w"> </span><span class="c1">// 是否启用</span>
+<a href="#__codelineno-1-4" id="__codelineno-1-4" name="__codelineno-1-4"></a><span class="w">    </span><span class="nx">Token</span><span class="w">   </span><span class="kt">string</span><span class="w"> </span><span class="s">`json:"-"`</span><span class="w">       </span><span class="c1">// 验证 Token（仅环境变量）</span>
+<a href="#__codelineno-1-5" id="__codelineno-1-5" name="__codelineno-1-5"></a><span class="w">    </span><span class="nx">AppID</span><span class="w">   </span><span class="kt">string</span><span class="w"> </span><span class="s">`json:"app_id"`</span><span class="w">  </span><span class="c1">// AppID</span>
+<a href="#__codelineno-1-6" id="__codelineno-1-6" name="__codelineno-1-6"></a><span class="w">    </span><span class="nx">Secret</span><span class="w">  </span><span class="kt">string</span><span class="w"> </span><span class="s">`json:"-"`</span><span class="w">       </span><span class="c1">// AppSecret（仅环境变量）</span>
+<a href="#__codelineno-1-7" id="__codelineno-1-7" name="__codelineno-1-7"></a><span class="p">}</span>
+<a href="#__codelineno-1-8" id="__codelineno-1-8" name="__codelineno-1-8"></a>
+<a href="#__codelineno-1-9" id="__codelineno-1-9" name="__codelineno-1-9"></a><span class="c1">// DingTalkConfig 钉钉配置</span>
+<a href="#__codelineno-1-10" id="__codelineno-1-10" name="__codelineno-1-10"></a><span class="kd">type</span><span class="w"> </span><span class="nx">DingTalkConfig</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-1-11" id="__codelineno-1-11" name="__codelineno-1-11"></a><span class="w">    </span><span class="nx">Enabled</span><span class="w">  </span><span class="kt">bool</span><span class="w">   </span><span class="s">`json:"enabled"`</span><span class="w">   </span><span class="c1">// 是否启用</span>
+<a href="#__codelineno-1-12" id="__codelineno-1-12" name="__codelineno-1-12"></a><span class="w">    </span><span class="nx">AppKey</span><span class="w">   </span><span class="kt">string</span><span class="w"> </span><span class="s">`json:"app_key"`</span><span class="w">   </span><span class="c1">// AppKey</span>
+<a href="#__codelineno-1-13" id="__codelineno-1-13" name="__codelineno-1-13"></a><span class="w">    </span><span class="nx">AppSecret</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="s">`json:"-"`</span><span class="w">        </span><span class="c1">// AppSecret（仅环境变量）</span>
+<a href="#__codelineno-1-14" id="__codelineno-1-14" name="__codelineno-1-14"></a><span class="p">}</span>
+<a href="#__codelineno-1-15" id="__codelineno-1-15" name="__codelineno-1-15"></a>
+<a href="#__codelineno-1-16" id="__codelineno-1-16" name="__codelineno-1-16"></a><span class="c1">// FeishuConfig 飞书配置</span>
+<a href="#__codelineno-1-17" id="__codelineno-1-17" name="__codelineno-1-17"></a><span class="kd">type</span><span class="w"> </span><span class="nx">FeishuConfig</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-1-18" id="__codelineno-1-18" name="__codelineno-1-18"></a><span class="w">    </span><span class="nx">Enabled</span><span class="w">  </span><span class="kt">bool</span><span class="w">   </span><span class="s">`json:"enabled"`</span><span class="w">   </span><span class="c1">// 是否启用</span>
+<a href="#__codelineno-1-19" id="__codelineno-1-19" name="__codelineno-1-19"></a><span class="w">    </span><span class="nx">AppID</span><span class="w">    </span><span class="kt">string</span><span class="w"> </span><span class="s">`json:"app_id"`</span><span class="w">    </span><span class="c1">// AppID</span>
+<a href="#__codelineno-1-20" id="__codelineno-1-20" name="__codelineno-1-20"></a><span class="w">    </span><span class="nx">AppSecret</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="s">`json:"-"`</span><span class="w">        </span><span class="c1">// AppSecret（仅环境变量）</span>
+<a href="#__codelineno-1-21" id="__codelineno-1-21" name="__codelineno-1-21"></a><span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="4">4. 配置来源设计<a class="headerlink" href="#4" title="Permanent link">¶</a></h2>
+<h3 id="41">4.1 配置来源优先级<a class="headerlink" href="#41" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>sequenceDiagram
+    participant CLI as 命令行参数
+    participant ENV as 环境变量
+    participant FILE as 配置文件
+    participant DEF as 默认值
+
+    CLI-&gt;&gt;ENV: 未设置则检查
+    ENV-&gt;&gt;FILE: 未设置则检查
+    FILE-&gt;&gt;DEF: 未设置则使用默认值
+</code></pre>
+<h3 id="42">4.2 环境变量映射<a class="headerlink" href="#42" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>配置项</th>
+<th>环境变量</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Server.HTTPPort</code></td>
+<td><code>GORT_HTTP_PORT</code></td>
+</tr>
+<tr>
+<td><code>Server.WSPort</code></td>
+<td><code>GORT_WS_PORT</code></td>
+</tr>
+<tr>
+<td><code>Channels.WeChat.Token</code></td>
+<td><code>GORT_WECHAT_TOKEN</code></td>
+</tr>
+<tr>
+<td><code>Channels.WeChat.Secret</code></td>
+<td><code>GORT_WECHAT_SECRET</code></td>
+</tr>
+<tr>
+<td><code>Channels.DingTalk.AppSecret</code></td>
+<td><code>GORT_DINGTALK_SECRET</code></td>
+</tr>
+<tr>
+<td><code>Log.Level</code></td>
+<td><code>GORT_LOG_LEVEL</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="43">4.3 配置文件格式<a class="headerlink" href="#43" title="Permanent link">¶</a></h3>
+<p>支持 JSON 和 YAML 两种格式：</p>
+<p><strong>JSON 格式</strong> (<code>config.json</code>)：
+<div class="language-json highlight"><pre><span></span><code><a href="#__codelineno-2-1" id="__codelineno-2-1" name="__codelineno-2-1"></a><span class="p">{</span>
+<a href="#__codelineno-2-2" id="__codelineno-2-2" name="__codelineno-2-2"></a><span class="w">    </span><span class="nt">"server"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-2-3" id="__codelineno-2-3" name="__codelineno-2-3"></a><span class="w">        </span><span class="nt">"http_port"</span><span class="p">:</span><span class="w"> </span><span class="mi">8080</span><span class="p">,</span>
+<a href="#__codelineno-2-4" id="__codelineno-2-4" name="__codelineno-2-4"></a><span class="w">        </span><span class="nt">"ws_port"</span><span class="p">:</span><span class="w"> </span><span class="mi">8081</span><span class="p">,</span>
+<a href="#__codelineno-2-5" id="__codelineno-2-5" name="__codelineno-2-5"></a><span class="w">        </span><span class="nt">"webhook_path"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/webhook"</span>
+<a href="#__codelineno-2-6" id="__codelineno-2-6" name="__codelineno-2-6"></a><span class="w">    </span><span class="p">},</span>
+<a href="#__codelineno-2-7" id="__codelineno-2-7" name="__codelineno-2-7"></a><span class="w">    </span><span class="nt">"channels"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-2-8" id="__codelineno-2-8" name="__codelineno-2-8"></a><span class="w">        </span><span class="nt">"wechat"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-2-9" id="__codelineno-2-9" name="__codelineno-2-9"></a><span class="w">            </span><span class="nt">"enabled"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<a href="#__codelineno-2-10" id="__codelineno-2-10" name="__codelineno-2-10"></a><span class="w">            </span><span class="nt">"app_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"wx123456"</span>
+<a href="#__codelineno-2-11" id="__codelineno-2-11" name="__codelineno-2-11"></a><span class="w">        </span><span class="p">}</span>
+<a href="#__codelineno-2-12" id="__codelineno-2-12" name="__codelineno-2-12"></a><span class="w">    </span><span class="p">},</span>
+<a href="#__codelineno-2-13" id="__codelineno-2-13" name="__codelineno-2-13"></a><span class="w">    </span><span class="nt">"log"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-2-14" id="__codelineno-2-14" name="__codelineno-2-14"></a><span class="w">        </span><span class="nt">"level"</span><span class="p">:</span><span class="w"> </span><span class="s2">"info"</span><span class="p">,</span>
+<a href="#__codelineno-2-15" id="__codelineno-2-15" name="__codelineno-2-15"></a><span class="w">        </span><span class="nt">"format"</span><span class="p">:</span><span class="w"> </span><span class="s2">"text"</span>
+<a href="#__codelineno-2-16" id="__codelineno-2-16" name="__codelineno-2-16"></a><span class="w">    </span><span class="p">}</span>
+<a href="#__codelineno-2-17" id="__codelineno-2-17" name="__codelineno-2-17"></a><span class="p">}</span>
+</code></pre></div></p>
+<p><strong>YAML 格式</strong> (<code>config.yaml</code>)：
+<div class="language-yaml highlight"><pre><span></span><code><a href="#__codelineno-3-1" id="__codelineno-3-1" name="__codelineno-3-1"></a><span class="nt">server</span><span class="p">:</span>
+<a href="#__codelineno-3-2" id="__codelineno-3-2" name="__codelineno-3-2"></a><span class="w">  </span><span class="nt">http_port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">8080</span>
+<a href="#__codelineno-3-3" id="__codelineno-3-3" name="__codelineno-3-3"></a><span class="w">  </span><span class="nt">ws_port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">8081</span>
+<a href="#__codelineno-3-4" id="__codelineno-3-4" name="__codelineno-3-4"></a><span class="w">  </span><span class="nt">webhook_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/webhook</span>
+<a href="#__codelineno-3-5" id="__codelineno-3-5" name="__codelineno-3-5"></a>
+<a href="#__codelineno-3-6" id="__codelineno-3-6" name="__codelineno-3-6"></a><span class="nt">channels</span><span class="p">:</span>
+<a href="#__codelineno-3-7" id="__codelineno-3-7" name="__codelineno-3-7"></a><span class="w">  </span><span class="nt">wechat</span><span class="p">:</span>
+<a href="#__codelineno-3-8" id="__codelineno-3-8" name="__codelineno-3-8"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a href="#__codelineno-3-9" id="__codelineno-3-9" name="__codelineno-3-9"></a><span class="w">    </span><span class="nt">app_id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">wx123456</span>
+<a href="#__codelineno-3-10" id="__codelineno-3-10" name="__codelineno-3-10"></a>
+<a href="#__codelineno-3-11" id="__codelineno-3-11" name="__codelineno-3-11"></a><span class="nt">log</span><span class="p">:</span>
+<a href="#__codelineno-3-12" id="__codelineno-3-12" name="__codelineno-3-12"></a><span class="w">  </span><span class="nt">level</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">info</span>
+<a href="#__codelineno-3-13" id="__codelineno-3-13" name="__codelineno-3-13"></a><span class="w">  </span><span class="nt">format</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">text</span>
+</code></pre></div></p>
+<hr/>
+<h2 id="5">5. 默认值设计<a class="headerlink" href="#5" title="Permanent link">¶</a></h2>
+<h3 id="51">5.1 默认配置<a class="headerlink" href="#51" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>配置项</th>
+<th>默认值</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Server.HTTPPort</code></td>
+<td>8080</td>
+<td>HTTP 服务端口</td>
+</tr>
+<tr>
+<td><code>Server.WSPort</code></td>
+<td>8081</td>
+<td>WebSocket 服务端口</td>
+</tr>
+<tr>
+<td><code>Server.WebhookPath</code></td>
+<td><code>/webhook</code></td>
+<td>Webhook 路径前缀</td>
+</tr>
+<tr>
+<td><code>Server.ReadTimeout</code></td>
+<td>30</td>
+<td>读超时（秒）</td>
+</tr>
+<tr>
+<td><code>Server.WriteTimeout</code></td>
+<td>30</td>
+<td>写超时（秒）</td>
+</tr>
+<tr>
+<td><code>Log.Level</code></td>
+<td><code>info</code></td>
+<td>日志级别</td>
+</tr>
+<tr>
+<td><code>Log.Format</code></td>
+<td><code>text</code></td>
+<td>日志格式</td>
+</tr>
+</tbody>
+</table>
+<h3 id="52">5.2 默认值设置方式<a class="headerlink" href="#52" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>graph LR
+    A[定义默认值] --&gt; B[加载配置文件]
+    B --&gt; C[加载环境变量]
+    C --&gt; D[加载命令行参数]
+    D --&gt; E[最终配置]
+</code></pre>
+<hr/>
+<h2 id="6">6. 配置加载流程<a class="headerlink" href="#6" title="Permanent link">¶</a></h2>
+<h3 id="61">6.1 加载流程<a class="headerlink" href="#61" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>flowchart TB
+    Start[开始] --&gt; CheckFile{配置文件存在?}
+
+    CheckFile --&gt;|是| LoadFile[加载配置文件]
+    CheckFile --&gt;|否| UseDefault[使用默认值]
+
+    LoadFile --&gt; MergeDefault[合并默认值]
+    UseDefault --&gt; LoadEnv
+
+    MergeDefault --&gt; LoadEnv[加载环境变量]
+    LoadEnv --&gt; LoadCLI[加载命令行参数]
+    LoadCLI --&gt; Validate[验证配置]
+
+    Validate --&gt;|有效| Done[返回配置]
+    Validate --&gt;|无效| Error[返回错误]
+</code></pre>
+<h3 id="62">6.2 配置验证<a class="headerlink" href="#62" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>验证项</th>
+<th>规则</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>端口号</td>
+<td>1-65535</td>
+</tr>
+<tr>
+<td>Webhook 路径</td>
+<td>以 <code>/</code> 开头</td>
+</tr>
+<tr>
+<td>启用的渠道</td>
+<td>必须配置必要凭证</td>
+</tr>
+<tr>
+<td>日志级别</td>
+<td>debug/info/warn/error</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="7">7. 与其他模块的关系<a class="headerlink" href="#7" title="Permanent link">¶</a></h2>
+<h3 id="71">7.1 依赖关系<a class="headerlink" href="#71" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>graph TB
+    subgraph "配置管理"
+        CFG[Config]
+        LOADER[Loader]
+    end
+
+    GW[Gateway] --&gt; CFG
+    CH[Channel] --&gt; CFG
+    LOG[Logger] --&gt; CFG
+
+    LOADER --&gt; CFG
+
+    style CFG fill:#9f9
+</code></pre>
+<h3 id="72">7.2 使用方式<a class="headerlink" href="#72" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>使用的配置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gateway</td>
+<td>Server 配置</td>
+</tr>
+<tr>
+<td>Channel</td>
+<td>渠道凭证配置</td>
+</tr>
+<tr>
+<td>Logger</td>
+<td>Log 配置</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="8">8. 约束与限制<a class="headerlink" href="#8" title="Permanent link">¶</a></h2>
+<h3 id="81">8.1 配置约束<a class="headerlink" href="#81" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>约束</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>敏感字段使用 <code>json:"-"</code></td>
+<td>不序列化到配置文件</td>
+</tr>
+<tr>
+<td>端口必须有效</td>
+<td>1-65535 范围内</td>
+</tr>
+<tr>
+<td>启用的渠道必须配置凭证</td>
+<td>否则启动失败</td>
+</tr>
+</tbody>
+</table>
+<h3 id="82">8.2 环境变量约束<a class="headerlink" href="#82" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>约束</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>使用 <code>GORT_</code> 前缀</td>
+<td>避免与其他系统冲突</td>
+</tr>
+<tr>
+<td>层级用下划线分隔</td>
+<td>如 <code>GORT_SERVER_HTTP_PORT</code></td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="9">9. 使用场景<a class="headerlink" href="#9" title="Permanent link">¶</a></h2>
+<h3 id="91">9.1 开发环境<a class="headerlink" href="#91" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>graph LR
+    subgraph "开发环境配置"
+        D1[配置文件: config.dev.yaml]
+        D2[日志级别: debug]
+        D3[端口: 8080/8081]
+    end
+</code></pre>
+<h3 id="92">9.2 生产环境<a class="headerlink" href="#92" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>graph LR
+    subgraph "生产环境配置"
+        P1[配置文件: config.prod.yaml]
+        P2[环境变量: 敏感凭证]
+        P3[日志级别: info]
+    end
+</code></pre>
+<h3 id="93-docker">9.3 Docker 部署<a class="headerlink" href="#93-docker" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>graph LR
+    subgraph "Docker 配置"
+        D1[配置文件: 挂载 Volume]
+        D2[环境变量: docker run -e]
+        D3[敏感信息: Docker Secrets]
+    end
+</code></pre>
+<hr/>
+<h2 id="10">10. 相关文档<a class="headerlink" href="#10" title="Permanent link">¶</a></h2>
+<ul>
+<li><a href="../01-gateway/">01-gateway.md</a> - Gateway 模块设计</li>
+<li><a href="../02-channel/">02-channel.md</a> - Channel 模块设计</li>
+</ul>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+</main>
+<footer class="md-footer">
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+<div class="md-copyright__highlight">
+      Copyright © 2026 Raya Info co., Ltd.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "search.suggest", "search.highlight", "content.code.highlight", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+<script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+<script src="../javascripts/mathjax.js"></script>
+<script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script type="module">import mermaid from "https://unpkg.com/mermaid@10.4.0/dist/mermaid.esm.min.mjs";
+window.mermaidConfig = {default: {
+    startOnLoad: false
+}};</script></body>
+</html>

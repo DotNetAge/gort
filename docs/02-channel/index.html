@@ -1,0 +1,1647 @@
+
+<!DOCTYPE html>
+
+<html class="no-js" lang="zh">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="一个高效可扩展的WebSocket通信网关" name="description"/>
+<meta content="Ray" name="author"/>
+<link href="https://gorort.rayainfo.cn/02-channel/" rel="canonical"/>
+<link href="../01-gateway/" rel="prev"/>
+<link href="../channel/" rel="next"/>
+<link href="../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.6" name="generator"/>
+<title>Channel - Gort 开发者文档</title>
+<link href="../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
+<link href="../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" rel="stylesheet"/>
+<script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="lime" data-md-color-primary="lime" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#channel">
+          跳转至
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header" data-md-component="header">
+<nav aria-label="页眉" class="md-header__inner md-grid">
+<a aria-label="Gort 开发者文档" class="md-header__button md-logo" data-md-component="logo" href=".." title="Gort 开发者文档">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Gort 开发者文档
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              Channel
+            
+          </span>
+</div>
+</div>
+</div>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="搜索" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="搜索" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="查找" class="md-search__options">
+<button aria-label="清空当前内容" class="md-search__icon md-icon" tabindex="-1" title="清空当前内容" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="md-header__source">
+<a class="md-source" data-md-component="source" href="https://github.com/DotNetAge/gort" title="前往仓库">
+<div class="md-source__icon md-icon">
+<svg viewbox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+</div>
+<div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<nav aria-label="标签" class="md-tabs" data-md-component="tabs">
+<div class="md-grid">
+<ul class="md-tabs__list">
+<li class="md-tabs__item md-tabs__item--active">
+<a class="md-tabs__link" href="..">
+          
+  
+  
+  Gort
+
+        </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../base-line/">
+          
+  
+  
+  测试报告
+
+        </a>
+</li>
+</ul>
+</div>
+</nav>
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="导航栏" class="md-nav md-nav--primary md-nav--lifted" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Gort 开发者文档" class="md-nav__button md-logo" data-md-component="logo" href=".." title="Gort 开发者文档">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Gort 开发者文档
+  </label>
+<div class="md-nav__source">
+<a class="md-source" data-md-component="source" href="https://github.com/DotNetAge/gort" title="前往仓库">
+<div class="md-source__icon md-icon">
+<svg viewbox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+</div>
+<div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+</div>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_1" type="checkbox"/>
+<label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="">
+<span class="md-ellipsis">
+    
+  
+    Gort
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_1_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_1">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Gort
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="..">
+<span class="md-ellipsis">
+    
+  
+    设计简介
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../01-gateway/">
+<span class="md-ellipsis">
+    
+  
+    Gateway
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    Channel
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    Channel
+  
+
+    
+  </span>
+</a>
+<nav aria-label="目录" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1">
+<span class="md-ellipsis">
+      
+        1. 模块定位
+      
+    </span>
+</a>
+<nav aria-label="1. 模块定位" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11">
+<span class="md-ellipsis">
+      
+        1.1 核心作用
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12">
+<span class="md-ellipsis">
+      
+        1.2 设计目标
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13">
+<span class="md-ellipsis">
+      
+        1.3 职责边界
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2">
+<span class="md-ellipsis">
+      
+        2. 设计决策
+      
+    </span>
+</a>
+<nav aria-label="2. 设计决策" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#21-channel">
+<span class="md-ellipsis">
+      
+        2.1 为什么需要 Channel 抽象？
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#22-webhook">
+<span class="md-ellipsis">
+      
+        2.2 为什么使用 Webhook 模式？
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#23-channel-http">
+<span class="md-ellipsis">
+      
+        2.3 为什么 Channel 不持有 HTTP 服务器？
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3">
+<span class="md-ellipsis">
+      
+        3. 接口契约
+      
+    </span>
+</a>
+<nav aria-label="3. 接口契约" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#31-channel">
+<span class="md-ellipsis">
+      
+        3.1 Channel 接口
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#32">
+<span class="md-ellipsis">
+      
+        3.2 接口设计说明
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#33">
+<span class="md-ellipsis">
+      
+        3.3 渠道类型枚举
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4">
+<span class="md-ellipsis">
+      
+        4. 消息转换设计
+      
+    </span>
+</a>
+<nav aria-label="4. 消息转换设计" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#41">
+<span class="md-ellipsis">
+      
+        4.1 入站消息转换
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#42">
+<span class="md-ellipsis">
+      
+        4.2 出站消息转换
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#43">
+<span class="md-ellipsis">
+      
+        4.3 标准消息格式
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5">
+<span class="md-ellipsis">
+      
+        5. 与其他模块的关系
+      
+    </span>
+</a>
+<nav aria-label="5. 与其他模块的关系" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#51">
+<span class="md-ellipsis">
+      
+        5.1 依赖关系
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#52">
+<span class="md-ellipsis">
+      
+        5.2 交互方式
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6">
+<span class="md-ellipsis">
+      
+        6. 约束与限制
+      
+    </span>
+</a>
+<nav aria-label="6. 约束与限制" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#61">
+<span class="md-ellipsis">
+      
+        6.1 实现约束
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#62">
+<span class="md-ellipsis">
+      
+        6.2 平台限制
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#63">
+<span class="md-ellipsis">
+      
+        6.3 错误处理约定
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7">
+<span class="md-ellipsis">
+      
+        7. 扩展指南
+      
+    </span>
+</a>
+<nav aria-label="7. 扩展指南" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#71">
+<span class="md-ellipsis">
+      
+        7.1 新增渠道步骤
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#72">
+<span class="md-ellipsis">
+      
+        7.2 实现检查清单
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8">
+<span class="md-ellipsis">
+      
+        8. 使用场景
+      
+    </span>
+</a>
+<nav aria-label="8. 使用场景" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#81">
+<span class="md-ellipsis">
+      
+        8.1 微信渠道示例
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#82">
+<span class="md-ellipsis">
+      
+        8.2 钉钉渠道示例
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9">
+<span class="md-ellipsis">
+      
+        9. 相关文档
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--section md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_1_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_1_4" id="__nav_1_4_label" tabindex="">
+<span class="md-ellipsis">
+    
+  
+    配置指南
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_1_4_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_1_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    配置指南
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/">
+<span class="md-ellipsis">
+    
+  
+    总览
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/01-channel-dingtalk/">
+<span class="md-ellipsis">
+    
+  
+    钉钉
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/02-channel-feishu/">
+<span class="md-ellipsis">
+    
+  
+    飞书
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/03-channel-telegram/">
+<span class="md-ellipsis">
+    
+  
+    Telegram
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/04-channel-wechat/">
+<span class="md-ellipsis">
+    
+  
+    微信公众号
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/05-channel-whatsapp/">
+<span class="md-ellipsis">
+    
+  
+    WhatsApp
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/06-channel-imessage/">
+<span class="md-ellipsis">
+    
+  
+    iMessage
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/07-channel-messenger/">
+<span class="md-ellipsis">
+    
+  
+    Facebook Messenger
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/08-channel-wecom/">
+<span class="md-ellipsis">
+    
+  
+    企业微信配置指南
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/09-channel-slack/">
+<span class="md-ellipsis">
+    
+  
+    Slack
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/10-channel-discord/">
+<span class="md-ellipsis">
+    
+  
+    Discord
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03-session-manager/">
+<span class="md-ellipsis">
+    
+  
+    SessionManager
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04-middleware/">
+<span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../05-message/">
+<span class="md-ellipsis">
+    
+  
+    Message
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../06-config/">
+<span class="md-ellipsis">
+    
+  
+    配置管理
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    测试报告
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    测试报告
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../base-line/">
+<span class="md-ellipsis">
+    
+  
+    Gort 性能基线文档
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="目录" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1">
+<span class="md-ellipsis">
+      
+        1. 模块定位
+      
+    </span>
+</a>
+<nav aria-label="1. 模块定位" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11">
+<span class="md-ellipsis">
+      
+        1.1 核心作用
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12">
+<span class="md-ellipsis">
+      
+        1.2 设计目标
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13">
+<span class="md-ellipsis">
+      
+        1.3 职责边界
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2">
+<span class="md-ellipsis">
+      
+        2. 设计决策
+      
+    </span>
+</a>
+<nav aria-label="2. 设计决策" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#21-channel">
+<span class="md-ellipsis">
+      
+        2.1 为什么需要 Channel 抽象？
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#22-webhook">
+<span class="md-ellipsis">
+      
+        2.2 为什么使用 Webhook 模式？
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#23-channel-http">
+<span class="md-ellipsis">
+      
+        2.3 为什么 Channel 不持有 HTTP 服务器？
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3">
+<span class="md-ellipsis">
+      
+        3. 接口契约
+      
+    </span>
+</a>
+<nav aria-label="3. 接口契约" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#31-channel">
+<span class="md-ellipsis">
+      
+        3.1 Channel 接口
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#32">
+<span class="md-ellipsis">
+      
+        3.2 接口设计说明
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#33">
+<span class="md-ellipsis">
+      
+        3.3 渠道类型枚举
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4">
+<span class="md-ellipsis">
+      
+        4. 消息转换设计
+      
+    </span>
+</a>
+<nav aria-label="4. 消息转换设计" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#41">
+<span class="md-ellipsis">
+      
+        4.1 入站消息转换
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#42">
+<span class="md-ellipsis">
+      
+        4.2 出站消息转换
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#43">
+<span class="md-ellipsis">
+      
+        4.3 标准消息格式
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5">
+<span class="md-ellipsis">
+      
+        5. 与其他模块的关系
+      
+    </span>
+</a>
+<nav aria-label="5. 与其他模块的关系" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#51">
+<span class="md-ellipsis">
+      
+        5.1 依赖关系
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#52">
+<span class="md-ellipsis">
+      
+        5.2 交互方式
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6">
+<span class="md-ellipsis">
+      
+        6. 约束与限制
+      
+    </span>
+</a>
+<nav aria-label="6. 约束与限制" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#61">
+<span class="md-ellipsis">
+      
+        6.1 实现约束
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#62">
+<span class="md-ellipsis">
+      
+        6.2 平台限制
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#63">
+<span class="md-ellipsis">
+      
+        6.3 错误处理约定
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7">
+<span class="md-ellipsis">
+      
+        7. 扩展指南
+      
+    </span>
+</a>
+<nav aria-label="7. 扩展指南" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#71">
+<span class="md-ellipsis">
+      
+        7.1 新增渠道步骤
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#72">
+<span class="md-ellipsis">
+      
+        7.2 实现检查清单
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8">
+<span class="md-ellipsis">
+      
+        8. 使用场景
+      
+    </span>
+</a>
+<nav aria-label="8. 使用场景" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#81">
+<span class="md-ellipsis">
+      
+        8.1 微信渠道示例
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#82">
+<span class="md-ellipsis">
+      
+        8.2 钉钉渠道示例
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9">
+<span class="md-ellipsis">
+      
+        9. 相关文档
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="channel">Channel<a class="headerlink" href="#channel" title="Permanent link">¶</a></h1>
+<h2 id="1">1. 模块定位<a class="headerlink" href="#1" title="Permanent link">¶</a></h2>
+<h3 id="11">1.1 核心作用<a class="headerlink" href="#11" title="Permanent link">¶</a></h3>
+<p>Channel 是<strong>协议适配器</strong>，负责将外部 IM 平台（微信、钉钉、飞书等）的异构协议转换为系统内部的标准消息格式。</p>
+<p><strong>一句话定义</strong>：Channel 是外部平台与 gort 之间的"翻译官"，负责协议转换和消息标准化。</p>
+<h3 id="12">1.2 设计目标<a class="headerlink" href="#12" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>目标</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>协议适配</strong></td>
+<td>将各平台的 Webhook 协议转换为标准 Message</td>
+</tr>
+<tr>
+<td><strong>签名验证</strong></td>
+<td>验证来自平台的请求签名，确保安全性</td>
+</tr>
+<tr>
+<td><strong>消息标准化</strong></td>
+<td>屏蔽平台差异，向上提供统一接口</td>
+</tr>
+<tr>
+<td><strong>可扩展</strong></td>
+<td>新增平台只需实现 Channel 接口</td>
+</tr>
+</tbody>
+</table>
+<h3 id="13">1.3 职责边界<a class="headerlink" href="#13" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>graph TB
+    subgraph "Channel 职责范围"
+        subgraph "✅ 负责"
+            A1[接收 Webhook 请求]
+            A2[验证平台签名]
+            A3[解析平台协议]
+            A4[转换为标准 Message]
+            A5[发送消息到平台 API]
+        end
+        subgraph "❌ 不负责"
+            B1[消息路由决策]
+            B2[业务逻辑处理]
+            B3[WebSocket 连接管理]
+            B4[消息持久化]
+        end
+    end
+</code></pre>
+<hr/>
+<h2 id="2">2. 设计决策<a class="headerlink" href="#2" title="Permanent link">¶</a></h2>
+<h3 id="21-channel">2.1 为什么需要 Channel 抽象？<a class="headerlink" href="#21-channel" title="Permanent link">¶</a></h3>
+<p><strong>问题背景</strong>：
+- 不同 IM 平台协议差异巨大
+- 微信、钉钉、飞书的 Webhook 格式各不相同
+- 签名验证逻辑各平台独立</p>
+<p><strong>没有 Channel 抽象的情况</strong>：</p>
+<pre class="mermaid"><code>graph LR
+    WX[微信] --&gt; GW[Gateway]
+    DT[钉钉] --&gt; GW
+    FS[飞书] --&gt; GW
+
+    subgraph "Gateway 内部"
+        WX1[微信协议解析]
+        DT1[钉钉协议解析]
+        FS1[飞书协议解析]
+        WX2[微信签名验证]
+        DT2[钉钉签名验证]
+        FS2[飞书签名验证]
+    end
+
+    style GW fill:#f99
+</code></pre>
+<blockquote>
+<p>问题：Gateway 承担过多职责，难以维护和扩展</p>
+</blockquote>
+<p><strong>有 Channel 抽象的情况</strong>：</p>
+<pre class="mermaid"><code>graph TB
+    subgraph "外部平台"
+        WX[微信]
+        DT[钉钉]
+        FS[飞书]
+    end
+
+    subgraph "Channel 层"
+        WC[WeChatChannel]
+        DC[DingTalkChannel]
+        FC[FeishuChannel]
+    end
+
+    subgraph "核心"
+        GW[Gateway]
+    end
+
+    WX --&gt; WC
+    DT --&gt; DC
+    FS --&gt; FC
+    WC --&gt; GW
+    DC --&gt; GW
+    FC --&gt; GW
+
+    style GW fill:#9f9
+</code></pre>
+<blockquote>
+<p>优势：协议适配逻辑隔离，Gateway 只处理标准消息</p>
+</blockquote>
+<h3 id="22-webhook">2.2 为什么使用 Webhook 模式？<a class="headerlink" href="#22-webhook" title="Permanent link">¶</a></h3>
+<p><strong>决策</strong>：Channel 作为 Webhook 接收端，被动接收平台推送的消息。</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant EP as 外部平台
+    participant WH as Channel Webhook
+    participant CH as Channel
+
+    EP-&gt;&gt;WH: HTTP POST (消息推送)
+    WH-&gt;&gt;CH: 触发处理
+    CH-&gt;&gt;CH: 验证签名
+    CH-&gt;&gt;CH: 解析协议
+    CH--&gt;&gt;EP: HTTP 200 OK
+</code></pre>
+<p><strong>理由</strong>：
+| 模式            | 优点               | 缺点               |
+| --------------- | ------------------ | ------------------ |
+| Webhook（推送） | 实时性好，无需轮询 | 需要公网可访问地址 |
+| 轮询（拉取）    | 无需公网地址       | 延迟高，资源浪费   |</p>
+<p><strong>选择 Webhook 的原因</strong>：
+1. 主流 IM 平台都支持 Webhook
+2. 消息实时性对聊天场景至关重要
+3. 桌面 App 可通过内网穿透解决公网访问问题</p>
+<h3 id="23-channel-http">2.3 为什么 Channel 不持有 HTTP 服务器？<a class="headerlink" href="#23-channel-http" title="Permanent link">¶</a></h3>
+<p><strong>决策</strong>：Channel 只定义 Webhook 处理逻辑，HTTP 服务器由 Gateway 统一管理。</p>
+<pre class="mermaid"><code>graph TB
+    subgraph "Gateway"
+        HTTP[HTTP Server :8080]
+    end
+
+    subgraph "Channel 注册路由"
+        R1["/webhook/wechat"]
+        R2["/webhook/dingtalk"]
+        R3["/webhook/feishu"]
+    end
+
+    WC[WeChatChannel]
+    DC[DingTalkChannel]
+    FC[FeishuChannel]
+
+    HTTP --&gt; R1 --&gt; WC
+    HTTP --&gt; R2 --&gt; DC
+    HTTP --&gt; R3 --&gt; FC
+
+    style HTTP fill:#9f9
+</code></pre>
+<p><strong>理由</strong>：
+1. <strong>简化配置</strong>：只需开放一个 HTTP 端口
+2. <strong>统一管理</strong>：日志、监控、安全控制集中处理
+3. <strong>解耦</strong>：Channel 不关心 HTTP 服务器细节</p>
+<hr/>
+<h2 id="3">3. 接口契约<a class="headerlink" href="#3" title="Permanent link">¶</a></h2>
+<h3 id="31-channel">3.1 Channel 接口<a class="headerlink" href="#31-channel" title="Permanent link">¶</a></h3>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a><span class="c1">// Channel 协议适配器接口</span>
+<a href="#__codelineno-0-2" id="__codelineno-0-2" name="__codelineno-0-2"></a><span class="kd">type</span><span class="w"> </span><span class="nx">Channel</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-0-3" id="__codelineno-0-3" name="__codelineno-0-3"></a><span class="w">    </span><span class="c1">// 基本信息</span>
+<a href="#__codelineno-0-4" id="__codelineno-0-4" name="__codelineno-0-4"></a><span class="w">    </span><span class="nx">Name</span><span class="p">()</span><span class="w"> </span><span class="kt">string</span><span class="w">              </span><span class="c1">// 渠道名称，如 "wechat"</span>
+<a href="#__codelineno-0-5" id="__codelineno-0-5" name="__codelineno-0-5"></a><span class="w">    </span><span class="nx">Type</span><span class="p">()</span><span class="w"> </span><span class="nx">ChannelType</span><span class="w">         </span><span class="c1">// 渠道类型枚举</span>
+<a href="#__codelineno-0-6" id="__codelineno-0-6" name="__codelineno-0-6"></a>
+<a href="#__codelineno-0-7" id="__codelineno-0-7" name="__codelineno-0-7"></a><span class="w">    </span><span class="c1">// 生命周期</span>
+<a href="#__codelineno-0-8" id="__codelineno-0-8" name="__codelineno-0-8"></a><span class="w">    </span><span class="nx">Start</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">handler</span><span class="w"> </span><span class="nx">MessageHandler</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span>
+<a href="#__codelineno-0-9" id="__codelineno-0-9" name="__codelineno-0-9"></a><span class="w">    </span><span class="nx">Stop</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span>
+<a href="#__codelineno-0-10" id="__codelineno-0-10" name="__codelineno-0-10"></a><span class="w">    </span><span class="nx">IsRunning</span><span class="p">()</span><span class="w"> </span><span class="kt">bool</span>
+<a href="#__codelineno-0-11" id="__codelineno-0-11" name="__codelineno-0-11"></a>
+<a href="#__codelineno-0-12" id="__codelineno-0-12" name="__codelineno-0-12"></a><span class="w">    </span><span class="c1">// 消息发送（出站）</span>
+<a href="#__codelineno-0-13" id="__codelineno-0-13" name="__codelineno-0-13"></a><span class="w">    </span><span class="nx">SendMessage</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="w"> </span><span class="o">*</span><span class="nx">Message</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span>
+<a href="#__codelineno-0-14" id="__codelineno-0-14" name="__codelineno-0-14"></a>
+<a href="#__codelineno-0-15" id="__codelineno-0-15" name="__codelineno-0-15"></a><span class="w">    </span><span class="c1">// 状态查询</span>
+<a href="#__codelineno-0-16" id="__codelineno-0-16" name="__codelineno-0-16"></a><span class="w">    </span><span class="nx">GetStatus</span><span class="p">()</span><span class="w"> </span><span class="nx">ChannelStatus</span>
+<a href="#__codelineno-0-17" id="__codelineno-0-17" name="__codelineno-0-17"></a><span class="p">}</span>
+<a href="#__codelineno-0-18" id="__codelineno-0-18" name="__codelineno-0-18"></a>
+<a href="#__codelineno-0-19" id="__codelineno-0-19" name="__codelineno-0-19"></a><span class="c1">// MessageHandler 消息处理回调</span>
+<a href="#__codelineno-0-20" id="__codelineno-0-20" name="__codelineno-0-20"></a><span class="kd">type</span><span class="w"> </span><span class="nx">MessageHandler</span><span class="w"> </span><span class="kd">func</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="w"> </span><span class="o">*</span><span class="nx">Message</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span>
+<a href="#__codelineno-0-21" id="__codelineno-0-21" name="__codelineno-0-21"></a>
+<a href="#__codelineno-0-22" id="__codelineno-0-22" name="__codelineno-0-22"></a><span class="c1">// WebhookHandler Webhook 处理接口（可选实现）</span>
+<a href="#__codelineno-0-23" id="__codelineno-0-23" name="__codelineno-0-23"></a><span class="kd">type</span><span class="w"> </span><span class="nx">WebhookHandler</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-0-24" id="__codelineno-0-24" name="__codelineno-0-24"></a><span class="w">    </span><span class="nx">HandleWebhook</span><span class="p">(</span><span class="nx">w</span><span class="w"> </span><span class="nx">http</span><span class="p">.</span><span class="nx">ResponseWriter</span><span class="p">,</span><span class="w"> </span><span class="nx">r</span><span class="w"> </span><span class="o">*</span><span class="nx">http</span><span class="p">.</span><span class="nx">Request</span><span class="p">)</span>
+<a href="#__codelineno-0-25" id="__codelineno-0-25" name="__codelineno-0-25"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="32">3.2 接口设计说明<a class="headerlink" href="#32" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>调用时机</th>
+<th>行为约定</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Name()</code></td>
+<td>任意时刻</td>
+<td>返回唯一标识符，用于路由</td>
+</tr>
+<tr>
+<td><code>Start()</code></td>
+<td>Gateway 启动时</td>
+<td>注入消息处理器，初始化资源</td>
+</tr>
+<tr>
+<td><code>Stop()</code></td>
+<td>Gateway 停止时</td>
+<td>释放资源，等待进行中的请求完成</td>
+</tr>
+<tr>
+<td><code>SendMessage()</code></td>
+<td>出站消息时</td>
+<td>将标准 Message 转换为平台格式并发送</td>
+</tr>
+<tr>
+<td><code>HandleWebhook()</code></td>
+<td>收到 Webhook 时</td>
+<td>验证签名、解析协议、调用处理器</td>
+</tr>
+</tbody>
+</table>
+<h3 id="33">3.3 渠道类型枚举<a class="headerlink" href="#33" title="Permanent link">¶</a></h3>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-1-1" id="__codelineno-1-1" name="__codelineno-1-1"></a><span class="kd">type</span><span class="w"> </span><span class="nx">ChannelType</span><span class="w"> </span><span class="kt">string</span>
+<a href="#__codelineno-1-2" id="__codelineno-1-2" name="__codelineno-1-2"></a>
+<a href="#__codelineno-1-3" id="__codelineno-1-3" name="__codelineno-1-3"></a><span class="kd">const</span><span class="w"> </span><span class="p">(</span>
+<a href="#__codelineno-1-4" id="__codelineno-1-4" name="__codelineno-1-4"></a><span class="w">    </span><span class="nx">ChannelTypeWeChat</span><span class="w">    </span><span class="nx">ChannelType</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">"wechat"</span>
+<a href="#__codelineno-1-5" id="__codelineno-1-5" name="__codelineno-1-5"></a><span class="w">    </span><span class="nx">ChannelTypeDingTalk</span><span class="w">  </span><span class="nx">ChannelType</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">"dingtalk"</span>
+<a href="#__codelineno-1-6" id="__codelineno-1-6" name="__codelineno-1-6"></a><span class="w">    </span><span class="nx">ChannelTypeFeishu</span><span class="w">    </span><span class="nx">ChannelType</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">"feishu"</span>
+<a href="#__codelineno-1-7" id="__codelineno-1-7" name="__codelineno-1-7"></a><span class="w">    </span><span class="nx">ChannelTypeTelegram</span><span class="w">  </span><span class="nx">ChannelType</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">"telegram"</span>
+<a href="#__codelineno-1-8" id="__codelineno-1-8" name="__codelineno-1-8"></a><span class="w">    </span><span class="nx">ChannelTypeMock</span><span class="w">      </span><span class="nx">ChannelType</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">"mock"</span><span class="w">    </span><span class="c1">// 用于测试</span>
+<a href="#__codelineno-1-9" id="__codelineno-1-9" name="__codelineno-1-9"></a><span class="p">)</span>
+</code></pre></div>
+<hr/>
+<h2 id="4">4. 消息转换设计<a class="headerlink" href="#4" title="Permanent link">¶</a></h2>
+<h3 id="41">4.1 入站消息转换<a class="headerlink" href="#41" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>sequenceDiagram
+    participant EP as 外部平台
+    participant WH as Webhook Handler
+    participant CH as Channel
+    participant MH as MessageHandler
+
+    EP-&gt;&gt;WH: HTTP POST (平台协议)
+    WH-&gt;&gt;CH: HandleWebhook()
+
+    CH-&gt;&gt;CH: 1. 验证签名
+    CH-&gt;&gt;CH: 2. 解析平台协议
+    CH-&gt;&gt;CH: 3. 构建标准 Message
+
+    Note over CH: Message {<br/>  ChannelID: "wechat",<br/>  From: UserInfo,<br/>  Content: "...",<br/>  Type: "text"<br/>}
+
+    CH-&gt;&gt;MH: handler(ctx, msg)
+    MH--&gt;&gt;CH: error
+    CH--&gt;&gt;WH: HTTP Response
+</code></pre>
+<h3 id="42">4.2 出站消息转换<a class="headerlink" href="#42" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>sequenceDiagram
+    participant GW as Gateway
+    participant CH as Channel
+    participant API as 平台 API
+    participant EP as 外部平台
+
+    GW-&gt;&gt;CH: SendMessage(ctx, msg)
+
+    CH-&gt;&gt;CH: 1. 验证消息有效性
+    CH-&gt;&gt;CH: 2. 转换为平台格式
+    CH-&gt;&gt;CH: 3. 构建请求参数
+
+    CH-&gt;&gt;API: HTTP POST (平台 API)
+    API-&gt;&gt;EP: 推送消息
+    API--&gt;&gt;CH: HTTP Response
+    CH--&gt;&gt;GW: error
+</code></pre>
+<h3 id="43">4.3 标准消息格式<a class="headerlink" href="#43" title="Permanent link">¶</a></h3>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-2-1" id="__codelineno-2-1" name="__codelineno-2-1"></a><span class="kd">type</span><span class="w"> </span><span class="nx">Message</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-2-2" id="__codelineno-2-2" name="__codelineno-2-2"></a><span class="w">    </span><span class="nx">ID</span><span class="w">        </span><span class="kt">string</span><span class="w">         </span><span class="c1">// 消息唯一 ID</span>
+<a href="#__codelineno-2-3" id="__codelineno-2-3" name="__codelineno-2-3"></a><span class="w">    </span><span class="nx">ChannelID</span><span class="w"> </span><span class="kt">string</span><span class="w">         </span><span class="c1">// 来源/目标渠道</span>
+<a href="#__codelineno-2-4" id="__codelineno-2-4" name="__codelineno-2-4"></a><span class="w">    </span><span class="nx">Direction</span><span class="w"> </span><span class="nx">Direction</span><span class="w">      </span><span class="c1">// inbound/outbound</span>
+<a href="#__codelineno-2-5" id="__codelineno-2-5" name="__codelineno-2-5"></a><span class="w">    </span><span class="nx">From</span><span class="w">      </span><span class="nx">UserInfo</span><span class="w">       </span><span class="c1">// 发送者信息</span>
+<a href="#__codelineno-2-6" id="__codelineno-2-6" name="__codelineno-2-6"></a><span class="w">    </span><span class="nx">To</span><span class="w">        </span><span class="nx">UserInfo</span><span class="w">       </span><span class="c1">// 接收者信息</span>
+<a href="#__codelineno-2-7" id="__codelineno-2-7" name="__codelineno-2-7"></a><span class="w">    </span><span class="nx">Content</span><span class="w">   </span><span class="kt">string</span><span class="w">         </span><span class="c1">// 消息内容</span>
+<a href="#__codelineno-2-8" id="__codelineno-2-8" name="__codelineno-2-8"></a><span class="w">    </span><span class="nx">Type</span><span class="w">      </span><span class="nx">MessageType</span><span class="w">    </span><span class="c1">// text/image/file</span>
+<a href="#__codelineno-2-9" id="__codelineno-2-9" name="__codelineno-2-9"></a><span class="w">    </span><span class="nx">Metadata</span><span class="w">  </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">any</span><span class="w"> </span><span class="c1">// 平台特定元数据</span>
+<a href="#__codelineno-2-10" id="__codelineno-2-10" name="__codelineno-2-10"></a><span class="w">    </span><span class="nx">Timestamp</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="w">      </span><span class="c1">// 时间戳</span>
+<a href="#__codelineno-2-11" id="__codelineno-2-11" name="__codelineno-2-11"></a><span class="p">}</span>
+<a href="#__codelineno-2-12" id="__codelineno-2-12" name="__codelineno-2-12"></a>
+<a href="#__codelineno-2-13" id="__codelineno-2-13" name="__codelineno-2-13"></a><span class="kd">type</span><span class="w"> </span><span class="nx">UserInfo</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-2-14" id="__codelineno-2-14" name="__codelineno-2-14"></a><span class="w">    </span><span class="nx">ID</span><span class="w">       </span><span class="kt">string</span><span class="w">  </span><span class="c1">// 平台用户 ID</span>
+<a href="#__codelineno-2-15" id="__codelineno-2-15" name="__codelineno-2-15"></a><span class="w">    </span><span class="nx">Name</span><span class="w">     </span><span class="kt">string</span><span class="w">  </span><span class="c1">// 显示名称</span>
+<a href="#__codelineno-2-16" id="__codelineno-2-16" name="__codelineno-2-16"></a><span class="w">    </span><span class="nx">Avatar</span><span class="w">   </span><span class="kt">string</span><span class="w">  </span><span class="c1">// 头像 URL</span>
+<a href="#__codelineno-2-17" id="__codelineno-2-17" name="__codelineno-2-17"></a><span class="w">    </span><span class="nx">Platform</span><span class="w"> </span><span class="kt">string</span><span class="w">  </span><span class="c1">// 所属平台</span>
+<a href="#__codelineno-2-18" id="__codelineno-2-18" name="__codelineno-2-18"></a><span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="5">5. 与其他模块的关系<a class="headerlink" href="#5" title="Permanent link">¶</a></h2>
+<h3 id="51">5.1 依赖关系<a class="headerlink" href="#51" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>graph TB
+    CH[Channel]
+
+    CH --&gt; MSG[Message<br/>标准消息格式]
+    CH --&gt; CFG[Config<br/>渠道配置]
+
+    GW[Gateway] --&gt; CH
+
+    style CH fill:#9f9
+</code></pre>
+<h3 id="52">5.2 交互方式<a class="headerlink" href="#52" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>交互方</th>
+<th>交互方式</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gateway</td>
+<td>被管理</td>
+<td>Gateway 调用 Start/Stop</td>
+</tr>
+<tr>
+<td>Gateway</td>
+<td>回调注入</td>
+<td>启动时注入 MessageHandler</td>
+</tr>
+<tr>
+<td>外部平台</td>
+<td>Webhook</td>
+<td>接收 HTTP POST 请求</td>
+</tr>
+<tr>
+<td>外部平台</td>
+<td>API 调用</td>
+<td>发送消息时调用平台 API</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="6">6. 约束与限制<a class="headerlink" href="#6" title="Permanent link">¶</a></h2>
+<h3 id="61">6.1 实现约束<a class="headerlink" href="#61" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>约束</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>必须实现 <code>Name()</code> 返回唯一标识</td>
+<td>用于路由和日志</td>
+</tr>
+<tr>
+<td><code>SendMessage</code> 必须是线程安全的</td>
+<td>可能被多个 goroutine 调用</td>
+</tr>
+<tr>
+<td>Webhook 处理必须快速返回</td>
+<td>避免平台超时重试</td>
+</tr>
+</tbody>
+</table>
+<h3 id="62">6.2 平台限制<a class="headerlink" href="#62" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>平台</th>
+<th>限制</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>微信</td>
+<td>5 秒内必须响应，消息加密</td>
+</tr>
+<tr>
+<td>钉钉</td>
+<td>签名验证必需，回调地址需配置</td>
+</tr>
+<tr>
+<td>飞书</td>
+<td>事件订阅需验证 URL</td>
+</tr>
+</tbody>
+</table>
+<h3 id="63">6.3 错误处理约定<a class="headerlink" href="#63" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>错误类型</th>
+<th>处理方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>签名验证失败</td>
+<td>返回 HTTP 401</td>
+</tr>
+<tr>
+<td>协议解析失败</td>
+<td>返回 HTTP 400</td>
+</tr>
+<tr>
+<td>处理器调用失败</td>
+<td>记录日志，返回 HTTP 500</td>
+</tr>
+<tr>
+<td>API 调用失败</td>
+<td>内部重试 3 次，记录日志</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="7">7. 扩展指南<a class="headerlink" href="#7" title="Permanent link">¶</a></h2>
+<h3 id="71">7.1 新增渠道步骤<a class="headerlink" href="#71" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>flowchart TB
+    A[1. 定义渠道类型常量] --&gt; B[2. 实现 Channel 接口]
+    B --&gt; C[3. 实现 WebhookHandler 接口]
+    C --&gt; D[4. 实现签名验证逻辑]
+    D --&gt; E[5. 实现协议解析逻辑]
+    E --&gt; F[6. 实现 SendMessage 方法]
+    F --&gt; G[7. 注册到 Gateway]
+</code></pre>
+<h3 id="72">7.2 实现检查清单<a class="headerlink" href="#72" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>检查项</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>☐ 实现 <code>Name()</code> 返回唯一标识</td>
+<td></td>
+</tr>
+<tr>
+<td>☐ 实现 <code>Type()</code> 返回渠道类型</td>
+<td></td>
+</tr>
+<tr>
+<td>☐ 实现 <code>Start()</code> 注入处理器</td>
+<td></td>
+</tr>
+<tr>
+<td>☐ 实现 <code>Stop()</code> 清理资源</td>
+<td></td>
+</tr>
+<tr>
+<td>☐ 实现 <code>HandleWebhook()</code> 处理 Webhook</td>
+<td></td>
+</tr>
+<tr>
+<td>☐ 实现 <code>SendMessage()</code> 发送消息</td>
+<td></td>
+</tr>
+<tr>
+<td>☐ 实现签名验证</td>
+<td>安全必需</td>
+</tr>
+<tr>
+<td>☐ 处理平台特定错误码</td>
+<td></td>
+</tr>
+<tr>
+<td>☐ 编写单元测试</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="8">8. 使用场景<a class="headerlink" href="#8" title="Permanent link">¶</a></h2>
+<h3 id="81">8.1 微信渠道示例<a class="headerlink" href="#81" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>sequenceDiagram
+    participant U as 微信用户
+    participant WX as 微信服务器
+    participant WC as WeChatChannel
+    participant GW as Gateway
+
+    U-&gt;&gt;WX: 发送消息
+    WX-&gt;&gt;WC: POST /webhook/wechat
+    Note right of WC: 签名验证
+    Note right of WC: XML 解析
+    Note right of WC: 构建 Message
+    WC-&gt;&gt;GW: handler(ctx, msg)
+    GW--&gt;&gt;WC: 处理完成
+    WC--&gt;&gt;WX: 200 OK
+</code></pre>
+<h3 id="82">8.2 钉钉渠道示例<a class="headerlink" href="#82" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>sequenceDiagram
+    participant U as 钉钉用户
+    participant DT as 钉钉服务器
+    participant DC as DingTalkChannel
+    participant GW as Gateway
+
+    U-&gt;&gt;DT: 发送消息
+    DT-&gt;&gt;DC: POST /webhook/dingtalk
+    Note right of DC: 签名验证
+    Note right of DC: JSON 解析
+    Note right of DC: 构建 Message
+    DC-&gt;&gt;GW: handler(ctx, msg)
+    GW--&gt;&gt;DC: 处理完成
+    DC--&gt;&gt;DT: 200 OK
+</code></pre>
+<hr/>
+<h2 id="9">9. 相关文档<a class="headerlink" href="#9" title="Permanent link">¶</a></h2>
+<ul>
+<li><a href="../01-gateway/">01-gateway.md</a> - Gateway 模块设计</li>
+<li><a href="../05-message/">05-message.md</a> - Message 数据结构</li>
+<li><a href="../06-config/">06-config.md</a> - 配置管理</li>
+</ul>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+</main>
+<footer class="md-footer">
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+<div class="md-copyright__highlight">
+      Copyright © 2026 Raya Info co., Ltd.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "search.suggest", "search.highlight", "content.code.highlight", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+<script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+<script src="../javascripts/mathjax.js"></script>
+<script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script type="module">import mermaid from "https://unpkg.com/mermaid@10.4.0/dist/mermaid.esm.min.mjs";
+window.mermaidConfig = {default: {
+    startOnLoad: false
+}};</script></body>
+</html>

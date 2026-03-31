@@ -1,0 +1,1733 @@
+
+<!DOCTYPE html>
+
+<html class="no-js" lang="zh">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="一个高效可扩展的WebSocket通信网关" name="description"/>
+<meta content="Ray" name="author"/>
+<link href="https://gorort.rayainfo.cn/04-middleware/" rel="canonical"/>
+<link href="../03-session-manager/" rel="prev"/>
+<link href="../05-message/" rel="next"/>
+<link href="../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.6" name="generator"/>
+<title>Middleware - Gort 开发者文档</title>
+<link href="../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
+<link href="../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" rel="stylesheet"/>
+<script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="lime" data-md-color-primary="lime" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#middleware">
+          跳转至
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header" data-md-component="header">
+<nav aria-label="页眉" class="md-header__inner md-grid">
+<a aria-label="Gort 开发者文档" class="md-header__button md-logo" data-md-component="logo" href=".." title="Gort 开发者文档">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Gort 开发者文档
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              Middleware
+            
+          </span>
+</div>
+</div>
+</div>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="搜索" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="搜索" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="查找" class="md-search__options">
+<button aria-label="清空当前内容" class="md-search__icon md-icon" tabindex="-1" title="清空当前内容" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="md-header__source">
+<a class="md-source" data-md-component="source" href="https://github.com/DotNetAge/gort" title="前往仓库">
+<div class="md-source__icon md-icon">
+<svg viewbox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+</div>
+<div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<nav aria-label="标签" class="md-tabs" data-md-component="tabs">
+<div class="md-grid">
+<ul class="md-tabs__list">
+<li class="md-tabs__item md-tabs__item--active">
+<a class="md-tabs__link" href="..">
+          
+  
+  
+  Gort
+
+        </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../base-line/">
+          
+  
+  
+  测试报告
+
+        </a>
+</li>
+</ul>
+</div>
+</nav>
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="导航栏" class="md-nav md-nav--primary md-nav--lifted" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Gort 开发者文档" class="md-nav__button md-logo" data-md-component="logo" href=".." title="Gort 开发者文档">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Gort 开发者文档
+  </label>
+<div class="md-nav__source">
+<a class="md-source" data-md-component="source" href="https://github.com/DotNetAge/gort" title="前往仓库">
+<div class="md-source__icon md-icon">
+<svg viewbox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+</div>
+<div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+</div>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_1" type="checkbox"/>
+<label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="">
+<span class="md-ellipsis">
+    
+  
+    Gort
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_1_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_1">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Gort
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="..">
+<span class="md-ellipsis">
+    
+  
+    设计简介
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../01-gateway/">
+<span class="md-ellipsis">
+    
+  
+    Gateway
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../02-channel/">
+<span class="md-ellipsis">
+    
+  
+    Channel
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--section md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_1_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_1_4" id="__nav_1_4_label" tabindex="">
+<span class="md-ellipsis">
+    
+  
+    配置指南
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_1_4_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_1_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    配置指南
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/">
+<span class="md-ellipsis">
+    
+  
+    总览
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/01-channel-dingtalk/">
+<span class="md-ellipsis">
+    
+  
+    钉钉
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/02-channel-feishu/">
+<span class="md-ellipsis">
+    
+  
+    飞书
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/03-channel-telegram/">
+<span class="md-ellipsis">
+    
+  
+    Telegram
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/04-channel-wechat/">
+<span class="md-ellipsis">
+    
+  
+    微信公众号
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/05-channel-whatsapp/">
+<span class="md-ellipsis">
+    
+  
+    WhatsApp
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/06-channel-imessage/">
+<span class="md-ellipsis">
+    
+  
+    iMessage
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/07-channel-messenger/">
+<span class="md-ellipsis">
+    
+  
+    Facebook Messenger
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/08-channel-wecom/">
+<span class="md-ellipsis">
+    
+  
+    企业微信配置指南
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/09-channel-slack/">
+<span class="md-ellipsis">
+    
+  
+    Slack
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/10-channel-discord/">
+<span class="md-ellipsis">
+    
+  
+    Discord
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03-session-manager/">
+<span class="md-ellipsis">
+    
+  
+    SessionManager
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+</a>
+<nav aria-label="目录" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1">
+<span class="md-ellipsis">
+      
+        1. 模块定位
+      
+    </span>
+</a>
+<nav aria-label="1. 模块定位" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11">
+<span class="md-ellipsis">
+      
+        1.1 核心作用
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12">
+<span class="md-ellipsis">
+      
+        1.2 设计目标
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13">
+<span class="md-ellipsis">
+      
+        1.3 职责边界
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2">
+<span class="md-ellipsis">
+      
+        2. 设计决策
+      
+    </span>
+</a>
+<nav aria-label="2. 设计决策" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#21">
+<span class="md-ellipsis">
+      
+        2.1 为什么使用中间件模式？
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#22">
+<span class="md-ellipsis">
+      
+        2.2 为什么使用责任链模式？
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#23">
+<span class="md-ellipsis">
+      
+        2.3 为什么中间件不处理业务错误？
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3">
+<span class="md-ellipsis">
+      
+        3. 接口契约
+      
+    </span>
+</a>
+<nav aria-label="3. 接口契约" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#31-middleware">
+<span class="md-ellipsis">
+      
+        3.1 Middleware 接口
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#32-middlewarechain">
+<span class="md-ellipsis">
+      
+        3.2 MiddlewareChain 接口
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#33">
+<span class="md-ellipsis">
+      
+        3.3 接口设计说明
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4">
+<span class="md-ellipsis">
+      
+        4. 执行流程设计
+      
+    </span>
+</a>
+<nav aria-label="4. 执行流程设计" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#41">
+<span class="md-ellipsis">
+      
+        4.1 中间件链执行流程
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#42">
+<span class="md-ellipsis">
+      
+        4.2 中间件跳过后续处理
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5">
+<span class="md-ellipsis">
+      
+        5. 内置中间件设计
+      
+    </span>
+</a>
+<nav aria-label="5. 内置中间件设计" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#51">
+<span class="md-ellipsis">
+      
+        5.1 日志中间件
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#52">
+<span class="md-ellipsis">
+      
+        5.2 认证中间件
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#53">
+<span class="md-ellipsis">
+      
+        5.3 追踪中间件
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6">
+<span class="md-ellipsis">
+      
+        6. 与其他模块的关系
+      
+    </span>
+</a>
+<nav aria-label="6. 与其他模块的关系" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#61">
+<span class="md-ellipsis">
+      
+        6.1 依赖关系
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#62">
+<span class="md-ellipsis">
+      
+        6.2 交互方式
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7">
+<span class="md-ellipsis">
+      
+        7. 约束与限制
+      
+    </span>
+</a>
+<nav aria-label="7. 约束与限制" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#71">
+<span class="md-ellipsis">
+      
+        7.1 使用约束
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#72">
+<span class="md-ellipsis">
+      
+        7.2 性能考虑
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#73">
+<span class="md-ellipsis">
+      
+        7.3 错误处理约定
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8">
+<span class="md-ellipsis">
+      
+        8. 扩展指南
+      
+    </span>
+</a>
+<nav aria-label="8. 扩展指南" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#81">
+<span class="md-ellipsis">
+      
+        8.1 自定义中间件步骤
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#82">
+<span class="md-ellipsis">
+      
+        8.2 实现检查清单
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#83">
+<span class="md-ellipsis">
+      
+        8.3 示例：自定义限流中间件
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9">
+<span class="md-ellipsis">
+      
+        9. 使用场景
+      
+    </span>
+</a>
+<nav aria-label="9. 使用场景" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#91">
+<span class="md-ellipsis">
+      
+        9.1 开发环境配置
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#92">
+<span class="md-ellipsis">
+      
+        9.2 生产环境配置
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10">
+<span class="md-ellipsis">
+      
+        10. 相关文档
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../05-message/">
+<span class="md-ellipsis">
+    
+  
+    Message
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../06-config/">
+<span class="md-ellipsis">
+    
+  
+    配置管理
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    测试报告
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    测试报告
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../base-line/">
+<span class="md-ellipsis">
+    
+  
+    Gort 性能基线文档
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="目录" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1">
+<span class="md-ellipsis">
+      
+        1. 模块定位
+      
+    </span>
+</a>
+<nav aria-label="1. 模块定位" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11">
+<span class="md-ellipsis">
+      
+        1.1 核心作用
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12">
+<span class="md-ellipsis">
+      
+        1.2 设计目标
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13">
+<span class="md-ellipsis">
+      
+        1.3 职责边界
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2">
+<span class="md-ellipsis">
+      
+        2. 设计决策
+      
+    </span>
+</a>
+<nav aria-label="2. 设计决策" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#21">
+<span class="md-ellipsis">
+      
+        2.1 为什么使用中间件模式？
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#22">
+<span class="md-ellipsis">
+      
+        2.2 为什么使用责任链模式？
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#23">
+<span class="md-ellipsis">
+      
+        2.3 为什么中间件不处理业务错误？
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3">
+<span class="md-ellipsis">
+      
+        3. 接口契约
+      
+    </span>
+</a>
+<nav aria-label="3. 接口契约" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#31-middleware">
+<span class="md-ellipsis">
+      
+        3.1 Middleware 接口
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#32-middlewarechain">
+<span class="md-ellipsis">
+      
+        3.2 MiddlewareChain 接口
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#33">
+<span class="md-ellipsis">
+      
+        3.3 接口设计说明
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4">
+<span class="md-ellipsis">
+      
+        4. 执行流程设计
+      
+    </span>
+</a>
+<nav aria-label="4. 执行流程设计" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#41">
+<span class="md-ellipsis">
+      
+        4.1 中间件链执行流程
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#42">
+<span class="md-ellipsis">
+      
+        4.2 中间件跳过后续处理
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5">
+<span class="md-ellipsis">
+      
+        5. 内置中间件设计
+      
+    </span>
+</a>
+<nav aria-label="5. 内置中间件设计" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#51">
+<span class="md-ellipsis">
+      
+        5.1 日志中间件
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#52">
+<span class="md-ellipsis">
+      
+        5.2 认证中间件
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#53">
+<span class="md-ellipsis">
+      
+        5.3 追踪中间件
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6">
+<span class="md-ellipsis">
+      
+        6. 与其他模块的关系
+      
+    </span>
+</a>
+<nav aria-label="6. 与其他模块的关系" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#61">
+<span class="md-ellipsis">
+      
+        6.1 依赖关系
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#62">
+<span class="md-ellipsis">
+      
+        6.2 交互方式
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7">
+<span class="md-ellipsis">
+      
+        7. 约束与限制
+      
+    </span>
+</a>
+<nav aria-label="7. 约束与限制" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#71">
+<span class="md-ellipsis">
+      
+        7.1 使用约束
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#72">
+<span class="md-ellipsis">
+      
+        7.2 性能考虑
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#73">
+<span class="md-ellipsis">
+      
+        7.3 错误处理约定
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8">
+<span class="md-ellipsis">
+      
+        8. 扩展指南
+      
+    </span>
+</a>
+<nav aria-label="8. 扩展指南" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#81">
+<span class="md-ellipsis">
+      
+        8.1 自定义中间件步骤
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#82">
+<span class="md-ellipsis">
+      
+        8.2 实现检查清单
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#83">
+<span class="md-ellipsis">
+      
+        8.3 示例：自定义限流中间件
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9">
+<span class="md-ellipsis">
+      
+        9. 使用场景
+      
+    </span>
+</a>
+<nav aria-label="9. 使用场景" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#91">
+<span class="md-ellipsis">
+      
+        9.1 开发环境配置
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#92">
+<span class="md-ellipsis">
+      
+        9.2 生产环境配置
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10">
+<span class="md-ellipsis">
+      
+        10. 相关文档
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="middleware">Middleware<a class="headerlink" href="#middleware" title="Permanent link">¶</a></h1>
+<h2 id="1">1. 模块定位<a class="headerlink" href="#1" title="Permanent link">¶</a></h2>
+<h3 id="11">1.1 核心作用<a class="headerlink" href="#11" title="Permanent link">¶</a></h3>
+<p>Middleware 是<strong>横切关注点处理器</strong>，提供一种可插拔的方式来处理消息的通用逻辑，如日志记录、认证授权、消息转换等。</p>
+<p><strong>一句话定义</strong>：Middleware 是消息处理的"拦截器"，在不修改核心逻辑的情况下添加通用功能。</p>
+<h3 id="12">1.2 设计目标<a class="headerlink" href="#12" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>目标</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>可插拔</strong></td>
+<td>中间件可独立添加、移除、替换</td>
+</tr>
+<tr>
+<td><strong>链式处理</strong></td>
+<td>多个中间件按顺序组成处理链</td>
+</tr>
+<tr>
+<td><strong>透明性</strong></td>
+<td>对业务逻辑透明，不侵入核心代码</td>
+</tr>
+<tr>
+<td><strong>可扩展</strong></td>
+<td>用户可自定义中间件</td>
+</tr>
+</tbody>
+</table>
+<h3 id="13">1.3 职责边界<a class="headerlink" href="#13" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>graph TB
+    subgraph "Middleware 职责范围"
+        subgraph "✅ 适合处理"
+            A1[日志记录]
+            A2[认证授权]
+            A3[请求追踪]
+            A4[消息验证]
+            A5[性能监控]
+        end
+        subgraph "❌ 不适合处理"
+            B1[业务逻辑]
+            B2[协议解析]
+            B3[消息路由]
+            B4[数据持久化]
+        end
+    end
+</code></pre>
+<hr/>
+<h2 id="2">2. 设计决策<a class="headerlink" href="#2" title="Permanent link">¶</a></h2>
+<h3 id="21">2.1 为什么使用中间件模式？<a class="headerlink" href="#21" title="Permanent link">¶</a></h3>
+<p><strong>问题背景</strong>：
+- 多个横切关注点需要处理
+- 这些关注点与业务逻辑无关
+- 需要灵活组合和配置</p>
+<p><strong>没有中间件的情况</strong>：</p>
+<pre class="mermaid"><code>graph LR
+    subgraph "业务代码中混杂"
+        A[日志代码]
+        B[认证代码]
+        C[业务逻辑]
+        D[监控代码]
+    end
+
+    A --&gt; B --&gt; C --&gt; D
+
+    style A fill:#f99
+    style B fill:#f99
+    style D fill:#f99
+</code></pre>
+<blockquote>
+<p>问题：业务代码被横切逻辑污染，难以维护</p>
+</blockquote>
+<p><strong>有中间件的情况</strong>：</p>
+<pre class="mermaid"><code>graph LR
+    subgraph "中间件链"
+        M1[Logging]
+        M2[Auth]
+        M3[Metrics]
+    end
+
+    subgraph "核心"
+        C[业务逻辑]
+    end
+
+    M1 --&gt; M2 --&gt; M3 --&gt; C
+
+    style C fill:#9f9
+</code></pre>
+<blockquote>
+<p>优势：横切逻辑与业务逻辑分离，可独立维护</p>
+</blockquote>
+<h3 id="22">2.2 为什么使用责任链模式？<a class="headerlink" href="#22" title="Permanent link">¶</a></h3>
+<p><strong>决策</strong>：中间件采用责任链模式，每个中间件决定是否继续执行下一个。</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant M1 as Middleware 1
+    participant M2 as Middleware 2
+    participant M3 as Middleware 3
+    participant H as Handler
+
+    M1-&gt;&gt;M1: 前置处理
+    M1-&gt;&gt;M2: next()
+    M2-&gt;&gt;M2: 前置处理
+    M2-&gt;&gt;M3: next()
+    M3-&gt;&gt;M3: 前置处理
+    M3-&gt;&gt;H: 执行
+    H--&gt;&gt;M3: 返回
+    M3-&gt;&gt;M3: 后置处理
+    M3--&gt;&gt;M2: 返回
+    M2-&gt;&gt;M2: 后置处理
+    M2--&gt;&gt;M1: 返回
+    M1-&gt;&gt;M1: 后置处理
+</code></pre>
+<p><strong>理由</strong>：
+1. <strong>灵活控制</strong>：中间件可决定是否继续执行
+2. <strong>前后处理</strong>：可在调用前后添加逻辑
+3. <strong>错误传播</strong>：错误可沿链向上传播</p>
+<h3 id="23">2.3 为什么中间件不处理业务错误？<a class="headerlink" href="#23" title="Permanent link">¶</a></h3>
+<p><strong>决策</strong>：中间件只处理横切逻辑，不干预业务逻辑的错误处理。</p>
+<pre class="mermaid"><code>graph TB
+    subgraph "中间件层"
+        M[Middleware]
+    end
+
+    subgraph "业务层"
+        H[Handler]
+    end
+
+    M --&gt; H
+
+    H -- "业务错误" --&gt; M
+    M -- "记录日志，继续传播" --&gt; GW[Gateway]
+
+    style M fill:#9f9
+</code></pre>
+<p><strong>理由</strong>：
+1. <strong>职责分离</strong>：中间件不应理解业务语义
+2. <strong>一致性</strong>：所有错误统一由 Gateway 处理
+3. <strong>简单性</strong>：避免复杂的错误分类逻辑</p>
+<hr/>
+<h2 id="3">3. 接口契约<a class="headerlink" href="#3" title="Permanent link">¶</a></h2>
+<h3 id="31-middleware">3.1 Middleware 接口<a class="headerlink" href="#31-middleware" title="Permanent link">¶</a></h3>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a><span class="c1">// Middleware 中间件接口</span>
+<a href="#__codelineno-0-2" id="__codelineno-0-2" name="__codelineno-0-2"></a><span class="kd">type</span><span class="w"> </span><span class="nx">Middleware</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-0-3" id="__codelineno-0-3" name="__codelineno-0-3"></a><span class="w">    </span><span class="c1">// Name 返回中间件名称，用于日志和调试</span>
+<a href="#__codelineno-0-4" id="__codelineno-0-4" name="__codelineno-0-4"></a><span class="w">    </span><span class="nx">Name</span><span class="p">()</span><span class="w"> </span><span class="kt">string</span>
+<a href="#__codelineno-0-5" id="__codelineno-0-5" name="__codelineno-0-5"></a>
+<a href="#__codelineno-0-6" id="__codelineno-0-6" name="__codelineno-0-6"></a><span class="w">    </span><span class="c1">// Handle 处理消息</span>
+<a href="#__codelineno-0-7" id="__codelineno-0-7" name="__codelineno-0-7"></a><span class="w">    </span><span class="c1">// ctx: 上下文</span>
+<a href="#__codelineno-0-8" id="__codelineno-0-8" name="__codelineno-0-8"></a><span class="w">    </span><span class="c1">// msg: 当前消息</span>
+<a href="#__codelineno-0-9" id="__codelineno-0-9" name="__codelineno-0-9"></a><span class="w">    </span><span class="c1">// next: 调用下一个中间件或最终处理器</span>
+<a href="#__codelineno-0-10" id="__codelineno-0-10" name="__codelineno-0-10"></a><span class="w">    </span><span class="nx">Handle</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="w"> </span><span class="o">*</span><span class="nx">Message</span><span class="p">,</span><span class="w"> </span><span class="nx">next</span><span class="w"> </span><span class="nx">Handler</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span>
+<a href="#__codelineno-0-11" id="__codelineno-0-11" name="__codelineno-0-11"></a><span class="p">}</span>
+<a href="#__codelineno-0-12" id="__codelineno-0-12" name="__codelineno-0-12"></a>
+<a href="#__codelineno-0-13" id="__codelineno-0-13" name="__codelineno-0-13"></a><span class="c1">// Handler 处理函数类型</span>
+<a href="#__codelineno-0-14" id="__codelineno-0-14" name="__codelineno-0-14"></a><span class="kd">type</span><span class="w"> </span><span class="nx">Handler</span><span class="w"> </span><span class="kd">func</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="w"> </span><span class="o">*</span><span class="nx">Message</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span>
+</code></pre></div>
+<h3 id="32-middlewarechain">3.2 MiddlewareChain 接口<a class="headerlink" href="#32-middlewarechain" title="Permanent link">¶</a></h3>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-1-1" id="__codelineno-1-1" name="__codelineno-1-1"></a><span class="c1">// MiddlewareChain 中间件链</span>
+<a href="#__codelineno-1-2" id="__codelineno-1-2" name="__codelineno-1-2"></a><span class="kd">type</span><span class="w"> </span><span class="nx">MiddlewareChain</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-1-3" id="__codelineno-1-3" name="__codelineno-1-3"></a><span class="w">    </span><span class="c1">// Use 添加中间件到链末尾</span>
+<a href="#__codelineno-1-4" id="__codelineno-1-4" name="__codelineno-1-4"></a><span class="w">    </span><span class="nx">Use</span><span class="p">(</span><span class="nx">middleware</span><span class="w"> </span><span class="nx">Middleware</span><span class="p">)</span>
+<a href="#__codelineno-1-5" id="__codelineno-1-5" name="__codelineno-1-5"></a>
+<a href="#__codelineno-1-6" id="__codelineno-1-6" name="__codelineno-1-6"></a><span class="w">    </span><span class="c1">// Execute 执行中间件链</span>
+<a href="#__codelineno-1-7" id="__codelineno-1-7" name="__codelineno-1-7"></a><span class="w">    </span><span class="nx">Execute</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="w"> </span><span class="o">*</span><span class="nx">Message</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span>
+<a href="#__codelineno-1-8" id="__codelineno-1-8" name="__codelineno-1-8"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="33">3.3 接口设计说明<a class="headerlink" href="#33" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>调用时机</th>
+<th>行为约定</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Name()</code></td>
+<td>日志输出时</td>
+<td>返回可读的中间件名称</td>
+</tr>
+<tr>
+<td><code>Handle()</code></td>
+<td>消息处理时</td>
+<td>可在 next 前后添加逻辑，或直接返回错误</td>
+</tr>
+<tr>
+<td><code>Use()</code></td>
+<td>初始化时</td>
+<td>添加中间件，按添加顺序执行</td>
+</tr>
+<tr>
+<td><code>Execute()</code></td>
+<td>消息到达时</td>
+<td>按顺序执行所有中间件</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="4">4. 执行流程设计<a class="headerlink" href="#4" title="Permanent link">¶</a></h2>
+<h3 id="41">4.1 中间件链执行流程<a class="headerlink" href="#41" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>sequenceDiagram
+    participant GW as Gateway
+    participant MC as MiddlewareChain
+    participant M1 as Logging
+    participant M2 as Auth
+    participant H as Final Handler
+
+    GW-&gt;&gt;MC: Execute(ctx, msg)
+    MC-&gt;&gt;M1: Handle(ctx, msg, next)
+
+    Note over M1: 前置：记录请求
+
+    M1-&gt;&gt;M2: next(ctx, msg)
+
+    Note over M2: 前置：验证 Token
+
+    alt Token 有效
+        M2-&gt;&gt;H: next(ctx, msg)
+        H--&gt;&gt;M2: nil
+        Note over M2: 后置：无操作
+        M2--&gt;&gt;M1: nil
+        Note over M1: 后置：记录响应
+        M1--&gt;&gt;MC: nil
+        MC--&gt;&gt;GW: nil
+    else Token 无效
+        M2--&gt;&gt;M1: ErrUnauthorized
+        Note over M1: 后置：记录错误
+        M1--&gt;&gt;MC: ErrUnauthorized
+        MC--&gt;&gt;GW: ErrUnauthorized
+    end
+</code></pre>
+<h3 id="42">4.2 中间件跳过后续处理<a class="headerlink" href="#42" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>sequenceDiagram
+    participant MC as MiddlewareChain
+    participant M1 as RateLimit
+    participant M2 as Auth
+    participant H as Handler
+
+    MC-&gt;&gt;M1: Handle(ctx, msg, next)
+
+    alt 限流触发
+        M1--&gt;&gt;MC: ErrRateLimited
+        Note over M2,H: 不执行后续中间件
+    else 正常
+        M1-&gt;&gt;M2: next(ctx, msg)
+        M2-&gt;&gt;H: next(ctx, msg)
+        H--&gt;&gt;M2: nil
+        M2--&gt;&gt;M1: nil
+        M1--&gt;&gt;MC: nil
+    end
+</code></pre>
+<hr/>
+<h2 id="5">5. 内置中间件设计<a class="headerlink" href="#5" title="Permanent link">¶</a></h2>
+<h3 id="51">5.1 日志中间件<a class="headerlink" href="#51" title="Permanent link">¶</a></h3>
+<p><strong>作用</strong>：记录消息处理的请求和响应日志。</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant M as LoggingMiddleware
+    participant N as Next
+
+    M-&gt;&gt;M: 记录请求开始时间
+    M-&gt;&gt;M: 记录请求信息
+
+    M-&gt;&gt;N: next(ctx, msg)
+    N--&gt;&gt;M: error
+
+    M-&gt;&gt;M: 计算处理耗时
+    M-&gt;&gt;M: 记录响应信息
+
+    M--&gt;&gt;M: 返回 error
+</code></pre>
+<p><strong>日志格式</strong>：
+<div class="language-text highlight"><pre><span></span><code><a href="#__codelineno-2-1" id="__codelineno-2-1" name="__codelineno-2-1"></a>level=INFO msg="message processed" channel=wechat duration=15ms error=nil
+</code></pre></div></p>
+<h3 id="52">5.2 认证中间件<a class="headerlink" href="#52" title="Permanent link">¶</a></h3>
+<p><strong>作用</strong>：验证消息中的 Token 是否有效。</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant M as AuthMiddleware
+    participant N as Next
+
+    M-&gt;&gt;M: 从 Metadata 提取 Token
+
+    alt Token 存在且有效
+        M-&gt;&gt;N: next(ctx, msg)
+        N--&gt;&gt;M: error
+        M--&gt;&gt;M: 返回 error
+    else Token 无效
+        M--&gt;&gt;M: 返回 ErrUnauthorized
+    end
+</code></pre>
+<p><strong>Token 来源</strong>：
+- 入站消息：从 Webhook 参数或 Header 提取
+- 出站消息：从 WebSocket 消息 Metadata 提取</p>
+<h3 id="53">5.3 追踪中间件<a class="headerlink" href="#53" title="Permanent link">¶</a></h3>
+<p><strong>作用</strong>：为消息添加追踪 ID，便于日志关联。</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant M as TraceMiddleware
+    participant N as Next
+
+    M-&gt;&gt;M: 检查 TraceID
+
+    alt TraceID 不存在
+        M-&gt;&gt;M: 生成 TraceID
+        M-&gt;&gt;M: 添加到 msg.Metadata
+    end
+
+    M-&gt;&gt;M: 添加到 ctx
+
+    M-&gt;&gt;N: next(ctx, msg)
+    N--&gt;&gt;M: error
+    M--&gt;&gt;M: 返回 error
+</code></pre>
+<hr/>
+<h2 id="6">6. 与其他模块的关系<a class="headerlink" href="#6" title="Permanent link">¶</a></h2>
+<h3 id="61">6.1 依赖关系<a class="headerlink" href="#61" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>graph TB
+    subgraph "中间件"
+        LM[LoggingMiddleware]
+        AM[AuthMiddleware]
+        TM[TraceMiddleware]
+    end
+
+    GW[Gateway] --&gt; MC[MiddlewareChain]
+    MC --&gt; LM
+    MC --&gt; AM
+    MC --&gt; TM
+
+    style MC fill:#9f9
+</code></pre>
+<h3 id="62">6.2 交互方式<a class="headerlink" href="#62" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>交互方</th>
+<th>交互方式</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gateway</td>
+<td>注册中间件</td>
+<td>通过 Use 方法添加</td>
+</tr>
+<tr>
+<td>Gateway</td>
+<td>执行中间件链</td>
+<td>调用 Execute 方法</td>
+</tr>
+<tr>
+<td>Message</td>
+<td>读写数据</td>
+<td>中间件可读取/修改消息</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="7">7. 约束与限制<a class="headerlink" href="#7" title="Permanent link">¶</a></h2>
+<h3 id="71">7.1 使用约束<a class="headerlink" href="#71" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>约束</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>中间件必须调用 next</td>
+<td>否则链会中断</td>
+</tr>
+<tr>
+<td>中间件不应阻塞</td>
+<td>影响整体性能</td>
+</tr>
+<tr>
+<td>中间件顺序敏感</td>
+<td>不同顺序可能产生不同结果</td>
+</tr>
+</tbody>
+</table>
+<h3 id="72">7.2 性能考虑<a class="headerlink" href="#72" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>考虑点</th>
+<th>建议</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>中间件数量</td>
+<td>不超过 10 个</td>
+</tr>
+<tr>
+<td>单个中间件耗时</td>
+<td>不超过 1ms</td>
+</tr>
+<tr>
+<td>避免重复计算</td>
+<td>使用缓存</td>
+</tr>
+</tbody>
+</table>
+<h3 id="73">7.3 错误处理约定<a class="headerlink" href="#73" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>错误类型</th>
+<th>处理方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>认证失败</td>
+<td>返回 ErrUnauthorized</td>
+</tr>
+<tr>
+<td>限流触发</td>
+<td>返回 ErrRateLimited</td>
+</tr>
+<tr>
+<td>内部错误</td>
+<td>返回原始错误</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="8">8. 扩展指南<a class="headerlink" href="#8" title="Permanent link">¶</a></h2>
+<h3 id="81">8.1 自定义中间件步骤<a class="headerlink" href="#81" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>flowchart TB
+    A[1. 实现 Middleware 接口] --&gt; B[2. 实现 Name 方法]
+    B --&gt; C[3. 实现 Handle 方法]
+    C --&gt; D[4. 在 Handle 中调用 next]
+    D --&gt; E[5. 通过 Gateway.Use 注册]
+</code></pre>
+<h3 id="82">8.2 实现检查清单<a class="headerlink" href="#82" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>检查项</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>☐ 实现 <code>Name()</code> 返回名称</td>
+<td></td>
+</tr>
+<tr>
+<td>☐ 实现 <code>Handle()</code> 方法</td>
+<td></td>
+</tr>
+<tr>
+<td>☐ 正确调用 <code>next</code></td>
+<td>必须调用</td>
+</tr>
+<tr>
+<td>☐ 处理 <code>next</code> 返回的错误</td>
+<td></td>
+</tr>
+<tr>
+<td>☐ 不修改消息的只读字段</td>
+<td></td>
+</tr>
+<tr>
+<td>☐ 编写单元测试</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="83">8.3 示例：自定义限流中间件<a class="headerlink" href="#83" title="Permanent link">¶</a></h3>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-3-1" id="__codelineno-3-1" name="__codelineno-3-1"></a><span class="kd">type</span><span class="w"> </span><span class="nx">RateLimitMiddleware</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-3-2" id="__codelineno-3-2" name="__codelineno-3-2"></a><span class="w">    </span><span class="nx">limiter</span><span class="w"> </span><span class="o">*</span><span class="nx">rate</span><span class="p">.</span><span class="nx">Limiter</span>
+<a href="#__codelineno-3-3" id="__codelineno-3-3" name="__codelineno-3-3"></a><span class="p">}</span>
+<a href="#__codelineno-3-4" id="__codelineno-3-4" name="__codelineno-3-4"></a>
+<a href="#__codelineno-3-5" id="__codelineno-3-5" name="__codelineno-3-5"></a><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">m</span><span class="w"> </span><span class="o">*</span><span class="nx">RateLimitMiddleware</span><span class="p">)</span><span class="w"> </span><span class="nx">Name</span><span class="p">()</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-3-6" id="__codelineno-3-6" name="__codelineno-3-6"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">"RateLimit"</span>
+<a href="#__codelineno-3-7" id="__codelineno-3-7" name="__codelineno-3-7"></a><span class="p">}</span>
+<a href="#__codelineno-3-8" id="__codelineno-3-8" name="__codelineno-3-8"></a>
+<a href="#__codelineno-3-9" id="__codelineno-3-9" name="__codelineno-3-9"></a><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">m</span><span class="w"> </span><span class="o">*</span><span class="nx">RateLimitMiddleware</span><span class="p">)</span><span class="w"> </span><span class="nx">Handle</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="w"> </span><span class="o">*</span><span class="nx">Message</span><span class="p">,</span><span class="w"> </span><span class="nx">next</span><span class="w"> </span><span class="nx">Handler</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-3-10" id="__codelineno-3-10" name="__codelineno-3-10"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">!</span><span class="nx">m</span><span class="p">.</span><span class="nx">limiter</span><span class="p">.</span><span class="nx">Allow</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-3-11" id="__codelineno-3-11" name="__codelineno-3-11"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nx">ErrRateLimited</span>
+<a href="#__codelineno-3-12" id="__codelineno-3-12" name="__codelineno-3-12"></a><span class="w">    </span><span class="p">}</span>
+<a href="#__codelineno-3-13" id="__codelineno-3-13" name="__codelineno-3-13"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">next</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="p">)</span>
+<a href="#__codelineno-3-14" id="__codelineno-3-14" name="__codelineno-3-14"></a><span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="9">9. 使用场景<a class="headerlink" href="#9" title="Permanent link">¶</a></h2>
+<h3 id="91">9.1 开发环境配置<a class="headerlink" href="#91" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>graph LR
+    subgraph "开发环境"
+        M1[Logging]
+        M2[Trace]
+    end
+
+    M1 --&gt; M2
+</code></pre>
+<h3 id="92">9.2 生产环境配置<a class="headerlink" href="#92" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>graph LR
+    subgraph "生产环境"
+        M1[Trace]
+        M2[Auth]
+        M3[Logging]
+        M4[Metrics]
+    end
+
+    M1 --&gt; M2 --&gt; M3 --&gt; M4
+</code></pre>
+<hr/>
+<h2 id="10">10. 相关文档<a class="headerlink" href="#10" title="Permanent link">¶</a></h2>
+<ul>
+<li><a href="../01-gateway/">01-gateway.md</a> - Gateway 模块设计</li>
+<li><a href="../05-message/">05-message.md</a> - Message 数据结构</li>
+</ul>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+</main>
+<footer class="md-footer">
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+<div class="md-copyright__highlight">
+      Copyright © 2026 Raya Info co., Ltd.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "search.suggest", "search.highlight", "content.code.highlight", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+<script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+<script src="../javascripts/mathjax.js"></script>
+<script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script type="module">import mermaid from "https://unpkg.com/mermaid@10.4.0/dist/mermaid.esm.min.mjs";
+window.mermaidConfig = {default: {
+    startOnLoad: false
+}};</script></body>
+</html>

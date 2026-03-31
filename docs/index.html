@@ -1,0 +1,2407 @@
+
+<!DOCTYPE html>
+
+<html class="no-js" lang="zh">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="一个高效可扩展的WebSocket通信网关" name="description"/>
+<meta content="Ray" name="author"/>
+<link href="https://gorort.rayainfo.cn/" rel="canonical"/>
+<link href="01-gateway/" rel="next"/>
+<link href="assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.6" name="generator"/>
+<title>设计简介 - Gort 开发者文档</title>
+<link href="assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
+<link href="assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" rel="stylesheet"/>
+<script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="lime" data-md-color-primary="lime" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#_1">
+          跳转至
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header" data-md-component="header">
+<nav aria-label="页眉" class="md-header__inner md-grid">
+<a aria-label="Gort 开发者文档" class="md-header__button md-logo" data-md-component="logo" href="." title="Gort 开发者文档">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Gort 开发者文档
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              设计简介
+            
+          </span>
+</div>
+</div>
+</div>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="搜索" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="搜索" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="查找" class="md-search__options">
+<button aria-label="清空当前内容" class="md-search__icon md-icon" tabindex="-1" title="清空当前内容" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="md-header__source">
+<a class="md-source" data-md-component="source" href="https://github.com/DotNetAge/gort" title="前往仓库">
+<div class="md-source__icon md-icon">
+<svg viewbox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+</div>
+<div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<nav aria-label="标签" class="md-tabs" data-md-component="tabs">
+<div class="md-grid">
+<ul class="md-tabs__list">
+<li class="md-tabs__item md-tabs__item--active">
+<a class="md-tabs__link" href=".">
+          
+  
+  
+  Gort
+
+        </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="base-line/">
+          
+  
+  
+  测试报告
+
+        </a>
+</li>
+</ul>
+</div>
+</nav>
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="导航栏" class="md-nav md-nav--primary md-nav--lifted" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Gort 开发者文档" class="md-nav__button md-logo" data-md-component="logo" href="." title="Gort 开发者文档">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Gort 开发者文档
+  </label>
+<div class="md-nav__source">
+<a class="md-source" data-md-component="source" href="https://github.com/DotNetAge/gort" title="前往仓库">
+<div class="md-source__icon md-icon">
+<svg viewbox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+</div>
+<div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+</div>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_1" type="checkbox"/>
+<label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="">
+<span class="md-ellipsis">
+    
+  
+    Gort
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_1_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_1">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Gort
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    设计简介
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href=".">
+<span class="md-ellipsis">
+    
+  
+    设计简介
+  
+
+    
+  </span>
+</a>
+<nav aria-label="目录" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1">
+<span class="md-ellipsis">
+      
+        1. 概述
+      
+    </span>
+</a>
+<nav aria-label="1. 概述" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11">
+<span class="md-ellipsis">
+      
+        1.1 项目定位
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12">
+<span class="md-ellipsis">
+      
+        1.2 设计目标
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13">
+<span class="md-ellipsis">
+      
+        1.3 非目标（明确排除）
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2">
+<span class="md-ellipsis">
+      
+        2. 整体架构
+      
+    </span>
+</a>
+<nav aria-label="2. 整体架构" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#21">
+<span class="md-ellipsis">
+      
+        2.1 架构图
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#22">
+<span class="md-ellipsis">
+      
+        2.2 核心架构说明
+      
+    </span>
+</a>
+<nav aria-label="2.2 核心架构说明" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#221">
+<span class="md-ellipsis">
+      
+        2.2.1 数据流向
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#222">
+<span class="md-ellipsis">
+      
+        2.2.2 组件职责
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3">
+<span class="md-ellipsis">
+      
+        3. 核心接口定义
+      
+    </span>
+</a>
+<nav aria-label="3. 核心接口定义" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#31-channel">
+<span class="md-ellipsis">
+      
+        3.1 Channel 接口
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#32-gateway">
+<span class="md-ellipsis">
+      
+        3.2 Gateway 接口
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#33">
+<span class="md-ellipsis">
+      
+        3.3 核心数据结构
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4">
+<span class="md-ellipsis">
+      
+        4. 组件详细设计
+      
+    </span>
+</a>
+<nav aria-label="4. 组件详细设计" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#41-channel">
+<span class="md-ellipsis">
+      
+        4.1 Channel 层设计
+      
+    </span>
+</a>
+<nav aria-label="4.1 Channel 层设计" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#411-http">
+<span class="md-ellipsis">
+      
+        4.1.1 统一 HTTP 服务器
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#412-channel">
+<span class="md-ellipsis">
+      
+        4.1.2 Channel 实现示例
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#42-gateway">
+<span class="md-ellipsis">
+      
+        4.2 Gateway 层设计
+      
+    </span>
+</a>
+<nav aria-label="4.2 Gateway 层设计" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#421">
+<span class="md-ellipsis">
+      
+        4.2.1 消息处理流程
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#422-session">
+<span class="md-ellipsis">
+      
+        4.2.2 Session 管理
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#43">
+<span class="md-ellipsis">
+      
+        4.3 中间件设计
+      
+    </span>
+</a>
+<nav aria-label="4.3 中间件设计" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#431">
+<span class="md-ellipsis">
+      
+        4.3.1 日志中间件
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#432-token">
+<span class="md-ellipsis">
+      
+        4.3.2 Token 验证中间件
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5">
+<span class="md-ellipsis">
+      
+        5. 消息处理流程
+      
+    </span>
+</a>
+<nav aria-label="5. 消息处理流程" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#51">
+<span class="md-ellipsis">
+      
+        5.1 入站消息时序图
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#52">
+<span class="md-ellipsis">
+      
+        5.2 出站消息时序图
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6">
+<span class="md-ellipsis">
+      
+        6. 配置管理
+      
+    </span>
+</a>
+<nav aria-label="6. 配置管理" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#61">
+<span class="md-ellipsis">
+      
+        6.1 配置优先级
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#62">
+<span class="md-ellipsis">
+      
+        6.2 配置结构
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#63">
+<span class="md-ellipsis">
+      
+        6.3 环境变量命名
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7">
+<span class="md-ellipsis">
+      
+        7. 错误处理与重试
+      
+    </span>
+</a>
+<nav aria-label="7. 错误处理与重试" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#71">
+<span class="md-ellipsis">
+      
+        7.1 错误分类
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#72">
+<span class="md-ellipsis">
+      
+        7.2 重试策略
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8">
+<span class="md-ellipsis">
+      
+        8. 安全措施
+      
+    </span>
+</a>
+<nav aria-label="8. 安全措施" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#81-webhook">
+<span class="md-ellipsis">
+      
+        8.1 Webhook 安全
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#82-websocket">
+<span class="md-ellipsis">
+      
+        8.2 WebSocket 安全
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9">
+<span class="md-ellipsis">
+      
+        9. 监控与日志
+      
+    </span>
+</a>
+<nav aria-label="9. 监控与日志" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#91">
+<span class="md-ellipsis">
+      
+        9.1 关键指标
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#92">
+<span class="md-ellipsis">
+      
+        9.2 日志规范
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10">
+<span class="md-ellipsis">
+      
+        10. 优化变更总结
+      
+    </span>
+</a>
+<nav aria-label="10. 优化变更总结" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#101">
+<span class="md-ellipsis">
+      
+        10.1 移除的过度设计
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#102">
+<span class="md-ellipsis">
+      
+        10.2 修复的逻辑谬误
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#103">
+<span class="md-ellipsis">
+      
+        10.3 补充的缺失组件
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11_1">
+<span class="md-ellipsis">
+      
+        11. 使用示例
+      
+    </span>
+</a>
+<nav aria-label="11. 使用示例" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#111">
+<span class="md-ellipsis">
+      
+        11.1 基础使用
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12_1">
+<span class="md-ellipsis">
+      
+        12. 附录
+      
+    </span>
+</a>
+<nav aria-label="12. 附录" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#121">
+<span class="md-ellipsis">
+      
+        12.1 术语表
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#122">
+<span class="md-ellipsis">
+      
+        12.2 技术选型
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="01-gateway/">
+<span class="md-ellipsis">
+    
+  
+    Gateway
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="02-channel/">
+<span class="md-ellipsis">
+    
+  
+    Channel
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--section md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_1_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_1_4" id="__nav_1_4_label" tabindex="">
+<span class="md-ellipsis">
+    
+  
+    配置指南
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_1_4_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_1_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    配置指南
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="channel/">
+<span class="md-ellipsis">
+    
+  
+    总览
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="channel/01-channel-dingtalk/">
+<span class="md-ellipsis">
+    
+  
+    钉钉
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="channel/02-channel-feishu/">
+<span class="md-ellipsis">
+    
+  
+    飞书
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="channel/03-channel-telegram/">
+<span class="md-ellipsis">
+    
+  
+    Telegram
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="channel/04-channel-wechat/">
+<span class="md-ellipsis">
+    
+  
+    微信公众号
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="channel/05-channel-whatsapp/">
+<span class="md-ellipsis">
+    
+  
+    WhatsApp
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="channel/06-channel-imessage/">
+<span class="md-ellipsis">
+    
+  
+    iMessage
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="channel/07-channel-messenger/">
+<span class="md-ellipsis">
+    
+  
+    Facebook Messenger
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="channel/08-channel-wecom/">
+<span class="md-ellipsis">
+    
+  
+    企业微信配置指南
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="channel/09-channel-slack/">
+<span class="md-ellipsis">
+    
+  
+    Slack
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="channel/10-channel-discord/">
+<span class="md-ellipsis">
+    
+  
+    Discord
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="03-session-manager/">
+<span class="md-ellipsis">
+    
+  
+    SessionManager
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="04-middleware/">
+<span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="05-message/">
+<span class="md-ellipsis">
+    
+  
+    Message
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="06-config/">
+<span class="md-ellipsis">
+    
+  
+    配置管理
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    测试报告
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    测试报告
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="base-line/">
+<span class="md-ellipsis">
+    
+  
+    Gort 性能基线文档
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="目录" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1">
+<span class="md-ellipsis">
+      
+        1. 概述
+      
+    </span>
+</a>
+<nav aria-label="1. 概述" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11">
+<span class="md-ellipsis">
+      
+        1.1 项目定位
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12">
+<span class="md-ellipsis">
+      
+        1.2 设计目标
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13">
+<span class="md-ellipsis">
+      
+        1.3 非目标（明确排除）
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2">
+<span class="md-ellipsis">
+      
+        2. 整体架构
+      
+    </span>
+</a>
+<nav aria-label="2. 整体架构" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#21">
+<span class="md-ellipsis">
+      
+        2.1 架构图
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#22">
+<span class="md-ellipsis">
+      
+        2.2 核心架构说明
+      
+    </span>
+</a>
+<nav aria-label="2.2 核心架构说明" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#221">
+<span class="md-ellipsis">
+      
+        2.2.1 数据流向
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#222">
+<span class="md-ellipsis">
+      
+        2.2.2 组件职责
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3">
+<span class="md-ellipsis">
+      
+        3. 核心接口定义
+      
+    </span>
+</a>
+<nav aria-label="3. 核心接口定义" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#31-channel">
+<span class="md-ellipsis">
+      
+        3.1 Channel 接口
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#32-gateway">
+<span class="md-ellipsis">
+      
+        3.2 Gateway 接口
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#33">
+<span class="md-ellipsis">
+      
+        3.3 核心数据结构
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4">
+<span class="md-ellipsis">
+      
+        4. 组件详细设计
+      
+    </span>
+</a>
+<nav aria-label="4. 组件详细设计" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#41-channel">
+<span class="md-ellipsis">
+      
+        4.1 Channel 层设计
+      
+    </span>
+</a>
+<nav aria-label="4.1 Channel 层设计" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#411-http">
+<span class="md-ellipsis">
+      
+        4.1.1 统一 HTTP 服务器
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#412-channel">
+<span class="md-ellipsis">
+      
+        4.1.2 Channel 实现示例
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#42-gateway">
+<span class="md-ellipsis">
+      
+        4.2 Gateway 层设计
+      
+    </span>
+</a>
+<nav aria-label="4.2 Gateway 层设计" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#421">
+<span class="md-ellipsis">
+      
+        4.2.1 消息处理流程
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#422-session">
+<span class="md-ellipsis">
+      
+        4.2.2 Session 管理
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#43">
+<span class="md-ellipsis">
+      
+        4.3 中间件设计
+      
+    </span>
+</a>
+<nav aria-label="4.3 中间件设计" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#431">
+<span class="md-ellipsis">
+      
+        4.3.1 日志中间件
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#432-token">
+<span class="md-ellipsis">
+      
+        4.3.2 Token 验证中间件
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5">
+<span class="md-ellipsis">
+      
+        5. 消息处理流程
+      
+    </span>
+</a>
+<nav aria-label="5. 消息处理流程" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#51">
+<span class="md-ellipsis">
+      
+        5.1 入站消息时序图
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#52">
+<span class="md-ellipsis">
+      
+        5.2 出站消息时序图
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6">
+<span class="md-ellipsis">
+      
+        6. 配置管理
+      
+    </span>
+</a>
+<nav aria-label="6. 配置管理" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#61">
+<span class="md-ellipsis">
+      
+        6.1 配置优先级
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#62">
+<span class="md-ellipsis">
+      
+        6.2 配置结构
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#63">
+<span class="md-ellipsis">
+      
+        6.3 环境变量命名
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7">
+<span class="md-ellipsis">
+      
+        7. 错误处理与重试
+      
+    </span>
+</a>
+<nav aria-label="7. 错误处理与重试" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#71">
+<span class="md-ellipsis">
+      
+        7.1 错误分类
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#72">
+<span class="md-ellipsis">
+      
+        7.2 重试策略
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8">
+<span class="md-ellipsis">
+      
+        8. 安全措施
+      
+    </span>
+</a>
+<nav aria-label="8. 安全措施" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#81-webhook">
+<span class="md-ellipsis">
+      
+        8.1 Webhook 安全
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#82-websocket">
+<span class="md-ellipsis">
+      
+        8.2 WebSocket 安全
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9">
+<span class="md-ellipsis">
+      
+        9. 监控与日志
+      
+    </span>
+</a>
+<nav aria-label="9. 监控与日志" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#91">
+<span class="md-ellipsis">
+      
+        9.1 关键指标
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#92">
+<span class="md-ellipsis">
+      
+        9.2 日志规范
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10">
+<span class="md-ellipsis">
+      
+        10. 优化变更总结
+      
+    </span>
+</a>
+<nav aria-label="10. 优化变更总结" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#101">
+<span class="md-ellipsis">
+      
+        10.1 移除的过度设计
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#102">
+<span class="md-ellipsis">
+      
+        10.2 修复的逻辑谬误
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#103">
+<span class="md-ellipsis">
+      
+        10.3 补充的缺失组件
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11_1">
+<span class="md-ellipsis">
+      
+        11. 使用示例
+      
+    </span>
+</a>
+<nav aria-label="11. 使用示例" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#111">
+<span class="md-ellipsis">
+      
+        11.1 基础使用
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12_1">
+<span class="md-ellipsis">
+      
+        12. 附录
+      
+    </span>
+</a>
+<nav aria-label="12. 附录" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#121">
+<span class="md-ellipsis">
+      
+        12.1 术语表
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#122">
+<span class="md-ellipsis">
+      
+        12.2 技术选型
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="_1">设计简介<a class="headerlink" href="#_1" title="Permanent link">¶</a></h1>
+<h2 id="1">1. 概述<a class="headerlink" href="#1" title="Permanent link">¶</a></h2>
+<h3 id="11">1.1 项目定位<a class="headerlink" href="#11" title="Permanent link">¶</a></h3>
+<p>gort 是一个轻量级多渠道通信网关，专为<strong>桌面 App 单用户场景</strong>设计，提供统一的 WebSocket 聊天通信服务接入层。通过标准化的 Channel 接口抽象，实现多种即时通讯平台的统一接入和消息转发。</p>
+<h3 id="12">1.2 设计目标<a class="headerlink" href="#12" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>统一接入</strong>：为不同通信渠道提供一致的抽象接口</li>
+<li><strong>协议适配</strong>：将各种异构协议（Webhook 等）转换为标准消息格式</li>
+<li><strong>轻量简洁</strong>：针对桌面 App 单用户场景，去除不必要的复杂设计</li>
+<li><strong>易于集成</strong>：作为库嵌入桌面应用，低资源占用</li>
+<li><strong>插件化</strong>：支持渠道热插拔和动态配置</li>
+</ul>
+<h3 id="13">1.3 非目标（明确排除）<a class="headerlink" href="#13" title="Permanent link">¶</a></h3>
+<ul>
+<li>❌ 分布式部署（单实例运行）</li>
+<li>❌ 高并发海量连接（单用户场景）</li>
+<li>❌ 消息持久化存储（内存级转发）</li>
+<li>❌ 复杂限流策略（平台方已有限制）</li>
+<li>❌ 多租户隔离</li>
+</ul>
+<hr/>
+<h2 id="2">2. 整体架构<a class="headerlink" href="#2" title="Permanent link">¶</a></h2>
+<h3 id="21">2.1 架构图<a class="headerlink" href="#21" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>graph TB
+    subgraph "外部通信渠道"
+        WeChat[微信<br/>Webhook]
+        DingTalk[钉钉<br/>Webhook]
+        Feishu[飞书<br/>Webhook]
+        Telegram[Telegram<br/>Webhook]
+        Custom[其他自定义协议<br/>Webhook]
+    end
+
+    subgraph "Channel 层 - 协议适配器"
+        direction TB
+        WC_Adapter[WeChat Channel<br/>协议解析<br/>消息标准化<br/>签名验证]
+        DT_Adapter[DingTalk Channel<br/>协议解析<br/>消息标准化<br/>签名验证]
+        FS_Adapter[Feishu Channel<br/>协议解析<br/>消息标准化<br/>签名验证]
+        TG_Adapter[Telegram Channel<br/>协议解析<br/>消息标准化]
+        WH_Adapter[Generic Webhook Channel<br/>通用 Webhook<br/>协议解析]
+    end
+
+    subgraph "Gateway 层 - WebSocket 统一接入服务"
+        GW["Gateway Core<br/>消息协调<br/>会话管理<br/>生命周期控制"]
+        MW["Middleware Chain<br/>日志中间件<br/>Token 验证"]
+        Router["Message Router<br/>客户端路由"]
+        SessionMgr["Session Manager<br/>WebSocket 会话管理"]
+    end
+
+    subgraph "客户端层"
+        Browser[浏览器客户端<br/>WebSocket 连接]
+        DesktopApp[桌面 App 客户端<br/>WebSocket 连接]
+        MobileApp[移动 App 客户端<br/>WebSocket 连接]
+    end
+
+    subgraph "业务层"
+        Business[Business Logic<br/>AI 助手/业务处理]
+    end
+
+    %% 外部渠道通过 Webhook 接入 Channel
+    WeChat --&gt;|HTTP POST| WC_Adapter
+    DingTalk --&gt;|HTTP POST| DT_Adapter
+    Feishu --&gt;|HTTP POST| FS_Adapter
+    Telegram --&gt;|HTTP POST| TG_Adapter
+    Custom --&gt;|HTTP POST| WH_Adapter
+
+    %% Channel 将标准消息发送给 Gateway
+    WC_Adapter --&gt;|标准 Message| GW
+    DT_Adapter --&gt;|标准 Message| GW
+    FS_Adapter --&gt;|标准 Message| GW
+    TG_Adapter --&gt;|标准 Message| GW
+    WH_Adapter --&gt;|标准 Message| GW
+
+    %% Gateway 内部处理流程
+    GW &lt;--&gt; MW
+    MW &lt;--&gt; Router
+    Router &lt;--&gt; SessionMgr
+    SessionMgr &lt;--&gt; Business
+
+    %% Gateway 与客户端双向通信
+    SessionMgr &lt;==&gt;|WebSocket| Browser
+    SessionMgr &lt;==&gt;|WebSocket| DesktopApp
+    SessionMgr &lt;==&gt;|WebSocket| MobileApp
+
+    %% Gateway 通过 Channel 发送响应回外部渠道
+    GW -.-&gt;|SendMessage| WC_Adapter
+    WC_Adapter -.-&gt;|HTTP Response| WeChat
+</code></pre>
+<h3 id="22">2.2 核心架构说明<a class="headerlink" href="#22" title="Permanent link">¶</a></h3>
+<h4 id="221">2.2.1 数据流向<a class="headerlink" href="#221" title="Permanent link">¶</a></h4>
+<p><strong>入站流程</strong>（外部渠道 → WebSocket 客户端）：
+<div class="language-text highlight"><pre><span></span><code><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a>外部渠道 → Channel(协议适配) → Gateway.HandleChannelMessage() → 
+<a href="#__codelineno-0-2" id="__codelineno-0-2" name="__codelineno-0-2"></a>中间件处理 → 业务处理 → WebSocket 推送 → 客户端
+</code></pre></div></p>
+<p><strong>出站流程</strong>（WebSocket 客户端 → 外部渠道）：
+<div class="language-text highlight"><pre><span></span><code><a href="#__codelineno-1-1" id="__codelineno-1-1" name="__codelineno-1-1"></a>客户端 → WebSocket → Gateway.HandleClientMessage() → 
+<a href="#__codelineno-1-2" id="__codelineno-1-2" name="__codelineno-1-2"></a>中间件处理 → 业务处理 → Channel.SendMessage() → 外部渠道
+</code></pre></div></p>
+<h4 id="222">2.2.2 组件职责<a class="headerlink" href="#222" title="Permanent link">¶</a></h4>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>职责</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Channel</strong></td>
+<td>协议适配器</td>
+<td>接收 Webhook，协议转换，签名验证</td>
+</tr>
+<tr>
+<td><strong>Gateway</strong></td>
+<td>消息协调中心</td>
+<td>统一入口，消息分发，生命周期管理</td>
+</tr>
+<tr>
+<td><strong>SessionMgr</strong></td>
+<td>WebSocket 管理</td>
+<td>客户端连接、心跳、消息推送</td>
+</tr>
+<tr>
+<td><strong>Middleware</strong></td>
+<td>横切处理</td>
+<td>日志、认证</td>
+</tr>
+<tr>
+<td><strong>Router</strong></td>
+<td>客户端路由</td>
+<td>决定消息推送到哪个客户端</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="3">3. 核心接口定义<a class="headerlink" href="#3" title="Permanent link">¶</a></h2>
+<h3 id="31-channel">3.1 Channel 接口<a class="headerlink" href="#31-channel" title="Permanent link">¶</a></h3>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-2-1" id="__codelineno-2-1" name="__codelineno-2-1"></a><span class="c1">// Channel 协议适配器接口</span>
+<a href="#__codelineno-2-2" id="__codelineno-2-2" name="__codelineno-2-2"></a><span class="kd">type</span><span class="w"> </span><span class="nx">Channel</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-2-3" id="__codelineno-2-3" name="__codelineno-2-3"></a><span class="w">    </span><span class="c1">// 基本信息</span>
+<a href="#__codelineno-2-4" id="__codelineno-2-4" name="__codelineno-2-4"></a><span class="w">    </span><span class="nx">Name</span><span class="p">()</span><span class="w"> </span><span class="kt">string</span>
+<a href="#__codelineno-2-5" id="__codelineno-2-5" name="__codelineno-2-5"></a><span class="w">    </span><span class="nx">Type</span><span class="p">()</span><span class="w"> </span><span class="nx">ChannelType</span>
+<a href="#__codelineno-2-6" id="__codelineno-2-6" name="__codelineno-2-6"></a><span class="w">    </span><span class="nx">Protocol</span><span class="p">()</span><span class="w"> </span><span class="nx">ProtocolType</span>
+<a href="#__codelineno-2-7" id="__codelineno-2-7" name="__codelineno-2-7"></a>
+<a href="#__codelineno-2-8" id="__codelineno-2-8" name="__codelineno-2-8"></a><span class="w">    </span><span class="c1">// 生命周期</span>
+<a href="#__codelineno-2-9" id="__codelineno-2-9" name="__codelineno-2-9"></a><span class="w">    </span><span class="nx">Start</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">handler</span><span class="w"> </span><span class="nx">MessageHandler</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span>
+<a href="#__codelineno-2-10" id="__codelineno-2-10" name="__codelineno-2-10"></a><span class="w">    </span><span class="nx">Stop</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span>
+<a href="#__codelineno-2-11" id="__codelineno-2-11" name="__codelineno-2-11"></a><span class="w">    </span><span class="nx">IsRunning</span><span class="p">()</span><span class="w"> </span><span class="kt">bool</span>
+<a href="#__codelineno-2-12" id="__codelineno-2-12" name="__codelineno-2-12"></a>
+<a href="#__codelineno-2-13" id="__codelineno-2-13" name="__codelineno-2-13"></a><span class="w">    </span><span class="c1">// 消息发送（出站）</span>
+<a href="#__codelineno-2-14" id="__codelineno-2-14" name="__codelineno-2-14"></a><span class="w">    </span><span class="nx">SendMessage</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="w"> </span><span class="o">*</span><span class="nx">Message</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span>
+<a href="#__codelineno-2-15" id="__codelineno-2-15" name="__codelineno-2-15"></a>
+<a href="#__codelineno-2-16" id="__codelineno-2-16" name="__codelineno-2-16"></a><span class="w">    </span><span class="c1">// 状态查询</span>
+<a href="#__codelineno-2-17" id="__codelineno-2-17" name="__codelineno-2-17"></a><span class="w">    </span><span class="nx">GetStatus</span><span class="p">()</span><span class="w"> </span><span class="nx">ChannelStatus</span>
+<a href="#__codelineno-2-18" id="__codelineno-2-18" name="__codelineno-2-18"></a><span class="p">}</span>
+<a href="#__codelineno-2-19" id="__codelineno-2-19" name="__codelineno-2-19"></a>
+<a href="#__codelineno-2-20" id="__codelineno-2-20" name="__codelineno-2-20"></a><span class="c1">// MessageHandler 消息处理回调</span>
+<a href="#__codelineno-2-21" id="__codelineno-2-21" name="__codelineno-2-21"></a><span class="kd">type</span><span class="w"> </span><span class="nx">MessageHandler</span><span class="w"> </span><span class="kd">func</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="w"> </span><span class="o">*</span><span class="nx">Message</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span>
+</code></pre></div>
+<p><strong>关键变更说明</strong>：
+- 移除 <code>SetOnMessage</code>，改为 <code>Start</code> 时注入 handler，避免状态不一致
+- 移除 <code>HealthCheck</code>，桌面场景下单实例无需健康检查
+- 简化 <code>ChannelStatus</code>，移除 <code>HealthScore</code> 等过度设计字段</p>
+<h3 id="32-gateway">3.2 Gateway 接口<a class="headerlink" href="#32-gateway" title="Permanent link">¶</a></h3>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-3-1" id="__codelineno-3-1" name="__codelineno-3-1"></a><span class="c1">// Gateway WebSocket 网关接口</span>
+<a href="#__codelineno-3-2" id="__codelineno-3-2" name="__codelineno-3-2"></a><span class="kd">type</span><span class="w"> </span><span class="nx">Gateway</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-3-3" id="__codelineno-3-3" name="__codelineno-3-3"></a><span class="w">    </span><span class="c1">// 生命周期</span>
+<a href="#__codelineno-3-4" id="__codelineno-3-4" name="__codelineno-3-4"></a><span class="w">    </span><span class="nx">Start</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span>
+<a href="#__codelineno-3-5" id="__codelineno-3-5" name="__codelineno-3-5"></a><span class="w">    </span><span class="nx">Stop</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span>
+<a href="#__codelineno-3-6" id="__codelineno-3-6" name="__codelineno-3-6"></a>
+<a href="#__codelineno-3-7" id="__codelineno-3-7" name="__codelineno-3-7"></a><span class="w">    </span><span class="c1">// 消息处理（入站）</span>
+<a href="#__codelineno-3-8" id="__codelineno-3-8" name="__codelineno-3-8"></a><span class="w">    </span><span class="nx">HandleChannelMessage</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="w"> </span><span class="o">*</span><span class="nx">Message</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span>
+<a href="#__codelineno-3-9" id="__codelineno-3-9" name="__codelineno-3-9"></a>
+<a href="#__codelineno-3-10" id="__codelineno-3-10" name="__codelineno-3-10"></a><span class="w">    </span><span class="c1">// 客户端管理</span>
+<a href="#__codelineno-3-11" id="__codelineno-3-11" name="__codelineno-3-11"></a><span class="w">    </span><span class="nx">RegisterClientHandler</span><span class="p">(</span><span class="nx">handler</span><span class="w"> </span><span class="nx">ClientHandler</span><span class="p">)</span>
+<a href="#__codelineno-3-12" id="__codelineno-3-12" name="__codelineno-3-12"></a><span class="w">    </span><span class="nx">Broadcast</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="w"> </span><span class="o">*</span><span class="nx">Message</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span>
+<a href="#__codelineno-3-13" id="__codelineno-3-13" name="__codelineno-3-13"></a><span class="w">    </span><span class="nx">SendToClient</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">clientID</span><span class="w"> </span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="w"> </span><span class="o">*</span><span class="nx">Message</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span>
+<a href="#__codelineno-3-14" id="__codelineno-3-14" name="__codelineno-3-14"></a>
+<a href="#__codelineno-3-15" id="__codelineno-3-15" name="__codelineno-3-15"></a><span class="w">    </span><span class="c1">// 状态查询</span>
+<a href="#__codelineno-3-16" id="__codelineno-3-16" name="__codelineno-3-16"></a><span class="w">    </span><span class="nx">GetClientCount</span><span class="p">()</span><span class="w"> </span><span class="kt">int</span>
+<a href="#__codelineno-3-17" id="__codelineno-3-17" name="__codelineno-3-17"></a><span class="w">    </span><span class="nx">IsRunning</span><span class="p">()</span><span class="w"> </span><span class="kt">bool</span>
+<a href="#__codelineno-3-18" id="__codelineno-3-18" name="__codelineno-3-18"></a><span class="p">}</span>
+<a href="#__codelineno-3-19" id="__codelineno-3-19" name="__codelineno-3-19"></a>
+<a href="#__codelineno-3-20" id="__codelineno-3-20" name="__codelineno-3-20"></a><span class="c1">// ClientHandler 客户端消息处理器</span>
+<a href="#__codelineno-3-21" id="__codelineno-3-21" name="__codelineno-3-21"></a><span class="kd">type</span><span class="w"> </span><span class="nx">ClientHandler</span><span class="w"> </span><span class="kd">func</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">clientID</span><span class="w"> </span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="w"> </span><span class="o">*</span><span class="nx">Message</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="nx">Message</span><span class="p">,</span><span class="w"> </span><span class="kt">error</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="33">3.3 核心数据结构<a class="headerlink" href="#33" title="Permanent link">¶</a></h3>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-4-1" id="__codelineno-4-1" name="__codelineno-4-1"></a><span class="c1">// Message 标准消息格式</span>
+<a href="#__codelineno-4-2" id="__codelineno-4-2" name="__codelineno-4-2"></a><span class="kd">type</span><span class="w"> </span><span class="nx">Message</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-4-3" id="__codelineno-4-3" name="__codelineno-4-3"></a><span class="w">    </span><span class="nx">ID</span><span class="w">        </span><span class="kt">string</span><span class="w">                 </span><span class="s">`json:"id"`</span>
+<a href="#__codelineno-4-4" id="__codelineno-4-4" name="__codelineno-4-4"></a><span class="w">    </span><span class="nx">ChannelID</span><span class="w"> </span><span class="kt">string</span><span class="w">                 </span><span class="s">`json:"channel_id"`</span><span class="w">      </span><span class="c1">// 来源渠道</span>
+<a href="#__codelineno-4-5" id="__codelineno-4-5" name="__codelineno-4-5"></a><span class="w">    </span><span class="nx">Direction</span><span class="w"> </span><span class="nx">MessageDirection</span><span class="w">       </span><span class="s">`json:"direction"`</span><span class="w">       </span><span class="c1">// inbound/outbound</span>
+<a href="#__codelineno-4-6" id="__codelineno-4-6" name="__codelineno-4-6"></a><span class="w">    </span><span class="nx">From</span><span class="w">      </span><span class="nx">UserInfo</span><span class="w">               </span><span class="s">`json:"from"`</span>
+<a href="#__codelineno-4-7" id="__codelineno-4-7" name="__codelineno-4-7"></a><span class="w">    </span><span class="nx">To</span><span class="w">        </span><span class="nx">UserInfo</span><span class="w">               </span><span class="s">`json:"to"`</span>
+<a href="#__codelineno-4-8" id="__codelineno-4-8" name="__codelineno-4-8"></a><span class="w">    </span><span class="nx">Content</span><span class="w">   </span><span class="kt">string</span><span class="w">                 </span><span class="s">`json:"content"`</span>
+<a href="#__codelineno-4-9" id="__codelineno-4-9" name="__codelineno-4-9"></a><span class="w">    </span><span class="nx">Type</span><span class="w">      </span><span class="nx">MessageType</span><span class="w">            </span><span class="s">`json:"type"`</span><span class="w">            </span><span class="c1">// text/image/file</span>
+<a href="#__codelineno-4-10" id="__codelineno-4-10" name="__codelineno-4-10"></a><span class="w">    </span><span class="nx">Metadata</span><span class="w">  </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kd">interface</span><span class="p">{}</span><span class="w"> </span><span class="s">`json:"metadata"`</span>
+<a href="#__codelineno-4-11" id="__codelineno-4-11" name="__codelineno-4-11"></a><span class="w">    </span><span class="nx">Timestamp</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="w">              </span><span class="s">`json:"timestamp"`</span>
+<a href="#__codelineno-4-12" id="__codelineno-4-12" name="__codelineno-4-12"></a><span class="p">}</span>
+<a href="#__codelineno-4-13" id="__codelineno-4-13" name="__codelineno-4-13"></a>
+<a href="#__codelineno-4-14" id="__codelineno-4-14" name="__codelineno-4-14"></a><span class="c1">// UserInfo 用户信息</span>
+<a href="#__codelineno-4-15" id="__codelineno-4-15" name="__codelineno-4-15"></a><span class="kd">type</span><span class="w"> </span><span class="nx">UserInfo</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-4-16" id="__codelineno-4-16" name="__codelineno-4-16"></a><span class="w">    </span><span class="nx">ID</span><span class="w">       </span><span class="kt">string</span><span class="w"> </span><span class="s">`json:"id"`</span>
+<a href="#__codelineno-4-17" id="__codelineno-4-17" name="__codelineno-4-17"></a><span class="w">    </span><span class="nx">Name</span><span class="w">     </span><span class="kt">string</span><span class="w"> </span><span class="s">`json:"name"`</span>
+<a href="#__codelineno-4-18" id="__codelineno-4-18" name="__codelineno-4-18"></a><span class="w">    </span><span class="nx">Avatar</span><span class="w">   </span><span class="kt">string</span><span class="w"> </span><span class="s">`json:"avatar"`</span>
+<a href="#__codelineno-4-19" id="__codelineno-4-19" name="__codelineno-4-19"></a><span class="w">    </span><span class="nx">Platform</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="s">`json:"platform"`</span><span class="w"> </span><span class="c1">// wechat/dingtalk 等</span>
+<a href="#__codelineno-4-20" id="__codelineno-4-20" name="__codelineno-4-20"></a><span class="p">}</span>
+<a href="#__codelineno-4-21" id="__codelineno-4-21" name="__codelineno-4-21"></a>
+<a href="#__codelineno-4-22" id="__codelineno-4-22" name="__codelineno-4-22"></a><span class="c1">// ChannelConfig 渠道配置</span>
+<a href="#__codelineno-4-23" id="__codelineno-4-23" name="__codelineno-4-23"></a><span class="kd">type</span><span class="w"> </span><span class="nx">ChannelConfig</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-4-24" id="__codelineno-4-24" name="__codelineno-4-24"></a><span class="w">    </span><span class="nx">Name</span><span class="w">    </span><span class="kt">string</span><span class="w">                 </span><span class="s">`json:"name"`</span>
+<a href="#__codelineno-4-25" id="__codelineno-4-25" name="__codelineno-4-25"></a><span class="w">    </span><span class="nx">Type</span><span class="w">    </span><span class="nx">ChannelType</span><span class="w">            </span><span class="s">`json:"type"`</span>
+<a href="#__codelineno-4-26" id="__codelineno-4-26" name="__codelineno-4-26"></a><span class="w">    </span><span class="nx">Enabled</span><span class="w"> </span><span class="kt">bool</span><span class="w">                   </span><span class="s">`json:"enabled"`</span>
+<a href="#__codelineno-4-27" id="__codelineno-4-27" name="__codelineno-4-27"></a><span class="w">    </span><span class="nx">Webhook</span><span class="w"> </span><span class="nx">WebhookConfig</span><span class="w">          </span><span class="s">`json:"webhook"`</span>
+<a href="#__codelineno-4-28" id="__codelineno-4-28" name="__codelineno-4-28"></a><span class="w">    </span><span class="nx">Secrets</span><span class="w"> </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">string</span><span class="w">      </span><span class="s">`json:"secrets"`</span><span class="w">         </span><span class="c1">// 敏感配置</span>
+<a href="#__codelineno-4-29" id="__codelineno-4-29" name="__codelineno-4-29"></a><span class="w">    </span><span class="nx">Options</span><span class="w"> </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kd">interface</span><span class="p">{}</span><span class="w"> </span><span class="s">`json:"options"`</span>
+<a href="#__codelineno-4-30" id="__codelineno-4-30" name="__codelineno-4-30"></a><span class="p">}</span>
+<a href="#__codelineno-4-31" id="__codelineno-4-31" name="__codelineno-4-31"></a>
+<a href="#__codelineno-4-32" id="__codelineno-4-32" name="__codelineno-4-32"></a><span class="c1">// WebhookConfig Webhook 配置</span>
+<a href="#__codelineno-4-33" id="__codelineno-4-33" name="__codelineno-4-33"></a><span class="kd">type</span><span class="w"> </span><span class="nx">WebhookConfig</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-4-34" id="__codelineno-4-34" name="__codelineno-4-34"></a><span class="w">    </span><span class="nx">Path</span><span class="w">   </span><span class="kt">string</span><span class="w"> </span><span class="s">`json:"path"`</span><span class="w">    </span><span class="c1">// 如 "/wechat"</span>
+<a href="#__codelineno-4-35" id="__codelineno-4-35" name="__codelineno-4-35"></a><span class="w">    </span><span class="nx">Method</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="s">`json:"method"`</span><span class="w">  </span><span class="c1">// 默认 POST</span>
+<a href="#__codelineno-4-36" id="__codelineno-4-36" name="__codelineno-4-36"></a><span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="4">4. 组件详细设计<a class="headerlink" href="#4" title="Permanent link">¶</a></h2>
+<h3 id="41-channel">4.1 Channel 层设计<a class="headerlink" href="#41-channel" title="Permanent link">¶</a></h3>
+<h4 id="411-http">4.1.1 统一 HTTP 服务器<a class="headerlink" href="#411-http" title="Permanent link">¶</a></h4>
+<p><strong>设计决策</strong>：所有 Channel 共享 Gateway 的统一 HTTP 服务器，而非每个 Channel 独立端口。</p>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-5-1" id="__codelineno-5-1" name="__codelineno-5-1"></a><span class="kd">type</span><span class="w"> </span><span class="nx">Gateway</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-5-2" id="__codelineno-5-2" name="__codelineno-5-2"></a><span class="w">    </span><span class="nx">httpServer</span><span class="w"> </span><span class="o">*</span><span class="nx">http</span><span class="p">.</span><span class="nx">Server</span><span class="w">    </span><span class="c1">// 统一 HTTP 服务器</span>
+<a href="#__codelineno-5-3" id="__codelineno-5-3" name="__codelineno-5-3"></a><span class="w">    </span><span class="nx">channels</span><span class="w">   </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="nx">Channel</span>
+<a href="#__codelineno-5-4" id="__codelineno-5-4" name="__codelineno-5-4"></a><span class="w">    </span><span class="nx">mux</span><span class="w">        </span><span class="o">*</span><span class="nx">http</span><span class="p">.</span><span class="nx">ServeMux</span>
+<a href="#__codelineno-5-5" id="__codelineno-5-5" name="__codelineno-5-5"></a><span class="p">}</span>
+<a href="#__codelineno-5-6" id="__codelineno-5-6" name="__codelineno-5-6"></a>
+<a href="#__codelineno-5-7" id="__codelineno-5-7" name="__codelineno-5-7"></a><span class="c1">// 注册 Channel Webhook 路由</span>
+<a href="#__codelineno-5-8" id="__codelineno-5-8" name="__codelineno-5-8"></a><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">g</span><span class="w"> </span><span class="o">*</span><span class="nx">Gateway</span><span class="p">)</span><span class="w"> </span><span class="nx">registerChannelRoutes</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-5-9" id="__codelineno-5-9" name="__codelineno-5-9"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">_</span><span class="p">,</span><span class="w"> </span><span class="nx">ch</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">g</span><span class="p">.</span><span class="nx">channels</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-5-10" id="__codelineno-5-10" name="__codelineno-5-10"></a><span class="w">        </span><span class="nx">path</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">ch</span><span class="p">.</span><span class="nx">GetWebhookPath</span><span class="p">()</span>
+<a href="#__codelineno-5-11" id="__codelineno-5-11" name="__codelineno-5-11"></a><span class="w">        </span><span class="nx">g</span><span class="p">.</span><span class="nx">mux</span><span class="p">.</span><span class="nx">HandleFunc</span><span class="p">(</span><span class="nx">path</span><span class="p">,</span><span class="w"> </span><span class="nx">g</span><span class="p">.</span><span class="nx">createWebhookHandler</span><span class="p">(</span><span class="nx">ch</span><span class="p">))</span>
+<a href="#__codelineno-5-12" id="__codelineno-5-12" name="__codelineno-5-12"></a><span class="w">    </span><span class="p">}</span>
+<a href="#__codelineno-5-13" id="__codelineno-5-13" name="__codelineno-5-13"></a><span class="p">}</span>
+</code></pre></div>
+<p><strong>优势</strong>：
+- 只需开放 2 个端口（HTTP + WebSocket）
+- 避免防火墙配置复杂性
+- 统一入口便于日志和监控</p>
+<h4 id="412-channel">4.1.2 Channel 实现示例<a class="headerlink" href="#412-channel" title="Permanent link">¶</a></h4>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-6-1" id="__codelineno-6-1" name="__codelineno-6-1"></a><span class="c1">// WeChatChannel 微信渠道实现</span>
+<a href="#__codelineno-6-2" id="__codelineno-6-2" name="__codelineno-6-2"></a><span class="kd">type</span><span class="w"> </span><span class="nx">WeChatChannel</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-6-3" id="__codelineno-6-3" name="__codelineno-6-3"></a><span class="w">    </span><span class="nx">name</span><span class="w">      </span><span class="kt">string</span>
+<a href="#__codelineno-6-4" id="__codelineno-6-4" name="__codelineno-6-4"></a><span class="w">    </span><span class="nx">config</span><span class="w">    </span><span class="nx">ChannelConfig</span>
+<a href="#__codelineno-6-5" id="__codelineno-6-5" name="__codelineno-6-5"></a><span class="w">    </span><span class="nx">handler</span><span class="w">   </span><span class="nx">MessageHandler</span>
+<a href="#__codelineno-6-6" id="__codelineno-6-6" name="__codelineno-6-6"></a><span class="w">    </span><span class="nx">isRunning</span><span class="w"> </span><span class="kt">bool</span>
+<a href="#__codelineno-6-7" id="__codelineno-6-7" name="__codelineno-6-7"></a><span class="p">}</span>
+<a href="#__codelineno-6-8" id="__codelineno-6-8" name="__codelineno-6-8"></a>
+<a href="#__codelineno-6-9" id="__codelineno-6-9" name="__codelineno-6-9"></a><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">c</span><span class="w"> </span><span class="o">*</span><span class="nx">WeChatChannel</span><span class="p">)</span><span class="w"> </span><span class="nx">Start</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">handler</span><span class="w"> </span><span class="nx">MessageHandler</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-6-10" id="__codelineno-6-10" name="__codelineno-6-10"></a><span class="w">    </span><span class="nx">c</span><span class="p">.</span><span class="nx">handler</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">handler</span>
+<a href="#__codelineno-6-11" id="__codelineno-6-11" name="__codelineno-6-11"></a><span class="w">    </span><span class="nx">c</span><span class="p">.</span><span class="nx">isRunning</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span>
+<a href="#__codelineno-6-12" id="__codelineno-6-12" name="__codelineno-6-12"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="kc">nil</span>
+<a href="#__codelineno-6-13" id="__codelineno-6-13" name="__codelineno-6-13"></a><span class="p">}</span>
+<a href="#__codelineno-6-14" id="__codelineno-6-14" name="__codelineno-6-14"></a>
+<a href="#__codelineno-6-15" id="__codelineno-6-15" name="__codelineno-6-15"></a><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">c</span><span class="w"> </span><span class="o">*</span><span class="nx">WeChatChannel</span><span class="p">)</span><span class="w"> </span><span class="nx">HandleWebhook</span><span class="p">(</span><span class="nx">w</span><span class="w"> </span><span class="nx">http</span><span class="p">.</span><span class="nx">ResponseWriter</span><span class="p">,</span><span class="w"> </span><span class="nx">r</span><span class="w"> </span><span class="o">*</span><span class="nx">http</span><span class="p">.</span><span class="nx">Request</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-6-16" id="__codelineno-6-16" name="__codelineno-6-16"></a><span class="w">    </span><span class="c1">// 1. 验证签名</span>
+<a href="#__codelineno-6-17" id="__codelineno-6-17" name="__codelineno-6-17"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">!</span><span class="nx">c</span><span class="p">.</span><span class="nx">verifySignature</span><span class="p">(</span><span class="nx">r</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-6-18" id="__codelineno-6-18" name="__codelineno-6-18"></a><span class="w">        </span><span class="nx">http</span><span class="p">.</span><span class="nx">Error</span><span class="p">(</span><span class="nx">w</span><span class="p">,</span><span class="w"> </span><span class="s">"Invalid signature"</span><span class="p">,</span><span class="w"> </span><span class="nx">http</span><span class="p">.</span><span class="nx">StatusUnauthorized</span><span class="p">)</span>
+<a href="#__codelineno-6-19" id="__codelineno-6-19" name="__codelineno-6-19"></a><span class="w">        </span><span class="k">return</span>
+<a href="#__codelineno-6-20" id="__codelineno-6-20" name="__codelineno-6-20"></a><span class="w">    </span><span class="p">}</span>
+<a href="#__codelineno-6-21" id="__codelineno-6-21" name="__codelineno-6-21"></a>
+<a href="#__codelineno-6-22" id="__codelineno-6-22" name="__codelineno-6-22"></a><span class="w">    </span><span class="c1">// 2. 解析消息</span>
+<a href="#__codelineno-6-23" id="__codelineno-6-23" name="__codelineno-6-23"></a><span class="w">    </span><span class="nx">msg</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">c</span><span class="p">.</span><span class="nx">parseMessage</span><span class="p">(</span><span class="nx">r</span><span class="p">)</span>
+<a href="#__codelineno-6-24" id="__codelineno-6-24" name="__codelineno-6-24"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-6-25" id="__codelineno-6-25" name="__codelineno-6-25"></a><span class="w">        </span><span class="nx">http</span><span class="p">.</span><span class="nx">Error</span><span class="p">(</span><span class="nx">w</span><span class="p">,</span><span class="w"> </span><span class="s">"Invalid message"</span><span class="p">,</span><span class="w"> </span><span class="nx">http</span><span class="p">.</span><span class="nx">StatusBadRequest</span><span class="p">)</span>
+<a href="#__codelineno-6-26" id="__codelineno-6-26" name="__codelineno-6-26"></a><span class="w">        </span><span class="k">return</span>
+<a href="#__codelineno-6-27" id="__codelineno-6-27" name="__codelineno-6-27"></a><span class="w">    </span><span class="p">}</span>
+<a href="#__codelineno-6-28" id="__codelineno-6-28" name="__codelineno-6-28"></a>
+<a href="#__codelineno-6-29" id="__codelineno-6-29" name="__codelineno-6-29"></a><span class="w">    </span><span class="c1">// 3. 调用 handler 转发给 Gateway</span>
+<a href="#__codelineno-6-30" id="__codelineno-6-30" name="__codelineno-6-30"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">c</span><span class="p">.</span><span class="nx">handler</span><span class="p">(</span><span class="nx">r</span><span class="p">.</span><span class="nx">Context</span><span class="p">(),</span><span class="w"> </span><span class="nx">msg</span><span class="p">);</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-6-31" id="__codelineno-6-31" name="__codelineno-6-31"></a><span class="w">        </span><span class="nx">http</span><span class="p">.</span><span class="nx">Error</span><span class="p">(</span><span class="nx">w</span><span class="p">,</span><span class="w"> </span><span class="s">"Processing failed"</span><span class="p">,</span><span class="w"> </span><span class="nx">http</span><span class="p">.</span><span class="nx">StatusInternalServerError</span><span class="p">)</span>
+<a href="#__codelineno-6-32" id="__codelineno-6-32" name="__codelineno-6-32"></a><span class="w">        </span><span class="k">return</span>
+<a href="#__codelineno-6-33" id="__codelineno-6-33" name="__codelineno-6-33"></a><span class="w">    </span><span class="p">}</span>
+<a href="#__codelineno-6-34" id="__codelineno-6-34" name="__codelineno-6-34"></a>
+<a href="#__codelineno-6-35" id="__codelineno-6-35" name="__codelineno-6-35"></a><span class="w">    </span><span class="c1">// 4. 返回成功响应</span>
+<a href="#__codelineno-6-36" id="__codelineno-6-36" name="__codelineno-6-36"></a><span class="w">    </span><span class="nx">w</span><span class="p">.</span><span class="nx">WriteHeader</span><span class="p">(</span><span class="nx">http</span><span class="p">.</span><span class="nx">StatusOK</span><span class="p">)</span>
+<a href="#__codelineno-6-37" id="__codelineno-6-37" name="__codelineno-6-37"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="42-gateway">4.2 Gateway 层设计<a class="headerlink" href="#42-gateway" title="Permanent link">¶</a></h3>
+<h4 id="421">4.2.1 消息处理流程<a class="headerlink" href="#421" title="Permanent link">¶</a></h4>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-7-1" id="__codelineno-7-1" name="__codelineno-7-1"></a><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">g</span><span class="w"> </span><span class="o">*</span><span class="nx">Gateway</span><span class="p">)</span><span class="w"> </span><span class="nx">HandleChannelMessage</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="w"> </span><span class="o">*</span><span class="nx">Message</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-7-2" id="__codelineno-7-2" name="__codelineno-7-2"></a><span class="w">    </span><span class="c1">// 1. 中间件处理</span>
+<a href="#__codelineno-7-3" id="__codelineno-7-3" name="__codelineno-7-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">g</span><span class="p">.</span><span class="nx">middlewareChain</span><span class="p">.</span><span class="nx">Execute</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="p">);</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-7-4" id="__codelineno-7-4" name="__codelineno-7-4"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Errorf</span><span class="p">(</span><span class="s">"middleware failed: %w"</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="p">)</span>
+<a href="#__codelineno-7-5" id="__codelineno-7-5" name="__codelineno-7-5"></a><span class="w">    </span><span class="p">}</span>
+<a href="#__codelineno-7-6" id="__codelineno-7-6" name="__codelineno-7-6"></a>
+<a href="#__codelineno-7-7" id="__codelineno-7-7" name="__codelineno-7-7"></a><span class="w">    </span><span class="c1">// 2. 业务处理（如果注册了 handler）</span>
+<a href="#__codelineno-7-8" id="__codelineno-7-8" name="__codelineno-7-8"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">g</span><span class="p">.</span><span class="nx">clientHandler</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-7-9" id="__codelineno-7-9" name="__codelineno-7-9"></a><span class="w">        </span><span class="nx">response</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">g</span><span class="p">.</span><span class="nx">clientHandler</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="s">""</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="p">)</span>
+<a href="#__codelineno-7-10" id="__codelineno-7-10" name="__codelineno-7-10"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-7-11" id="__codelineno-7-11" name="__codelineno-7-11"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Errorf</span><span class="p">(</span><span class="s">"business logic failed: %w"</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="p">)</span>
+<a href="#__codelineno-7-12" id="__codelineno-7-12" name="__codelineno-7-12"></a><span class="w">        </span><span class="p">}</span>
+<a href="#__codelineno-7-13" id="__codelineno-7-13" name="__codelineno-7-13"></a>
+<a href="#__codelineno-7-14" id="__codelineno-7-14" name="__codelineno-7-14"></a><span class="w">        </span><span class="c1">// 3. 推送到 WebSocket 客户端</span>
+<a href="#__codelineno-7-15" id="__codelineno-7-15" name="__codelineno-7-15"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">response</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-7-16" id="__codelineno-7-16" name="__codelineno-7-16"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="nx">g</span><span class="p">.</span><span class="nx">sessionMgr</span><span class="p">.</span><span class="nx">Broadcast</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">response</span><span class="p">)</span>
+<a href="#__codelineno-7-17" id="__codelineno-7-17" name="__codelineno-7-17"></a><span class="w">        </span><span class="p">}</span>
+<a href="#__codelineno-7-18" id="__codelineno-7-18" name="__codelineno-7-18"></a><span class="w">    </span><span class="p">}</span>
+<a href="#__codelineno-7-19" id="__codelineno-7-19" name="__codelineno-7-19"></a>
+<a href="#__codelineno-7-20" id="__codelineno-7-20" name="__codelineno-7-20"></a><span class="w">    </span><span class="c1">// 4. 无业务 handler 时直接广播</span>
+<a href="#__codelineno-7-21" id="__codelineno-7-21" name="__codelineno-7-21"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">g</span><span class="p">.</span><span class="nx">sessionMgr</span><span class="p">.</span><span class="nx">Broadcast</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="p">)</span>
+<a href="#__codelineno-7-22" id="__codelineno-7-22" name="__codelineno-7-22"></a><span class="p">}</span>
+<a href="#__codelineno-7-23" id="__codelineno-7-23" name="__codelineno-7-23"></a>
+<a href="#__codelineno-7-24" id="__codelineno-7-24" name="__codelineno-7-24"></a><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">g</span><span class="w"> </span><span class="o">*</span><span class="nx">Gateway</span><span class="p">)</span><span class="w"> </span><span class="nx">HandleClientMessage</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">clientID</span><span class="w"> </span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="w"> </span><span class="o">*</span><span class="nx">Message</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-7-25" id="__codelineno-7-25" name="__codelineno-7-25"></a><span class="w">    </span><span class="c1">// 1. 中间件处理</span>
+<a href="#__codelineno-7-26" id="__codelineno-7-26" name="__codelineno-7-26"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">g</span><span class="p">.</span><span class="nx">middlewareChain</span><span class="p">.</span><span class="nx">Execute</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="p">);</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-7-27" id="__codelineno-7-27" name="__codelineno-7-27"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nx">err</span>
+<a href="#__codelineno-7-28" id="__codelineno-7-28" name="__codelineno-7-28"></a><span class="w">    </span><span class="p">}</span>
+<a href="#__codelineno-7-29" id="__codelineno-7-29" name="__codelineno-7-29"></a>
+<a href="#__codelineno-7-30" id="__codelineno-7-30" name="__codelineno-7-30"></a><span class="w">    </span><span class="c1">// 2. 业务处理</span>
+<a href="#__codelineno-7-31" id="__codelineno-7-31" name="__codelineno-7-31"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">g</span><span class="p">.</span><span class="nx">clientHandler</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-7-32" id="__codelineno-7-32" name="__codelineno-7-32"></a><span class="w">        </span><span class="nx">response</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">g</span><span class="p">.</span><span class="nx">clientHandler</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">clientID</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="p">)</span>
+<a href="#__codelineno-7-33" id="__codelineno-7-33" name="__codelineno-7-33"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-7-34" id="__codelineno-7-34" name="__codelineno-7-34"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="nx">err</span>
+<a href="#__codelineno-7-35" id="__codelineno-7-35" name="__codelineno-7-35"></a><span class="w">        </span><span class="p">}</span>
+<a href="#__codelineno-7-36" id="__codelineno-7-36" name="__codelineno-7-36"></a>
+<a href="#__codelineno-7-37" id="__codelineno-7-37" name="__codelineno-7-37"></a><span class="w">        </span><span class="c1">// 3. 发送到指定渠道</span>
+<a href="#__codelineno-7-38" id="__codelineno-7-38" name="__codelineno-7-38"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">response</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">response</span><span class="p">.</span><span class="nx">ChannelID</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="s">""</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-7-39" id="__codelineno-7-39" name="__codelineno-7-39"></a><span class="w">            </span><span class="nx">channel</span><span class="p">,</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">g</span><span class="p">.</span><span class="nx">channels</span><span class="p">[</span><span class="nx">response</span><span class="p">.</span><span class="nx">ChannelID</span><span class="p">]</span>
+<a href="#__codelineno-7-40" id="__codelineno-7-40" name="__codelineno-7-40"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">!</span><span class="nx">ok</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-7-41" id="__codelineno-7-41" name="__codelineno-7-41"></a><span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Errorf</span><span class="p">(</span><span class="s">"channel not found: %s"</span><span class="p">,</span><span class="w"> </span><span class="nx">response</span><span class="p">.</span><span class="nx">ChannelID</span><span class="p">)</span>
+<a href="#__codelineno-7-42" id="__codelineno-7-42" name="__codelineno-7-42"></a><span class="w">            </span><span class="p">}</span>
+<a href="#__codelineno-7-43" id="__codelineno-7-43" name="__codelineno-7-43"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="nx">channel</span><span class="p">.</span><span class="nx">SendMessage</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">response</span><span class="p">)</span>
+<a href="#__codelineno-7-44" id="__codelineno-7-44" name="__codelineno-7-44"></a><span class="w">        </span><span class="p">}</span>
+<a href="#__codelineno-7-45" id="__codelineno-7-45" name="__codelineno-7-45"></a><span class="w">    </span><span class="p">}</span>
+<a href="#__codelineno-7-46" id="__codelineno-7-46" name="__codelineno-7-46"></a>
+<a href="#__codelineno-7-47" id="__codelineno-7-47" name="__codelineno-7-47"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="kc">nil</span>
+<a href="#__codelineno-7-48" id="__codelineno-7-48" name="__codelineno-7-48"></a><span class="p">}</span>
+</code></pre></div>
+<h4 id="422-session">4.2.2 Session 管理<a class="headerlink" href="#422-session" title="Permanent link">¶</a></h4>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-8-1" id="__codelineno-8-1" name="__codelineno-8-1"></a><span class="kd">type</span><span class="w"> </span><span class="nx">SessionManager</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-8-2" id="__codelineno-8-2" name="__codelineno-8-2"></a><span class="w">    </span><span class="nx">sessions</span><span class="w">    </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="o">*</span><span class="nx">Session</span>
+<a href="#__codelineno-8-3" id="__codelineno-8-3" name="__codelineno-8-3"></a><span class="w">    </span><span class="nx">mu</span><span class="w">          </span><span class="nx">sync</span><span class="p">.</span><span class="nx">RWMutex</span>
+<a href="#__codelineno-8-4" id="__codelineno-8-4" name="__codelineno-8-4"></a><span class="w">    </span><span class="nx">upgrader</span><span class="w">    </span><span class="nx">websocket</span><span class="p">.</span><span class="nx">Upgrader</span>
+<a href="#__codelineno-8-5" id="__codelineno-8-5" name="__codelineno-8-5"></a><span class="p">}</span>
+<a href="#__codelineno-8-6" id="__codelineno-8-6" name="__codelineno-8-6"></a>
+<a href="#__codelineno-8-7" id="__codelineno-8-7" name="__codelineno-8-7"></a><span class="kd">type</span><span class="w"> </span><span class="nx">Session</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-8-8" id="__codelineno-8-8" name="__codelineno-8-8"></a><span class="w">    </span><span class="nx">ID</span><span class="w">         </span><span class="kt">string</span>
+<a href="#__codelineno-8-9" id="__codelineno-8-9" name="__codelineno-8-9"></a><span class="w">    </span><span class="nx">Conn</span><span class="w">       </span><span class="o">*</span><span class="nx">websocket</span><span class="p">.</span><span class="nx">Conn</span>
+<a href="#__codelineno-8-10" id="__codelineno-8-10" name="__codelineno-8-10"></a><span class="w">    </span><span class="nx">Connected</span><span class="w">  </span><span class="nx">time</span><span class="p">.</span><span class="nx">Time</span>
+<a href="#__codelineno-8-11" id="__codelineno-8-11" name="__codelineno-8-11"></a><span class="w">    </span><span class="nx">LastActive</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Time</span>
+<a href="#__codelineno-8-12" id="__codelineno-8-12" name="__codelineno-8-12"></a><span class="w">    </span><span class="nx">mu</span><span class="w">         </span><span class="nx">sync</span><span class="p">.</span><span class="nx">Mutex</span>
+<a href="#__codelineno-8-13" id="__codelineno-8-13" name="__codelineno-8-13"></a><span class="p">}</span>
+<a href="#__codelineno-8-14" id="__codelineno-8-14" name="__codelineno-8-14"></a>
+<a href="#__codelineno-8-15" id="__codelineno-8-15" name="__codelineno-8-15"></a><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">sm</span><span class="w"> </span><span class="o">*</span><span class="nx">SessionManager</span><span class="p">)</span><span class="w"> </span><span class="nx">Broadcast</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="w"> </span><span class="o">*</span><span class="nx">Message</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-8-16" id="__codelineno-8-16" name="__codelineno-8-16"></a><span class="w">    </span><span class="nx">sm</span><span class="p">.</span><span class="nx">mu</span><span class="p">.</span><span class="nx">RLock</span><span class="p">()</span>
+<a href="#__codelineno-8-17" id="__codelineno-8-17" name="__codelineno-8-17"></a><span class="w">    </span><span class="k">defer</span><span class="w"> </span><span class="nx">sm</span><span class="p">.</span><span class="nx">mu</span><span class="p">.</span><span class="nx">RUnlock</span><span class="p">()</span>
+<a href="#__codelineno-8-18" id="__codelineno-8-18" name="__codelineno-8-18"></a>
+<a href="#__codelineno-8-19" id="__codelineno-8-19" name="__codelineno-8-19"></a><span class="w">    </span><span class="nx">data</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">json</span><span class="p">.</span><span class="nx">Marshal</span><span class="p">(</span><span class="nx">msg</span><span class="p">)</span>
+<a href="#__codelineno-8-20" id="__codelineno-8-20" name="__codelineno-8-20"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-8-21" id="__codelineno-8-21" name="__codelineno-8-21"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nx">err</span>
+<a href="#__codelineno-8-22" id="__codelineno-8-22" name="__codelineno-8-22"></a><span class="w">    </span><span class="p">}</span>
+<a href="#__codelineno-8-23" id="__codelineno-8-23" name="__codelineno-8-23"></a>
+<a href="#__codelineno-8-24" id="__codelineno-8-24" name="__codelineno-8-24"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">_</span><span class="p">,</span><span class="w"> </span><span class="nx">session</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">sm</span><span class="p">.</span><span class="nx">sessions</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-8-25" id="__codelineno-8-25" name="__codelineno-8-25"></a><span class="w">        </span><span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">(</span><span class="nx">s</span><span class="w"> </span><span class="o">*</span><span class="nx">Session</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-8-26" id="__codelineno-8-26" name="__codelineno-8-26"></a><span class="w">            </span><span class="nx">s</span><span class="p">.</span><span class="nx">mu</span><span class="p">.</span><span class="nx">Lock</span><span class="p">()</span>
+<a href="#__codelineno-8-27" id="__codelineno-8-27" name="__codelineno-8-27"></a><span class="w">            </span><span class="k">defer</span><span class="w"> </span><span class="nx">s</span><span class="p">.</span><span class="nx">mu</span><span class="p">.</span><span class="nx">Unlock</span><span class="p">()</span>
+<a href="#__codelineno-8-28" id="__codelineno-8-28" name="__codelineno-8-28"></a><span class="w">            </span><span class="nx">s</span><span class="p">.</span><span class="nx">Conn</span><span class="p">.</span><span class="nx">WriteMessage</span><span class="p">(</span><span class="nx">websocket</span><span class="p">.</span><span class="nx">TextMessage</span><span class="p">,</span><span class="w"> </span><span class="nx">data</span><span class="p">)</span>
+<a href="#__codelineno-8-29" id="__codelineno-8-29" name="__codelineno-8-29"></a><span class="w">        </span><span class="p">}(</span><span class="nx">session</span><span class="p">)</span>
+<a href="#__codelineno-8-30" id="__codelineno-8-30" name="__codelineno-8-30"></a><span class="w">    </span><span class="p">}</span>
+<a href="#__codelineno-8-31" id="__codelineno-8-31" name="__codelineno-8-31"></a>
+<a href="#__codelineno-8-32" id="__codelineno-8-32" name="__codelineno-8-32"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="kc">nil</span>
+<a href="#__codelineno-8-33" id="__codelineno-8-33" name="__codelineno-8-33"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="43">4.3 中间件设计<a class="headerlink" href="#43" title="Permanent link">¶</a></h3>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-9-1" id="__codelineno-9-1" name="__codelineno-9-1"></a><span class="c1">// Middleware 中间件接口</span>
+<a href="#__codelineno-9-2" id="__codelineno-9-2" name="__codelineno-9-2"></a><span class="kd">type</span><span class="w"> </span><span class="nx">Middleware</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-9-3" id="__codelineno-9-3" name="__codelineno-9-3"></a><span class="w">    </span><span class="nx">Name</span><span class="p">()</span><span class="w"> </span><span class="kt">string</span>
+<a href="#__codelineno-9-4" id="__codelineno-9-4" name="__codelineno-9-4"></a><span class="w">    </span><span class="nx">Handle</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="w"> </span><span class="o">*</span><span class="nx">Message</span><span class="p">,</span><span class="w"> </span><span class="nx">next</span><span class="w"> </span><span class="nx">Handler</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span>
+<a href="#__codelineno-9-5" id="__codelineno-9-5" name="__codelineno-9-5"></a><span class="p">}</span>
+<a href="#__codelineno-9-6" id="__codelineno-9-6" name="__codelineno-9-6"></a>
+<a href="#__codelineno-9-7" id="__codelineno-9-7" name="__codelineno-9-7"></a><span class="kd">type</span><span class="w"> </span><span class="nx">Handler</span><span class="w"> </span><span class="kd">func</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="w"> </span><span class="o">*</span><span class="nx">Message</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span>
+<a href="#__codelineno-9-8" id="__codelineno-9-8" name="__codelineno-9-8"></a>
+<a href="#__codelineno-9-9" id="__codelineno-9-9" name="__codelineno-9-9"></a><span class="c1">// MiddlewareChain 中间件链</span>
+<a href="#__codelineno-9-10" id="__codelineno-9-10" name="__codelineno-9-10"></a><span class="kd">type</span><span class="w"> </span><span class="nx">MiddlewareChain</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-9-11" id="__codelineno-9-11" name="__codelineno-9-11"></a><span class="w">    </span><span class="nx">middlewares</span><span class="w"> </span><span class="p">[]</span><span class="nx">Middleware</span>
+<a href="#__codelineno-9-12" id="__codelineno-9-12" name="__codelineno-9-12"></a><span class="p">}</span>
+<a href="#__codelineno-9-13" id="__codelineno-9-13" name="__codelineno-9-13"></a>
+<a href="#__codelineno-9-14" id="__codelineno-9-14" name="__codelineno-9-14"></a><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">mc</span><span class="w"> </span><span class="o">*</span><span class="nx">MiddlewareChain</span><span class="p">)</span><span class="w"> </span><span class="nx">Execute</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="w"> </span><span class="o">*</span><span class="nx">Message</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-9-15" id="__codelineno-9-15" name="__codelineno-9-15"></a><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">index</span><span class="w"> </span><span class="kt">int</span>
+<a href="#__codelineno-9-16" id="__codelineno-9-16" name="__codelineno-9-16"></a>
+<a href="#__codelineno-9-17" id="__codelineno-9-17" name="__codelineno-9-17"></a><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">next</span><span class="w"> </span><span class="nx">Handler</span>
+<a href="#__codelineno-9-18" id="__codelineno-9-18" name="__codelineno-9-18"></a><span class="w">    </span><span class="nx">next</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kd">func</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="w"> </span><span class="o">*</span><span class="nx">Message</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-9-19" id="__codelineno-9-19" name="__codelineno-9-19"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">index</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">mc</span><span class="p">.</span><span class="nx">middlewares</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-9-20" id="__codelineno-9-20" name="__codelineno-9-20"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="kc">nil</span>
+<a href="#__codelineno-9-21" id="__codelineno-9-21" name="__codelineno-9-21"></a><span class="w">        </span><span class="p">}</span>
+<a href="#__codelineno-9-22" id="__codelineno-9-22" name="__codelineno-9-22"></a><span class="w">        </span><span class="nx">mw</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">mc</span><span class="p">.</span><span class="nx">middlewares</span><span class="p">[</span><span class="nx">index</span><span class="p">]</span>
+<a href="#__codelineno-9-23" id="__codelineno-9-23" name="__codelineno-9-23"></a><span class="w">        </span><span class="nx">index</span><span class="o">++</span>
+<a href="#__codelineno-9-24" id="__codelineno-9-24" name="__codelineno-9-24"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nx">mw</span><span class="p">.</span><span class="nx">Handle</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="p">,</span><span class="w"> </span><span class="nx">next</span><span class="p">)</span>
+<a href="#__codelineno-9-25" id="__codelineno-9-25" name="__codelineno-9-25"></a><span class="w">    </span><span class="p">}</span>
+<a href="#__codelineno-9-26" id="__codelineno-9-26" name="__codelineno-9-26"></a>
+<a href="#__codelineno-9-27" id="__codelineno-9-27" name="__codelineno-9-27"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">next</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="p">)</span>
+<a href="#__codelineno-9-28" id="__codelineno-9-28" name="__codelineno-9-28"></a><span class="p">}</span>
+</code></pre></div>
+<h4 id="431">4.3.1 日志中间件<a class="headerlink" href="#431" title="Permanent link">¶</a></h4>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-10-1" id="__codelineno-10-1" name="__codelineno-10-1"></a><span class="kd">type</span><span class="w"> </span><span class="nx">LoggingMiddleware</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-10-2" id="__codelineno-10-2" name="__codelineno-10-2"></a><span class="w">    </span><span class="nx">logger</span><span class="w"> </span><span class="o">*</span><span class="nx">slog</span><span class="p">.</span><span class="nx">Logger</span>
+<a href="#__codelineno-10-3" id="__codelineno-10-3" name="__codelineno-10-3"></a><span class="p">}</span>
+<a href="#__codelineno-10-4" id="__codelineno-10-4" name="__codelineno-10-4"></a>
+<a href="#__codelineno-10-5" id="__codelineno-10-5" name="__codelineno-10-5"></a><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">m</span><span class="w"> </span><span class="o">*</span><span class="nx">LoggingMiddleware</span><span class="p">)</span><span class="w"> </span><span class="nx">Handle</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="w"> </span><span class="o">*</span><span class="nx">Message</span><span class="p">,</span><span class="w"> </span><span class="nx">next</span><span class="w"> </span><span class="nx">Handler</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-10-6" id="__codelineno-10-6" name="__codelineno-10-6"></a><span class="w">    </span><span class="nx">start</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Now</span><span class="p">()</span>
+<a href="#__codelineno-10-7" id="__codelineno-10-7" name="__codelineno-10-7"></a>
+<a href="#__codelineno-10-8" id="__codelineno-10-8" name="__codelineno-10-8"></a><span class="w">    </span><span class="nx">m</span><span class="p">.</span><span class="nx">logger</span><span class="p">.</span><span class="nx">Info</span><span class="p">(</span><span class="s">"message received"</span><span class="p">,</span>
+<a href="#__codelineno-10-9" id="__codelineno-10-9" name="__codelineno-10-9"></a><span class="w">        </span><span class="s">"channel"</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="p">.</span><span class="nx">ChannelID</span><span class="p">,</span>
+<a href="#__codelineno-10-10" id="__codelineno-10-10" name="__codelineno-10-10"></a><span class="w">        </span><span class="s">"from"</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="p">.</span><span class="nx">From</span><span class="p">.</span><span class="nx">ID</span><span class="p">,</span>
+<a href="#__codelineno-10-11" id="__codelineno-10-11" name="__codelineno-10-11"></a><span class="w">        </span><span class="s">"type"</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="p">.</span><span class="nx">Type</span><span class="p">,</span>
+<a href="#__codelineno-10-12" id="__codelineno-10-12" name="__codelineno-10-12"></a><span class="w">    </span><span class="p">)</span>
+<a href="#__codelineno-10-13" id="__codelineno-10-13" name="__codelineno-10-13"></a>
+<a href="#__codelineno-10-14" id="__codelineno-10-14" name="__codelineno-10-14"></a><span class="w">    </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">next</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="p">)</span>
+<a href="#__codelineno-10-15" id="__codelineno-10-15" name="__codelineno-10-15"></a>
+<a href="#__codelineno-10-16" id="__codelineno-10-16" name="__codelineno-10-16"></a><span class="w">    </span><span class="nx">m</span><span class="p">.</span><span class="nx">logger</span><span class="p">.</span><span class="nx">Info</span><span class="p">(</span><span class="s">"message processed"</span><span class="p">,</span>
+<a href="#__codelineno-10-17" id="__codelineno-10-17" name="__codelineno-10-17"></a><span class="w">        </span><span class="s">"duration"</span><span class="p">,</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Since</span><span class="p">(</span><span class="nx">start</span><span class="p">),</span>
+<a href="#__codelineno-10-18" id="__codelineno-10-18" name="__codelineno-10-18"></a><span class="w">        </span><span class="s">"error"</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="p">,</span>
+<a href="#__codelineno-10-19" id="__codelineno-10-19" name="__codelineno-10-19"></a><span class="w">    </span><span class="p">)</span>
+<a href="#__codelineno-10-20" id="__codelineno-10-20" name="__codelineno-10-20"></a>
+<a href="#__codelineno-10-21" id="__codelineno-10-21" name="__codelineno-10-21"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">err</span>
+<a href="#__codelineno-10-22" id="__codelineno-10-22" name="__codelineno-10-22"></a><span class="p">}</span>
+</code></pre></div>
+<h4 id="432-token">4.3.2 Token 验证中间件<a class="headerlink" href="#432-token" title="Permanent link">¶</a></h4>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-11-1" id="__codelineno-11-1" name="__codelineno-11-1"></a><span class="kd">type</span><span class="w"> </span><span class="nx">TokenMiddleware</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-11-2" id="__codelineno-11-2" name="__codelineno-11-2"></a><span class="w">    </span><span class="nx">token</span><span class="w"> </span><span class="kt">string</span>
+<a href="#__codelineno-11-3" id="__codelineno-11-3" name="__codelineno-11-3"></a><span class="p">}</span>
+<a href="#__codelineno-11-4" id="__codelineno-11-4" name="__codelineno-11-4"></a>
+<a href="#__codelineno-11-5" id="__codelineno-11-5" name="__codelineno-11-5"></a><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">m</span><span class="w"> </span><span class="o">*</span><span class="nx">TokenMiddleware</span><span class="p">)</span><span class="w"> </span><span class="nx">Handle</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="w"> </span><span class="o">*</span><span class="nx">Message</span><span class="p">,</span><span class="w"> </span><span class="nx">next</span><span class="w"> </span><span class="nx">Handler</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-11-6" id="__codelineno-11-6" name="__codelineno-11-6"></a><span class="w">    </span><span class="c1">// 从 metadata 中验证 token</span>
+<a href="#__codelineno-11-7" id="__codelineno-11-7" name="__codelineno-11-7"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">m</span><span class="p">.</span><span class="nx">token</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="s">""</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-11-8" id="__codelineno-11-8" name="__codelineno-11-8"></a><span class="w">        </span><span class="nx">msgToken</span><span class="p">,</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">msg</span><span class="p">.</span><span class="nx">Metadata</span><span class="p">[</span><span class="s">"token"</span><span class="p">].(</span><span class="kt">string</span><span class="p">)</span>
+<a href="#__codelineno-11-9" id="__codelineno-11-9" name="__codelineno-11-9"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">!</span><span class="nx">ok</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nx">msgToken</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nx">m</span><span class="p">.</span><span class="nx">token</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-11-10" id="__codelineno-11-10" name="__codelineno-11-10"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Errorf</span><span class="p">(</span><span class="s">"invalid token"</span><span class="p">)</span>
+<a href="#__codelineno-11-11" id="__codelineno-11-11" name="__codelineno-11-11"></a><span class="w">        </span><span class="p">}</span>
+<a href="#__codelineno-11-12" id="__codelineno-11-12" name="__codelineno-11-12"></a><span class="w">    </span><span class="p">}</span>
+<a href="#__codelineno-11-13" id="__codelineno-11-13" name="__codelineno-11-13"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">next</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="p">)</span>
+<a href="#__codelineno-11-14" id="__codelineno-11-14" name="__codelineno-11-14"></a><span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="5">5. 消息处理流程<a class="headerlink" href="#5" title="Permanent link">¶</a></h2>
+<h3 id="51">5.1 入站消息时序图<a class="headerlink" href="#51" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>sequenceDiagram
+    participant EC as 外部渠道
+    participant CH as Channel
+    participant GW as Gateway
+    participant MW as Middleware
+    participant BL as 业务逻辑
+    participant SM as SessionMgr
+    participant CL as WebSocket客户端
+
+    EC-&gt;&gt;CH: HTTP POST Webhook
+    CH-&gt;&gt;CH: 验证签名
+    CH-&gt;&gt;CH: 解析并标准化消息
+    CH-&gt;&gt;GW: HandleChannelMessage(msg)
+    GW-&gt;&gt;MW: 中间件处理
+    MW--&gt;&gt;GW: 继续
+    GW-&gt;&gt;BL: 业务处理
+    BL--&gt;&gt;GW: 返回响应消息
+    GW-&gt;&gt;SM: Broadcast(response)
+    SM-&gt;&gt;CL: WebSocket 推送
+    CL--&gt;&gt;SM: 收到确认
+</code></pre>
+<h3 id="52">5.2 出站消息时序图<a class="headerlink" href="#52" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>sequenceDiagram
+    participant CL as WebSocket客户端
+    participant SM as SessionMgr
+    participant GW as Gateway
+    participant MW as Middleware
+    participant BL as 业务逻辑
+    participant CH as Channel
+    participant EC as 外部渠道
+
+    CL-&gt;&gt;SM: WebSocket 发送消息
+    SM-&gt;&gt;GW: HandleClientMessage(clientID, msg)
+    GW-&gt;&gt;MW: 中间件处理
+    MW--&gt;&gt;GW: 继续
+    GW-&gt;&gt;BL: 业务处理
+    BL--&gt;&gt;GW: 返回响应消息
+    GW-&gt;&gt;CH: SendMessage(msg)
+    CH-&gt;&gt;CH: 转换为平台格式
+    CH-&gt;&gt;EC: HTTP POST/API 调用
+    EC--&gt;&gt;CH: 响应
+    CH--&gt;&gt;GW: 发送成功
+</code></pre>
+<hr/>
+<h2 id="6">6. 配置管理<a class="headerlink" href="#6" title="Permanent link">¶</a></h2>
+<h3 id="61">6.1 配置优先级<a class="headerlink" href="#61" title="Permanent link">¶</a></h3>
+<p><strong>环境变量 &gt; 配置文件 &gt; 默认值</strong></p>
+<h3 id="62">6.2 配置结构<a class="headerlink" href="#62" title="Permanent link">¶</a></h3>
+<div class="language-yaml highlight"><pre><span></span><code><a href="#__codelineno-12-1" id="__codelineno-12-1" name="__codelineno-12-1"></a><span class="c1"># config.yaml</span>
+<a href="#__codelineno-12-2" id="__codelineno-12-2" name="__codelineno-12-2"></a><span class="nt">gateway</span><span class="p">:</span>
+<a href="#__codelineno-12-3" id="__codelineno-12-3" name="__codelineno-12-3"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">"gort-gateway"</span>
+<a href="#__codelineno-12-4" id="__codelineno-12-4" name="__codelineno-12-4"></a><span class="w">  </span><span class="nt">websocket_addr</span><span class="p">:</span><span class="w"> </span><span class="s">":9000"</span><span class="w">      </span><span class="c1"># WebSocket 监听地址</span>
+<a href="#__codelineno-12-5" id="__codelineno-12-5" name="__codelineno-12-5"></a><span class="w">  </span><span class="nt">http_addr</span><span class="p">:</span><span class="w"> </span><span class="s">":8080"</span><span class="w">           </span><span class="c1"># HTTP 监听地址（Webhook）</span>
+<a href="#__codelineno-12-6" id="__codelineno-12-6" name="__codelineno-12-6"></a><span class="w">  </span><span class="nt">token</span><span class="p">:</span><span class="w"> </span><span class="s">""</span><span class="w">                    </span><span class="c1"># 可选的访问令牌</span>
+<a href="#__codelineno-12-7" id="__codelineno-12-7" name="__codelineno-12-7"></a>
+<a href="#__codelineno-12-8" id="__codelineno-12-8" name="__codelineno-12-8"></a><span class="nt">channels</span><span class="p">:</span>
+<a href="#__codelineno-12-9" id="__codelineno-12-9" name="__codelineno-12-9"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">"wechat"</span>
+<a href="#__codelineno-12-10" id="__codelineno-12-10" name="__codelineno-12-10"></a><span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="s">"wechat"</span>
+<a href="#__codelineno-12-11" id="__codelineno-12-11" name="__codelineno-12-11"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a href="#__codelineno-12-12" id="__codelineno-12-12" name="__codelineno-12-12"></a><span class="w">    </span><span class="nt">webhook</span><span class="p">:</span>
+<a href="#__codelineno-12-13" id="__codelineno-12-13" name="__codelineno-12-13"></a><span class="w">      </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="s">"/webhook/wechat"</span>
+<a href="#__codelineno-12-14" id="__codelineno-12-14" name="__codelineno-12-14"></a><span class="w">    </span><span class="nt">secrets</span><span class="p">:</span>
+<a href="#__codelineno-12-15" id="__codelineno-12-15" name="__codelineno-12-15"></a><span class="w">      </span><span class="nt">app_id</span><span class="p">:</span><span class="w"> </span><span class="s">"${WECHAT_APP_ID}"</span>
+<a href="#__codelineno-12-16" id="__codelineno-12-16" name="__codelineno-12-16"></a><span class="w">      </span><span class="nt">app_secret</span><span class="p">:</span><span class="w"> </span><span class="s">"${WECHAT_APP_SECRET}"</span>
+<a href="#__codelineno-12-17" id="__codelineno-12-17" name="__codelineno-12-17"></a><span class="w">      </span><span class="nt">token</span><span class="p">:</span><span class="w"> </span><span class="s">"${WECHAT_TOKEN}"</span>
+<a href="#__codelineno-12-18" id="__codelineno-12-18" name="__codelineno-12-18"></a>
+<a href="#__codelineno-12-19" id="__codelineno-12-19" name="__codelineno-12-19"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">"dingtalk"</span>
+<a href="#__codelineno-12-20" id="__codelineno-12-20" name="__codelineno-12-20"></a><span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="s">"dingtalk"</span>
+<a href="#__codelineno-12-21" id="__codelineno-12-21" name="__codelineno-12-21"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a href="#__codelineno-12-22" id="__codelineno-12-22" name="__codelineno-12-22"></a><span class="w">    </span><span class="nt">webhook</span><span class="p">:</span>
+<a href="#__codelineno-12-23" id="__codelineno-12-23" name="__codelineno-12-23"></a><span class="w">      </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="s">"/webhook/dingtalk"</span>
+<a href="#__codelineno-12-24" id="__codelineno-12-24" name="__codelineno-12-24"></a><span class="w">    </span><span class="nt">secrets</span><span class="p">:</span>
+<a href="#__codelineno-12-25" id="__codelineno-12-25" name="__codelineno-12-25"></a><span class="w">      </span><span class="nt">app_key</span><span class="p">:</span><span class="w"> </span><span class="s">"${DINGTALK_APP_KEY}"</span>
+<a href="#__codelineno-12-26" id="__codelineno-12-26" name="__codelineno-12-26"></a><span class="w">      </span><span class="nt">app_secret</span><span class="p">:</span><span class="w"> </span><span class="s">"${DINGTALK_APP_SECRET}"</span>
+</code></pre></div>
+<h3 id="63">6.3 环境变量命名<a class="headerlink" href="#63" title="Permanent link">¶</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><a href="#__codelineno-13-1" id="__codelineno-13-1" name="__codelineno-13-1"></a><span class="c1"># Gateway 配置</span>
+<a href="#__codelineno-13-2" id="__codelineno-13-2" name="__codelineno-13-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GORT_WEBSOCKET_ADDR</span><span class="o">=</span><span class="s2">":9000"</span>
+<a href="#__codelineno-13-3" id="__codelineno-13-3" name="__codelineno-13-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GORT_HTTP_ADDR</span><span class="o">=</span><span class="s2">":8080"</span>
+<a href="#__codelineno-13-4" id="__codelineno-13-4" name="__codelineno-13-4"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GORT_TOKEN</span><span class="o">=</span><span class="s2">"optional-token"</span>
+<a href="#__codelineno-13-5" id="__codelineno-13-5" name="__codelineno-13-5"></a>
+<a href="#__codelineno-13-6" id="__codelineno-13-6" name="__codelineno-13-6"></a><span class="c1"># 渠道配置（使用渠道名称前缀）</span>
+<a href="#__codelineno-13-7" id="__codelineno-13-7" name="__codelineno-13-7"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GORT_CHANNEL_WECHAT_APP_ID</span><span class="o">=</span><span class="s2">"wx..."</span>
+<a href="#__codelineno-13-8" id="__codelineno-13-8" name="__codelineno-13-8"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GORT_CHANNEL_WECHAT_APP_SECRET</span><span class="o">=</span><span class="s2">"secret..."</span>
+<a href="#__codelineno-13-9" id="__codelineno-13-9" name="__codelineno-13-9"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GORT_CHANNEL_WECHAT_TOKEN</span><span class="o">=</span><span class="s2">"token..."</span>
+</code></pre></div>
+<hr/>
+<h2 id="7">7. 错误处理与重试<a class="headerlink" href="#7" title="Permanent link">¶</a></h2>
+<h3 id="71">7.1 错误分类<a class="headerlink" href="#71" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>错误类型</th>
+<th>处理方式</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>协议错误</strong></td>
+<td>立即返回 400</td>
+<td>签名验证失败、格式错误</td>
+</tr>
+<tr>
+<td><strong>临时错误</strong></td>
+<td>重试 3 次</td>
+<td>网络超时、服务端 5xx</td>
+</tr>
+<tr>
+<td><strong>业务错误</strong></td>
+<td>记录日志</td>
+<td>业务逻辑异常</td>
+</tr>
+<tr>
+<td><strong>系统错误</strong></td>
+<td>优雅降级</td>
+<td>内存不足、连接断开</td>
+</tr>
+</tbody>
+</table>
+<h3 id="72">7.2 重试策略<a class="headerlink" href="#72" title="Permanent link">¶</a></h3>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-14-1" id="__codelineno-14-1" name="__codelineno-14-1"></a><span class="c1">// 简单的指数退避重试</span>
+<a href="#__codelineno-14-2" id="__codelineno-14-2" name="__codelineno-14-2"></a><span class="kd">func</span><span class="w"> </span><span class="nx">retryWithBackoff</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">fn</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="kt">error</span><span class="p">,</span><span class="w"> </span><span class="nx">maxRetries</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-14-3" id="__codelineno-14-3" name="__codelineno-14-3"></a><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="kt">error</span>
+<a href="#__codelineno-14-4" id="__codelineno-14-4" name="__codelineno-14-4"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="p">&lt;</span><span class="w"> </span><span class="nx">maxRetries</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="o">++</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-14-5" id="__codelineno-14-5" name="__codelineno-14-5"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">fn</span><span class="p">();</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-14-6" id="__codelineno-14-6" name="__codelineno-14-6"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="kc">nil</span>
+<a href="#__codelineno-14-7" id="__codelineno-14-7" name="__codelineno-14-7"></a><span class="w">        </span><span class="p">}</span>
+<a href="#__codelineno-14-8" id="__codelineno-14-8" name="__codelineno-14-8"></a>
+<a href="#__codelineno-14-9" id="__codelineno-14-9" name="__codelineno-14-9"></a><span class="w">        </span><span class="c1">// 指数退避：1s, 2s, 4s</span>
+<a href="#__codelineno-14-10" id="__codelineno-14-10" name="__codelineno-14-10"></a><span class="w">        </span><span class="nx">delay</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Duration</span><span class="p">(</span><span class="mi">1</span><span class="o">&lt;&lt;</span><span class="nx">i</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span>
+<a href="#__codelineno-14-11" id="__codelineno-14-11" name="__codelineno-14-11"></a><span class="w">        </span><span class="k">select</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-14-12" id="__codelineno-14-12" name="__codelineno-14-12"></a><span class="w">        </span><span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">time</span><span class="p">.</span><span class="nx">After</span><span class="p">(</span><span class="nx">delay</span><span class="p">):</span>
+<a href="#__codelineno-14-13" id="__codelineno-14-13" name="__codelineno-14-13"></a><span class="w">            </span><span class="k">continue</span>
+<a href="#__codelineno-14-14" id="__codelineno-14-14" name="__codelineno-14-14"></a><span class="w">        </span><span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ctx</span><span class="p">.</span><span class="nx">Done</span><span class="p">():</span>
+<a href="#__codelineno-14-15" id="__codelineno-14-15" name="__codelineno-14-15"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="nx">ctx</span><span class="p">.</span><span class="nx">Err</span><span class="p">()</span>
+<a href="#__codelineno-14-16" id="__codelineno-14-16" name="__codelineno-14-16"></a><span class="w">        </span><span class="p">}</span>
+<a href="#__codelineno-14-17" id="__codelineno-14-17" name="__codelineno-14-17"></a><span class="w">    </span><span class="p">}</span>
+<a href="#__codelineno-14-18" id="__codelineno-14-18" name="__codelineno-14-18"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">err</span>
+<a href="#__codelineno-14-19" id="__codelineno-14-19" name="__codelineno-14-19"></a><span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="8">8. 安全措施<a class="headerlink" href="#8" title="Permanent link">¶</a></h2>
+<h3 id="81-webhook">8.1 Webhook 安全<a class="headerlink" href="#81-webhook" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>措施</th>
+<th>实现</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>签名验证</strong></td>
+<td>每个 Channel 验证平台签名</td>
+</tr>
+<tr>
+<td><strong>Token 验证</strong></td>
+<td>可选的 WebSocket 连接 Token</td>
+</tr>
+<tr>
+<td><strong>HTTPS</strong></td>
+<td>生产环境强制使用 TLS</td>
+</tr>
+<tr>
+<td><strong>IP 白名单</strong></td>
+<td>可选的平台 IP 限制</td>
+</tr>
+</tbody>
+</table>
+<h3 id="82-websocket">8.2 WebSocket 安全<a class="headerlink" href="#82-websocket" title="Permanent link">¶</a></h3>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-15-1" id="__codelineno-15-1" name="__codelineno-15-1"></a><span class="c1">// 升级配置</span>
+<a href="#__codelineno-15-2" id="__codelineno-15-2" name="__codelineno-15-2"></a><span class="nx">upgrader</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">websocket</span><span class="p">.</span><span class="nx">Upgrader</span><span class="p">{</span>
+<a href="#__codelineno-15-3" id="__codelineno-15-3" name="__codelineno-15-3"></a><span class="w">    </span><span class="nx">CheckOrigin</span><span class="p">:</span><span class="w"> </span><span class="kd">func</span><span class="p">(</span><span class="nx">r</span><span class="w"> </span><span class="o">*</span><span class="nx">http</span><span class="p">.</span><span class="nx">Request</span><span class="p">)</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-15-4" id="__codelineno-15-4" name="__codelineno-15-4"></a><span class="w">        </span><span class="c1">// 生产环境应限制 Origin</span>
+<a href="#__codelineno-15-5" id="__codelineno-15-5" name="__codelineno-15-5"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="kc">true</span>
+<a href="#__codelineno-15-6" id="__codelineno-15-6" name="__codelineno-15-6"></a><span class="w">    </span><span class="p">},</span>
+<a href="#__codelineno-15-7" id="__codelineno-15-7" name="__codelineno-15-7"></a><span class="w">    </span><span class="nx">ReadBufferSize</span><span class="p">:</span><span class="w">  </span><span class="mi">1024</span><span class="p">,</span>
+<a href="#__codelineno-15-8" id="__codelineno-15-8" name="__codelineno-15-8"></a><span class="w">    </span><span class="nx">WriteBufferSize</span><span class="p">:</span><span class="w"> </span><span class="mi">1024</span><span class="p">,</span>
+<a href="#__codelineno-15-9" id="__codelineno-15-9" name="__codelineno-15-9"></a><span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="9">9. 监控与日志<a class="headerlink" href="#9" title="Permanent link">¶</a></h2>
+<h3 id="91">9.1 关键指标<a class="headerlink" href="#91" title="Permanent link">¶</a></h3>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-16-1" id="__codelineno-16-1" name="__codelineno-16-1"></a><span class="kd">type</span><span class="w"> </span><span class="nx">Metrics</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-16-2" id="__codelineno-16-2" name="__codelineno-16-2"></a><span class="w">    </span><span class="nx">MessagesReceived</span><span class="w">  </span><span class="kt">int64</span><span class="w">     </span><span class="c1">// 接收消息数</span>
+<a href="#__codelineno-16-3" id="__codelineno-16-3" name="__codelineno-16-3"></a><span class="w">    </span><span class="nx">MessagesSent</span><span class="w">      </span><span class="kt">int64</span><span class="w">     </span><span class="c1">// 发送消息数</span>
+<a href="#__codelineno-16-4" id="__codelineno-16-4" name="__codelineno-16-4"></a><span class="w">    </span><span class="nx">ActiveClients</span><span class="w">     </span><span class="kt">int</span><span class="w">       </span><span class="c1">// 活跃客户端数</span>
+<a href="#__codelineno-16-5" id="__codelineno-16-5" name="__codelineno-16-5"></a><span class="w">    </span><span class="nx">ChannelErrors</span><span class="w">     </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">int64</span><span class="w">  </span><span class="c1">// 各渠道错误数</span>
+<a href="#__codelineno-16-6" id="__codelineno-16-6" name="__codelineno-16-6"></a><span class="w">    </span><span class="nx">ProcessingTime</span><span class="w">    </span><span class="nx">time</span><span class="p">.</span><span class="nx">Duration</span><span class="w">     </span><span class="c1">// 平均处理时间</span>
+<a href="#__codelineno-16-7" id="__codelineno-16-7" name="__codelineno-16-7"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="92">9.2 日志规范<a class="headerlink" href="#92" title="Permanent link">¶</a></h3>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-17-1" id="__codelineno-17-1" name="__codelineno-17-1"></a><span class="c1">// 结构化日志</span>
+<a href="#__codelineno-17-2" id="__codelineno-17-2" name="__codelineno-17-2"></a><span class="nx">logger</span><span class="p">.</span><span class="nx">Info</span><span class="p">(</span><span class="s">"message processed"</span><span class="p">,</span>
+<a href="#__codelineno-17-3" id="__codelineno-17-3" name="__codelineno-17-3"></a><span class="w">    </span><span class="nx">slog</span><span class="p">.</span><span class="nx">String</span><span class="p">(</span><span class="s">"channel"</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="p">.</span><span class="nx">ChannelID</span><span class="p">),</span>
+<a href="#__codelineno-17-4" id="__codelineno-17-4" name="__codelineno-17-4"></a><span class="w">    </span><span class="nx">slog</span><span class="p">.</span><span class="nx">String</span><span class="p">(</span><span class="s">"msg_id"</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="p">.</span><span class="nx">ID</span><span class="p">),</span>
+<a href="#__codelineno-17-5" id="__codelineno-17-5" name="__codelineno-17-5"></a><span class="w">    </span><span class="nx">slog</span><span class="p">.</span><span class="nx">Duration</span><span class="p">(</span><span class="s">"duration"</span><span class="p">,</span><span class="w"> </span><span class="nx">duration</span><span class="p">),</span>
+<a href="#__codelineno-17-6" id="__codelineno-17-6" name="__codelineno-17-6"></a><span class="w">    </span><span class="nx">slog</span><span class="p">.</span><span class="nx">String</span><span class="p">(</span><span class="s">"error"</span><span class="p">,</span><span class="w"> </span><span class="nx">errStr</span><span class="p">),</span>
+<a href="#__codelineno-17-7" id="__codelineno-17-7" name="__codelineno-17-7"></a><span class="p">)</span>
+</code></pre></div>
+<hr/>
+<h2 id="10">10. 优化变更总结<a class="headerlink" href="#10" title="Permanent link">¶</a></h2>
+<h3 id="101">10.1 移除的过度设计<a class="headerlink" href="#101" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>原设计</th>
+<th>问题</th>
+<th>优化方案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>MaxWorkers/QueueSize</strong></td>
+<td>单用户场景无需复杂并发控制</td>
+<td>使用简单 goroutine</td>
+</tr>
+<tr>
+<td><strong>HealthCheck 接口</strong></td>
+<td>单实例无需健康检查</td>
+<td>移除接口，保留简单状态查询</td>
+</tr>
+<tr>
+<td><strong>HealthScore</strong></td>
+<td>过度设计</td>
+<td>简化为布尔状态</td>
+</tr>
+<tr>
+<td><strong>DLQ（死信队列）</strong></td>
+<td>单用户场景可即时处理错误</td>
+<td>直接返回错误，由调用方处理</td>
+</tr>
+<tr>
+<td><strong>复杂路由策略</strong></td>
+<td>单用户场景只需简单广播</td>
+<td>简化为广播或指定客户端</td>
+</tr>
+<tr>
+<td><strong>ChannelSwitcher</strong></td>
+<td>与 Router 职责重叠</td>
+<td>合并到业务层处理</td>
+</tr>
+<tr>
+<td><strong>MessageForwarder</strong></td>
+<td>多余抽象层</td>
+<td>Gateway 直接调用 Channel</td>
+</tr>
+<tr>
+<td><strong>多端口 Webhook</strong></td>
+<td>防火墙配置复杂</td>
+<td>统一 HTTP 服务器</td>
+</tr>
+</tbody>
+</table>
+<h3 id="102">10.2 修复的逻辑谬误<a class="headerlink" href="#102" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>修复方案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Channel 与 Gateway 交互不明确</strong></td>
+<td>明确使用 Start 时注入 handler 模式</td>
+</tr>
+<tr>
+<td><strong>Router 与 Switcher 职责重叠</strong></td>
+<td>移除 Switcher，Router 只负责客户端路由</td>
+</tr>
+<tr>
+<td><strong>消息流向不清晰</strong></td>
+<td>明确入站/出站两条独立流程</td>
+</tr>
+<tr>
+<td><strong>缺少客户端标识</strong></td>
+<td>Message 增加 Direction 字段区分流向</td>
+</tr>
+</tbody>
+</table>
+<h3 id="103">10.3 补充的缺失组件<a class="headerlink" href="#103" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>新增组件</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>统一 HTTP 服务器</strong></td>
+<td>所有 Channel 共享，减少端口占用</td>
+</tr>
+<tr>
+<td><strong>SessionManager</strong></td>
+<td>明确 WebSocket 会话管理职责</td>
+</tr>
+<tr>
+<td><strong>Message Direction</strong></td>
+<td>区分入站/出站消息</td>
+</tr>
+<tr>
+<td><strong>结构化日志</strong></td>
+<td>使用 slog 替代简单日志</td>
+</tr>
+<tr>
+<td><strong>配置验证</strong></td>
+<td>启动时验证配置完整性</td>
+</tr>
+<tr>
+<td><strong>优雅关闭</strong></td>
+<td>确保消息处理完成后再关闭</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="11_1">11. 使用示例<a class="headerlink" href="#11_1" title="Permanent link">¶</a></h2>
+<h3 id="111">11.1 基础使用<a class="headerlink" href="#111" title="Permanent link">¶</a></h3>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-18-1" id="__codelineno-18-1" name="__codelineno-18-1"></a><span class="kn">package</span><span class="w"> </span><span class="nx">main</span>
+<a href="#__codelineno-18-2" id="__codelineno-18-2" name="__codelineno-18-2"></a>
+<a href="#__codelineno-18-3" id="__codelineno-18-3" name="__codelineno-18-3"></a><span class="kn">import</span><span class="w"> </span><span class="p">(</span>
+<a href="#__codelineno-18-4" id="__codelineno-18-4" name="__codelineno-18-4"></a><span class="w">    </span><span class="s">"context"</span>
+<a href="#__codelineno-18-5" id="__codelineno-18-5" name="__codelineno-18-5"></a><span class="w">    </span><span class="s">"log"</span>
+<a href="#__codelineno-18-6" id="__codelineno-18-6" name="__codelineno-18-6"></a><span class="w">    </span><span class="s">"gort/pkg/gateway"</span>
+<a href="#__codelineno-18-7" id="__codelineno-18-7" name="__codelineno-18-7"></a><span class="p">)</span>
+<a href="#__codelineno-18-8" id="__codelineno-18-8" name="__codelineno-18-8"></a>
+<a href="#__codelineno-18-9" id="__codelineno-18-9" name="__codelineno-18-9"></a><span class="kd">func</span><span class="w"> </span><span class="nx">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-18-10" id="__codelineno-18-10" name="__codelineno-18-10"></a><span class="w">    </span><span class="c1">// 1. 创建 Gateway</span>
+<a href="#__codelineno-18-11" id="__codelineno-18-11" name="__codelineno-18-11"></a><span class="w">    </span><span class="nx">gw</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">gateway</span><span class="p">.</span><span class="nx">New</span><span class="p">(</span><span class="nx">gateway</span><span class="p">.</span><span class="nx">Config</span><span class="p">{</span>
+<a href="#__codelineno-18-12" id="__codelineno-18-12" name="__codelineno-18-12"></a><span class="w">        </span><span class="nx">WebSocketAddr</span><span class="p">:</span><span class="w"> </span><span class="s">":9000"</span><span class="p">,</span>
+<a href="#__codelineno-18-13" id="__codelineno-18-13" name="__codelineno-18-13"></a><span class="w">        </span><span class="nx">HTTPAddr</span><span class="p">:</span><span class="w">      </span><span class="s">":8080"</span><span class="p">,</span>
+<a href="#__codelineno-18-14" id="__codelineno-18-14" name="__codelineno-18-14"></a><span class="w">    </span><span class="p">})</span>
+<a href="#__codelineno-18-15" id="__codelineno-18-15" name="__codelineno-18-15"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-18-16" id="__codelineno-18-16" name="__codelineno-18-16"></a><span class="w">        </span><span class="nx">log</span><span class="p">.</span><span class="nx">Fatal</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+<a href="#__codelineno-18-17" id="__codelineno-18-17" name="__codelineno-18-17"></a><span class="w">    </span><span class="p">}</span>
+<a href="#__codelineno-18-18" id="__codelineno-18-18" name="__codelineno-18-18"></a>
+<a href="#__codelineno-18-19" id="__codelineno-18-19" name="__codelineno-18-19"></a><span class="w">    </span><span class="c1">// 2. 注册渠道</span>
+<a href="#__codelineno-18-20" id="__codelineno-18-20" name="__codelineno-18-20"></a><span class="w">    </span><span class="nx">wechatCh</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">channels</span><span class="p">.</span><span class="nx">NewWeChat</span><span class="p">(</span><span class="nx">channels</span><span class="p">.</span><span class="nx">WeChatConfig</span><span class="p">{</span>
+<a href="#__codelineno-18-21" id="__codelineno-18-21" name="__codelineno-18-21"></a><span class="w">        </span><span class="nx">AppID</span><span class="p">:</span><span class="w">     </span><span class="nx">os</span><span class="p">.</span><span class="nx">Getenv</span><span class="p">(</span><span class="s">"WECHAT_APP_ID"</span><span class="p">),</span>
+<a href="#__codelineno-18-22" id="__codelineno-18-22" name="__codelineno-18-22"></a><span class="w">        </span><span class="nx">AppSecret</span><span class="p">:</span><span class="w"> </span><span class="nx">os</span><span class="p">.</span><span class="nx">Getenv</span><span class="p">(</span><span class="s">"WECHAT_APP_SECRET"</span><span class="p">),</span>
+<a href="#__codelineno-18-23" id="__codelineno-18-23" name="__codelineno-18-23"></a><span class="w">        </span><span class="nx">Token</span><span class="p">:</span><span class="w">     </span><span class="nx">os</span><span class="p">.</span><span class="nx">Getenv</span><span class="p">(</span><span class="s">"WECHAT_TOKEN"</span><span class="p">),</span>
+<a href="#__codelineno-18-24" id="__codelineno-18-24" name="__codelineno-18-24"></a><span class="w">        </span><span class="nx">WebhookPath</span><span class="p">:</span><span class="w"> </span><span class="s">"/webhook/wechat"</span><span class="p">,</span>
+<a href="#__codelineno-18-25" id="__codelineno-18-25" name="__codelineno-18-25"></a><span class="w">    </span><span class="p">})</span>
+<a href="#__codelineno-18-26" id="__codelineno-18-26" name="__codelineno-18-26"></a><span class="w">    </span><span class="nx">gw</span><span class="p">.</span><span class="nx">RegisterChannel</span><span class="p">(</span><span class="nx">wechatCh</span><span class="p">)</span>
+<a href="#__codelineno-18-27" id="__codelineno-18-27" name="__codelineno-18-27"></a>
+<a href="#__codelineno-18-28" id="__codelineno-18-28" name="__codelineno-18-28"></a><span class="w">    </span><span class="c1">// 3. 设置业务处理器</span>
+<a href="#__codelineno-18-29" id="__codelineno-18-29" name="__codelineno-18-29"></a><span class="w">    </span><span class="nx">gw</span><span class="p">.</span><span class="nx">RegisterClientHandler</span><span class="p">(</span><span class="kd">func</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">clientID</span><span class="w"> </span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="w"> </span><span class="o">*</span><span class="nx">gateway</span><span class="p">.</span><span class="nx">Message</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="nx">gateway</span><span class="p">.</span><span class="nx">Message</span><span class="p">,</span><span class="w"> </span><span class="kt">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-18-30" id="__codelineno-18-30" name="__codelineno-18-30"></a><span class="w">        </span><span class="c1">// 业务逻辑处理</span>
+<a href="#__codelineno-18-31" id="__codelineno-18-31" name="__codelineno-18-31"></a><span class="w">        </span><span class="nx">log</span><span class="p">.</span><span class="nx">Printf</span><span class="p">(</span><span class="s">"Received: %s"</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="p">.</span><span class="nx">Content</span><span class="p">)</span>
+<a href="#__codelineno-18-32" id="__codelineno-18-32" name="__codelineno-18-32"></a>
+<a href="#__codelineno-18-33" id="__codelineno-18-33" name="__codelineno-18-33"></a><span class="w">        </span><span class="c1">// 返回响应</span>
+<a href="#__codelineno-18-34" id="__codelineno-18-34" name="__codelineno-18-34"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">gateway</span><span class="p">.</span><span class="nx">Message</span><span class="p">{</span>
+<a href="#__codelineno-18-35" id="__codelineno-18-35" name="__codelineno-18-35"></a><span class="w">            </span><span class="nx">ChannelID</span><span class="p">:</span><span class="w"> </span><span class="nx">msg</span><span class="p">.</span><span class="nx">ChannelID</span><span class="p">,</span>
+<a href="#__codelineno-18-36" id="__codelineno-18-36" name="__codelineno-18-36"></a><span class="w">            </span><span class="nx">Content</span><span class="p">:</span><span class="w">   </span><span class="s">"Received: "</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">msg</span><span class="p">.</span><span class="nx">Content</span><span class="p">,</span>
+<a href="#__codelineno-18-37" id="__codelineno-18-37" name="__codelineno-18-37"></a><span class="w">            </span><span class="nx">Type</span><span class="p">:</span><span class="w">      </span><span class="nx">gateway</span><span class="p">.</span><span class="nx">MessageTypeText</span><span class="p">,</span>
+<a href="#__codelineno-18-38" id="__codelineno-18-38" name="__codelineno-18-38"></a><span class="w">        </span><span class="p">},</span><span class="w"> </span><span class="kc">nil</span>
+<a href="#__codelineno-18-39" id="__codelineno-18-39" name="__codelineno-18-39"></a><span class="w">    </span><span class="p">})</span>
+<a href="#__codelineno-18-40" id="__codelineno-18-40" name="__codelineno-18-40"></a>
+<a href="#__codelineno-18-41" id="__codelineno-18-41" name="__codelineno-18-41"></a><span class="w">    </span><span class="c1">// 4. 启动</span>
+<a href="#__codelineno-18-42" id="__codelineno-18-42" name="__codelineno-18-42"></a><span class="w">    </span><span class="nx">ctx</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Background</span><span class="p">()</span>
+<a href="#__codelineno-18-43" id="__codelineno-18-43" name="__codelineno-18-43"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">gw</span><span class="p">.</span><span class="nx">Start</span><span class="p">(</span><span class="nx">ctx</span><span class="p">);</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-18-44" id="__codelineno-18-44" name="__codelineno-18-44"></a><span class="w">        </span><span class="nx">log</span><span class="p">.</span><span class="nx">Fatal</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+<a href="#__codelineno-18-45" id="__codelineno-18-45" name="__codelineno-18-45"></a><span class="w">    </span><span class="p">}</span>
+<a href="#__codelineno-18-46" id="__codelineno-18-46" name="__codelineno-18-46"></a>
+<a href="#__codelineno-18-47" id="__codelineno-18-47" name="__codelineno-18-47"></a><span class="w">    </span><span class="c1">// 5. 优雅关闭</span>
+<a href="#__codelineno-18-48" id="__codelineno-18-48" name="__codelineno-18-48"></a><span class="w">    </span><span class="o">&lt;-</span><span class="nx">ctx</span><span class="p">.</span><span class="nx">Done</span><span class="p">()</span>
+<a href="#__codelineno-18-49" id="__codelineno-18-49" name="__codelineno-18-49"></a><span class="w">    </span><span class="nx">gw</span><span class="p">.</span><span class="nx">Stop</span><span class="p">(</span><span class="nx">context</span><span class="p">.</span><span class="nx">Background</span><span class="p">())</span>
+<a href="#__codelineno-18-50" id="__codelineno-18-50" name="__codelineno-18-50"></a><span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="12_1">12. 附录<a class="headerlink" href="#12_1" title="Permanent link">¶</a></h2>
+<h3 id="121">12.1 术语表<a class="headerlink" href="#121" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>术语</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Channel</strong></td>
+<td>协议适配器，对接外部 IM 平台</td>
+</tr>
+<tr>
+<td><strong>Gateway</strong></td>
+<td>网关核心，消息协调中心</td>
+</tr>
+<tr>
+<td><strong>Session</strong></td>
+<td>WebSocket 客户端连接会话</td>
+</tr>
+<tr>
+<td><strong>Webhook</strong></td>
+<td>HTTP 回调接口，接收外部消息</td>
+</tr>
+<tr>
+<td><strong>入站消息</strong></td>
+<td>从外部渠道进入系统的消息</td>
+</tr>
+<tr>
+<td><strong>出站消息</strong></td>
+<td>从系统发送到外部渠道的消息</td>
+</tr>
+</tbody>
+</table>
+<h3 id="122">12.2 技术选型<a class="headerlink" href="#122" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>选型</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>WebSocket</strong></td>
+<td>gorilla/websocket</td>
+<td>成熟稳定，广泛使用</td>
+</tr>
+<tr>
+<td><strong>HTTP</strong></td>
+<td>net/http</td>
+<td>标准库，无需额外依赖</td>
+</tr>
+<tr>
+<td><strong>日志</strong></td>
+<td>log/slog</td>
+<td>Go 1.21+ 标准结构化日志</td>
+</tr>
+<tr>
+<td><strong>配置</strong></td>
+<td>envconfig + yaml</td>
+<td>简单实用</td>
+</tr>
+</tbody>
+</table>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+</main>
+<footer class="md-footer">
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+<div class="md-copyright__highlight">
+      Copyright © 2026 Raya Info co., Ltd.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "search.suggest", "search.highlight", "content.code.highlight", "content.code.copy", "content.code.annotate"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+<script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+<script src="javascripts/mathjax.js"></script>
+<script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script type="module">import mermaid from "https://unpkg.com/mermaid@10.4.0/dist/mermaid.esm.min.mjs";
+window.mermaidConfig = {default: {
+    startOnLoad: false
+}};</script></body>
+</html>

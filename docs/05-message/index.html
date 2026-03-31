@@ -1,0 +1,1641 @@
+
+<!DOCTYPE html>
+
+<html class="no-js" lang="zh">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="一个高效可扩展的WebSocket通信网关" name="description"/>
+<meta content="Ray" name="author"/>
+<link href="https://gorort.rayainfo.cn/05-message/" rel="canonical"/>
+<link href="../04-middleware/" rel="prev"/>
+<link href="../06-config/" rel="next"/>
+<link href="../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.6" name="generator"/>
+<title>Message - Gort 开发者文档</title>
+<link href="../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
+<link href="../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" rel="stylesheet"/>
+<script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="lime" data-md-color-primary="lime" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#message">
+          跳转至
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header" data-md-component="header">
+<nav aria-label="页眉" class="md-header__inner md-grid">
+<a aria-label="Gort 开发者文档" class="md-header__button md-logo" data-md-component="logo" href=".." title="Gort 开发者文档">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Gort 开发者文档
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              Message
+            
+          </span>
+</div>
+</div>
+</div>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="搜索" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="搜索" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="查找" class="md-search__options">
+<button aria-label="清空当前内容" class="md-search__icon md-icon" tabindex="-1" title="清空当前内容" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="md-header__source">
+<a class="md-source" data-md-component="source" href="https://github.com/DotNetAge/gort" title="前往仓库">
+<div class="md-source__icon md-icon">
+<svg viewbox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+</div>
+<div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<nav aria-label="标签" class="md-tabs" data-md-component="tabs">
+<div class="md-grid">
+<ul class="md-tabs__list">
+<li class="md-tabs__item md-tabs__item--active">
+<a class="md-tabs__link" href="..">
+          
+  
+  
+  Gort
+
+        </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../base-line/">
+          
+  
+  
+  测试报告
+
+        </a>
+</li>
+</ul>
+</div>
+</nav>
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="导航栏" class="md-nav md-nav--primary md-nav--lifted" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Gort 开发者文档" class="md-nav__button md-logo" data-md-component="logo" href=".." title="Gort 开发者文档">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Gort 开发者文档
+  </label>
+<div class="md-nav__source">
+<a class="md-source" data-md-component="source" href="https://github.com/DotNetAge/gort" title="前往仓库">
+<div class="md-source__icon md-icon">
+<svg viewbox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+</div>
+<div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+</div>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_1" type="checkbox"/>
+<label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="">
+<span class="md-ellipsis">
+    
+  
+    Gort
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_1_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_1">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Gort
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="..">
+<span class="md-ellipsis">
+    
+  
+    设计简介
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../01-gateway/">
+<span class="md-ellipsis">
+    
+  
+    Gateway
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../02-channel/">
+<span class="md-ellipsis">
+    
+  
+    Channel
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--section md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_1_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_1_4" id="__nav_1_4_label" tabindex="">
+<span class="md-ellipsis">
+    
+  
+    配置指南
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_1_4_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_1_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    配置指南
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/">
+<span class="md-ellipsis">
+    
+  
+    总览
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/01-channel-dingtalk/">
+<span class="md-ellipsis">
+    
+  
+    钉钉
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/02-channel-feishu/">
+<span class="md-ellipsis">
+    
+  
+    飞书
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/03-channel-telegram/">
+<span class="md-ellipsis">
+    
+  
+    Telegram
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/04-channel-wechat/">
+<span class="md-ellipsis">
+    
+  
+    微信公众号
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/05-channel-whatsapp/">
+<span class="md-ellipsis">
+    
+  
+    WhatsApp
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/06-channel-imessage/">
+<span class="md-ellipsis">
+    
+  
+    iMessage
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/07-channel-messenger/">
+<span class="md-ellipsis">
+    
+  
+    Facebook Messenger
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/08-channel-wecom/">
+<span class="md-ellipsis">
+    
+  
+    企业微信配置指南
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/09-channel-slack/">
+<span class="md-ellipsis">
+    
+  
+    Slack
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../channel/10-channel-discord/">
+<span class="md-ellipsis">
+    
+  
+    Discord
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03-session-manager/">
+<span class="md-ellipsis">
+    
+  
+    SessionManager
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04-middleware/">
+<span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    Message
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    Message
+  
+
+    
+  </span>
+</a>
+<nav aria-label="目录" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1">
+<span class="md-ellipsis">
+      
+        1. 结构定位
+      
+    </span>
+</a>
+<nav aria-label="1. 结构定位" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11">
+<span class="md-ellipsis">
+      
+        1.1 核心作用
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12">
+<span class="md-ellipsis">
+      
+        1.2 设计目标
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13">
+<span class="md-ellipsis">
+      
+        1.3 使用范围
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2">
+<span class="md-ellipsis">
+      
+        2. 设计决策
+      
+    </span>
+</a>
+<nav aria-label="2. 设计决策" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#21">
+<span class="md-ellipsis">
+      
+        2.1 为什么需要标准消息格式？
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#22">
+<span class="md-ellipsis">
+      
+        2.2 为什么使用扁平结构？
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#23-direction">
+<span class="md-ellipsis">
+      
+        2.3 为什么需要 Direction 字段？
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3">
+<span class="md-ellipsis">
+      
+        3. 结构定义
+      
+    </span>
+</a>
+<nav aria-label="3. 结构定义" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#31-message">
+<span class="md-ellipsis">
+      
+        3.1 Message 结构
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#32-userinfo">
+<span class="md-ellipsis">
+      
+        3.2 UserInfo 结构
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#33">
+<span class="md-ellipsis">
+      
+        3.3 枚举类型
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4">
+<span class="md-ellipsis">
+      
+        4. 字段设计说明
+      
+    </span>
+</a>
+<nav aria-label="4. 字段设计说明" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#41">
+<span class="md-ellipsis">
+      
+        4.1 核心字段
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#42">
+<span class="md-ellipsis">
+      
+        4.2 扩展字段
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#43-metadata">
+<span class="md-ellipsis">
+      
+        4.3 Metadata 使用场景
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5">
+<span class="md-ellipsis">
+      
+        5. 消息流转
+      
+    </span>
+</a>
+<nav aria-label="5. 消息流转" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#51">
+<span class="md-ellipsis">
+      
+        5.1 入站消息转换
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#52">
+<span class="md-ellipsis">
+      
+        5.2 出站消息转换
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6">
+<span class="md-ellipsis">
+      
+        6. 与其他模块的关系
+      
+    </span>
+</a>
+<nav aria-label="6. 与其他模块的关系" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#61">
+<span class="md-ellipsis">
+      
+        6.1 依赖关系
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#62">
+<span class="md-ellipsis">
+      
+        6.2 使用方式
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7">
+<span class="md-ellipsis">
+      
+        7. 约束与限制
+      
+    </span>
+</a>
+<nav aria-label="7. 约束与限制" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#71">
+<span class="md-ellipsis">
+      
+        7.1 字段约束
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#72">
+<span class="md-ellipsis">
+      
+        7.2 序列化约束
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8">
+<span class="md-ellipsis">
+      
+        8. 扩展设计
+      
+    </span>
+</a>
+<nav aria-label="8. 扩展设计" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#81">
+<span class="md-ellipsis">
+      
+        8.1 支持的消息类型
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#82">
+<span class="md-ellipsis">
+      
+        8.2 扩展消息类型
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9">
+<span class="md-ellipsis">
+      
+        9. 使用示例
+      
+    </span>
+</a>
+<nav aria-label="9. 使用示例" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#91">
+<span class="md-ellipsis">
+      
+        9.1 入站消息示例
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#92">
+<span class="md-ellipsis">
+      
+        9.2 出站消息示例
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10">
+<span class="md-ellipsis">
+      
+        10. 相关文档
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../06-config/">
+<span class="md-ellipsis">
+    
+  
+    配置管理
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    测试报告
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    测试报告
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../base-line/">
+<span class="md-ellipsis">
+    
+  
+    Gort 性能基线文档
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="目录" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1">
+<span class="md-ellipsis">
+      
+        1. 结构定位
+      
+    </span>
+</a>
+<nav aria-label="1. 结构定位" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11">
+<span class="md-ellipsis">
+      
+        1.1 核心作用
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12">
+<span class="md-ellipsis">
+      
+        1.2 设计目标
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13">
+<span class="md-ellipsis">
+      
+        1.3 使用范围
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2">
+<span class="md-ellipsis">
+      
+        2. 设计决策
+      
+    </span>
+</a>
+<nav aria-label="2. 设计决策" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#21">
+<span class="md-ellipsis">
+      
+        2.1 为什么需要标准消息格式？
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#22">
+<span class="md-ellipsis">
+      
+        2.2 为什么使用扁平结构？
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#23-direction">
+<span class="md-ellipsis">
+      
+        2.3 为什么需要 Direction 字段？
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3">
+<span class="md-ellipsis">
+      
+        3. 结构定义
+      
+    </span>
+</a>
+<nav aria-label="3. 结构定义" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#31-message">
+<span class="md-ellipsis">
+      
+        3.1 Message 结构
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#32-userinfo">
+<span class="md-ellipsis">
+      
+        3.2 UserInfo 结构
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#33">
+<span class="md-ellipsis">
+      
+        3.3 枚举类型
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4">
+<span class="md-ellipsis">
+      
+        4. 字段设计说明
+      
+    </span>
+</a>
+<nav aria-label="4. 字段设计说明" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#41">
+<span class="md-ellipsis">
+      
+        4.1 核心字段
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#42">
+<span class="md-ellipsis">
+      
+        4.2 扩展字段
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#43-metadata">
+<span class="md-ellipsis">
+      
+        4.3 Metadata 使用场景
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5">
+<span class="md-ellipsis">
+      
+        5. 消息流转
+      
+    </span>
+</a>
+<nav aria-label="5. 消息流转" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#51">
+<span class="md-ellipsis">
+      
+        5.1 入站消息转换
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#52">
+<span class="md-ellipsis">
+      
+        5.2 出站消息转换
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6">
+<span class="md-ellipsis">
+      
+        6. 与其他模块的关系
+      
+    </span>
+</a>
+<nav aria-label="6. 与其他模块的关系" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#61">
+<span class="md-ellipsis">
+      
+        6.1 依赖关系
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#62">
+<span class="md-ellipsis">
+      
+        6.2 使用方式
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7">
+<span class="md-ellipsis">
+      
+        7. 约束与限制
+      
+    </span>
+</a>
+<nav aria-label="7. 约束与限制" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#71">
+<span class="md-ellipsis">
+      
+        7.1 字段约束
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#72">
+<span class="md-ellipsis">
+      
+        7.2 序列化约束
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8">
+<span class="md-ellipsis">
+      
+        8. 扩展设计
+      
+    </span>
+</a>
+<nav aria-label="8. 扩展设计" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#81">
+<span class="md-ellipsis">
+      
+        8.1 支持的消息类型
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#82">
+<span class="md-ellipsis">
+      
+        8.2 扩展消息类型
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9">
+<span class="md-ellipsis">
+      
+        9. 使用示例
+      
+    </span>
+</a>
+<nav aria-label="9. 使用示例" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#91">
+<span class="md-ellipsis">
+      
+        9.1 入站消息示例
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#92">
+<span class="md-ellipsis">
+      
+        9.2 出站消息示例
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10">
+<span class="md-ellipsis">
+      
+        10. 相关文档
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="message">Message<a class="headerlink" href="#message" title="Permanent link">¶</a></h1>
+<h2 id="1">1. 结构定位<a class="headerlink" href="#1" title="Permanent link">¶</a></h2>
+<h3 id="11">1.1 核心作用<a class="headerlink" href="#11" title="Permanent link">¶</a></h3>
+<p>Message 是系统的<strong>核心数据结构</strong>，定义了消息在系统内部流转的标准格式，是所有组件之间通信的"通用语言"。</p>
+<p><strong>一句话定义</strong>：Message 是 gort 系统中消息的"标准信封"，所有组件通过它传递信息。</p>
+<h3 id="12">1.2 设计目标<a class="headerlink" href="#12" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>目标</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>统一格式</strong></td>
+<td>屏蔽不同平台的消息格式差异</td>
+</tr>
+<tr>
+<td><strong>信息完整</strong></td>
+<td>包含消息处理所需的所有信息</td>
+</tr>
+<tr>
+<td><strong>可扩展</strong></td>
+<td>通过 Metadata 支持平台特定字段</td>
+</tr>
+<tr>
+<td><strong>易于序列化</strong></td>
+<td>支持 JSON 序列化，便于传输和存储</td>
+</tr>
+</tbody>
+</table>
+<h3 id="13">1.3 使用范围<a class="headerlink" href="#13" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>graph TB
+    subgraph "Message 使用范围"
+        CH[Channel]
+        GW[Gateway]
+        MW[Middleware]
+        SM[SessionManager]
+        BL[业务层]
+    end
+
+    MSG[Message]
+
+    CH --&gt; MSG
+    GW --&gt; MSG
+    MW --&gt; MSG
+    SM --&gt; MSG
+    BL --&gt; MSG
+
+    style MSG fill:#9f9
+</code></pre>
+<hr/>
+<h2 id="2">2. 设计决策<a class="headerlink" href="#2" title="Permanent link">¶</a></h2>
+<h3 id="21">2.1 为什么需要标准消息格式？<a class="headerlink" href="#21" title="Permanent link">¶</a></h3>
+<p><strong>问题背景</strong>：
+- 不同平台消息格式差异巨大
+- 组件之间需要统一的数据结构
+- 需要支持消息的双向流转</p>
+<p><strong>各平台消息格式对比</strong>：</p>
+<pre class="mermaid"><code>graph LR
+    subgraph "微信消息格式"
+        W1["&lt;xml&gt;&lt;ToUserName&gt;...&lt;/ToUserName&gt;&lt;FromUserName&gt;...&lt;/FromUserName&gt;&lt;Content&gt;...&lt;/Content&gt;&lt;/xml&gt;"]
+    end
+
+    subgraph "钉钉消息格式"
+        D1["{msgtype: text, text: {content: ...}, senderNick: ...}"]
+    end
+
+    subgraph "飞书消息格式"
+        F1["{event: {sender: ..., message: {content: ...}}}"]
+    end
+
+    subgraph "标准 Message ✅"
+        S1["{id, channel_id, from, to, content, type, ...}"]
+    end
+
+    style S1 fill:#9f9
+</code></pre>
+<h3 id="22">2.2 为什么使用扁平结构？<a class="headerlink" href="#22" title="Permanent link">¶</a></h3>
+<p><strong>决策</strong>：Message 使用扁平结构，而非深层嵌套。</p>
+<pre class="mermaid"><code>graph TB
+    subgraph "扁平结构 ✅"
+        A1["Message"]
+        A2["id: string"]
+        A3["channel_id: string"]
+        A4["from: UserInfo"]
+        A5["content: string"]
+        A6["type: MessageType"]
+    end
+
+    A1 --&gt; A2
+    A1 --&gt; A3
+    A1 --&gt; A4
+    A1 --&gt; A5
+    A1 --&gt; A6
+
+    style A1 fill:#9f9
+</code></pre>
+<p><strong>理由</strong>：
+1. <strong>易于访问</strong>：直接访问字段，无需多层导航
+2. <strong>易于序列化</strong>：JSON 结构简单
+3. <strong>易于调试</strong>：日志输出清晰</p>
+<h3 id="23-direction">2.3 为什么需要 Direction 字段？<a class="headerlink" href="#23-direction" title="Permanent link">¶</a></h3>
+<p><strong>决策</strong>：Message 包含 Direction 字段区分消息方向。</p>
+<pre class="mermaid"><code>graph LR
+    subgraph "入站 Inbound"
+        I1[外部平台] --&gt; I2[Channel] --&gt; I3[Gateway] --&gt; I4[客户端]
+    end
+
+    subgraph "出站 Outbound"
+        O1[客户端] --&gt; O2[Gateway] --&gt; O3[Channel] --&gt; O4[外部平台]
+    end
+</code></pre>
+<p><strong>理由</strong>：
+1. <strong>路由决策</strong>：中间件可根据方向做不同处理
+2. <strong>日志追踪</strong>：便于区分消息来源
+3. <strong>业务逻辑</strong>：业务层可针对方向做不同响应</p>
+<hr/>
+<h2 id="3">3. 结构定义<a class="headerlink" href="#3" title="Permanent link">¶</a></h2>
+<h3 id="31-message">3.1 Message 结构<a class="headerlink" href="#31-message" title="Permanent link">¶</a></h3>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a><span class="c1">// Message 标准消息格式</span>
+<a href="#__codelineno-0-2" id="__codelineno-0-2" name="__codelineno-0-2"></a><span class="kd">type</span><span class="w"> </span><span class="nx">Message</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-0-3" id="__codelineno-0-3" name="__codelineno-0-3"></a><span class="w">    </span><span class="nx">ID</span><span class="w">        </span><span class="kt">string</span><span class="w">                 </span><span class="s">`json:"id"`</span><span class="w">         </span><span class="c1">// 消息唯一标识</span>
+<a href="#__codelineno-0-4" id="__codelineno-0-4" name="__codelineno-0-4"></a><span class="w">    </span><span class="nx">ChannelID</span><span class="w"> </span><span class="kt">string</span><span class="w">                 </span><span class="s">`json:"channel_id"`</span><span class="w"> </span><span class="c1">// 来源/目标渠道</span>
+<a href="#__codelineno-0-5" id="__codelineno-0-5" name="__codelineno-0-5"></a><span class="w">    </span><span class="nx">Direction</span><span class="w"> </span><span class="nx">Direction</span><span class="w">              </span><span class="s">`json:"direction"`</span><span class="w">  </span><span class="c1">// 消息方向</span>
+<a href="#__codelineno-0-6" id="__codelineno-0-6" name="__codelineno-0-6"></a><span class="w">    </span><span class="nx">From</span><span class="w">      </span><span class="nx">UserInfo</span><span class="w">               </span><span class="s">`json:"from"`</span><span class="w">       </span><span class="c1">// 发送者信息</span>
+<a href="#__codelineno-0-7" id="__codelineno-0-7" name="__codelineno-0-7"></a><span class="w">    </span><span class="nx">To</span><span class="w">        </span><span class="nx">UserInfo</span><span class="w">               </span><span class="s">`json:"to"`</span><span class="w">         </span><span class="c1">// 接收者信息</span>
+<a href="#__codelineno-0-8" id="__codelineno-0-8" name="__codelineno-0-8"></a><span class="w">    </span><span class="nx">Content</span><span class="w">   </span><span class="kt">string</span><span class="w">                 </span><span class="s">`json:"content"`</span><span class="w">    </span><span class="c1">// 消息内容</span>
+<a href="#__codelineno-0-9" id="__codelineno-0-9" name="__codelineno-0-9"></a><span class="w">    </span><span class="nx">Type</span><span class="w">      </span><span class="nx">MessageType</span><span class="w">            </span><span class="s">`json:"type"`</span><span class="w">       </span><span class="c1">// 消息类型</span>
+<a href="#__codelineno-0-10" id="__codelineno-0-10" name="__codelineno-0-10"></a><span class="w">    </span><span class="nx">Metadata</span><span class="w">  </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kd">interface</span><span class="p">{}</span><span class="w"> </span><span class="s">`json:"metadata"`</span><span class="w">   </span><span class="c1">// 扩展元数据</span>
+<a href="#__codelineno-0-11" id="__codelineno-0-11" name="__codelineno-0-11"></a><span class="w">    </span><span class="nx">Timestamp</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="w">              </span><span class="s">`json:"timestamp"`</span><span class="w">  </span><span class="c1">// 时间戳</span>
+<a href="#__codelineno-0-12" id="__codelineno-0-12" name="__codelineno-0-12"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="32-userinfo">3.2 UserInfo 结构<a class="headerlink" href="#32-userinfo" title="Permanent link">¶</a></h3>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-1-1" id="__codelineno-1-1" name="__codelineno-1-1"></a><span class="c1">// UserInfo 用户信息</span>
+<a href="#__codelineno-1-2" id="__codelineno-1-2" name="__codelineno-1-2"></a><span class="kd">type</span><span class="w"> </span><span class="nx">UserInfo</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-1-3" id="__codelineno-1-3" name="__codelineno-1-3"></a><span class="w">    </span><span class="nx">ID</span><span class="w">       </span><span class="kt">string</span><span class="w"> </span><span class="s">`json:"id"`</span><span class="w">       </span><span class="c1">// 平台用户 ID</span>
+<a href="#__codelineno-1-4" id="__codelineno-1-4" name="__codelineno-1-4"></a><span class="w">    </span><span class="nx">Name</span><span class="w">     </span><span class="kt">string</span><span class="w"> </span><span class="s">`json:"name"`</span><span class="w">     </span><span class="c1">// 显示名称</span>
+<a href="#__codelineno-1-5" id="__codelineno-1-5" name="__codelineno-1-5"></a><span class="w">    </span><span class="nx">Avatar</span><span class="w">   </span><span class="kt">string</span><span class="w"> </span><span class="s">`json:"avatar"`</span><span class="w">   </span><span class="c1">// 头像 URL</span>
+<a href="#__codelineno-1-6" id="__codelineno-1-6" name="__codelineno-1-6"></a><span class="w">    </span><span class="nx">Platform</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="s">`json:"platform"`</span><span class="w"> </span><span class="c1">// 所属平台</span>
+<a href="#__codelineno-1-7" id="__codelineno-1-7" name="__codelineno-1-7"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="33">3.3 枚举类型<a class="headerlink" href="#33" title="Permanent link">¶</a></h3>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-2-1" id="__codelineno-2-1" name="__codelineno-2-1"></a><span class="c1">// Direction 消息方向</span>
+<a href="#__codelineno-2-2" id="__codelineno-2-2" name="__codelineno-2-2"></a><span class="kd">type</span><span class="w"> </span><span class="nx">Direction</span><span class="w"> </span><span class="kt">string</span>
+<a href="#__codelineno-2-3" id="__codelineno-2-3" name="__codelineno-2-3"></a>
+<a href="#__codelineno-2-4" id="__codelineno-2-4" name="__codelineno-2-4"></a><span class="kd">const</span><span class="w"> </span><span class="p">(</span>
+<a href="#__codelineno-2-5" id="__codelineno-2-5" name="__codelineno-2-5"></a><span class="w">    </span><span class="nx">DirectionInbound</span><span class="w">  </span><span class="nx">Direction</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">"inbound"</span><span class="w">  </span><span class="c1">// 入站：外部 → 系统</span>
+<a href="#__codelineno-2-6" id="__codelineno-2-6" name="__codelineno-2-6"></a><span class="w">    </span><span class="nx">DirectionOutbound</span><span class="w"> </span><span class="nx">Direction</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">"outbound"</span><span class="w"> </span><span class="c1">// 出站：系统 → 外部</span>
+<a href="#__codelineno-2-7" id="__codelineno-2-7" name="__codelineno-2-7"></a><span class="p">)</span>
+<a href="#__codelineno-2-8" id="__codelineno-2-8" name="__codelineno-2-8"></a>
+<a href="#__codelineno-2-9" id="__codelineno-2-9" name="__codelineno-2-9"></a><span class="c1">// MessageType 消息类型</span>
+<a href="#__codelineno-2-10" id="__codelineno-2-10" name="__codelineno-2-10"></a><span class="kd">type</span><span class="w"> </span><span class="nx">MessageType</span><span class="w"> </span><span class="kt">string</span>
+<a href="#__codelineno-2-11" id="__codelineno-2-11" name="__codelineno-2-11"></a>
+<a href="#__codelineno-2-12" id="__codelineno-2-12" name="__codelineno-2-12"></a><span class="kd">const</span><span class="w"> </span><span class="p">(</span>
+<a href="#__codelineno-2-13" id="__codelineno-2-13" name="__codelineno-2-13"></a><span class="w">    </span><span class="nx">MessageTypeText</span><span class="w">  </span><span class="nx">MessageType</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">"text"</span><span class="w">  </span><span class="c1">// 文本消息</span>
+<a href="#__codelineno-2-14" id="__codelineno-2-14" name="__codelineno-2-14"></a><span class="w">    </span><span class="nx">MessageTypeImage</span><span class="w"> </span><span class="nx">MessageType</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">"image"</span><span class="w"> </span><span class="c1">// 图片消息</span>
+<a href="#__codelineno-2-15" id="__codelineno-2-15" name="__codelineno-2-15"></a><span class="w">    </span><span class="nx">MessageTypeFile</span><span class="w">  </span><span class="nx">MessageType</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">"file"</span><span class="w">  </span><span class="c1">// 文件消息</span>
+<a href="#__codelineno-2-16" id="__codelineno-2-16" name="__codelineno-2-16"></a><span class="w">    </span><span class="nx">MessageTypeAudio</span><span class="w"> </span><span class="nx">MessageType</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">"audio"</span><span class="w"> </span><span class="c1">// 语音消息</span>
+<a href="#__codelineno-2-17" id="__codelineno-2-17" name="__codelineno-2-17"></a><span class="w">    </span><span class="nx">MessageTypeVideo</span><span class="w"> </span><span class="nx">MessageType</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">"video"</span><span class="w"> </span><span class="c1">// 视频消息</span>
+<a href="#__codelineno-2-18" id="__codelineno-2-18" name="__codelineno-2-18"></a><span class="w">    </span><span class="nx">MessageTypeEvent</span><span class="w"> </span><span class="nx">MessageType</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">"event"</span><span class="w"> </span><span class="c1">// 事件消息</span>
+<a href="#__codelineno-2-19" id="__codelineno-2-19" name="__codelineno-2-19"></a><span class="p">)</span>
+</code></pre></div>
+<hr/>
+<h2 id="4">4. 字段设计说明<a class="headerlink" href="#4" title="Permanent link">¶</a></h2>
+<h3 id="41">4.1 核心字段<a class="headerlink" href="#41" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>必需</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ID</code></td>
+<td>string</td>
+<td>是</td>
+<td>消息唯一标识，用于追踪和去重</td>
+</tr>
+<tr>
+<td><code>ChannelID</code></td>
+<td>string</td>
+<td>是</td>
+<td>渠道标识，用于路由到正确的 Channel</td>
+</tr>
+<tr>
+<td><code>Direction</code></td>
+<td>Direction</td>
+<td>是</td>
+<td>消息方向，区分入站/出站</td>
+</tr>
+<tr>
+<td><code>From</code></td>
+<td>UserInfo</td>
+<td>是</td>
+<td>发送者信息</td>
+</tr>
+<tr>
+<td><code>To</code></td>
+<td>UserInfo</td>
+<td>否</td>
+<td>接收者信息（群聊时使用）</td>
+</tr>
+<tr>
+<td><code>Content</code></td>
+<td>string</td>
+<td>是</td>
+<td>消息内容</td>
+</tr>
+<tr>
+<td><code>Type</code></td>
+<td>MessageType</td>
+<td>是</td>
+<td>消息类型</td>
+</tr>
+<tr>
+<td><code>Timestamp</code></td>
+<td>time.Time</td>
+<td>是</td>
+<td>消息时间戳</td>
+</tr>
+</tbody>
+</table>
+<h3 id="42">4.2 扩展字段<a class="headerlink" href="#42" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Metadata</code></td>
+<td>map</td>
+<td>平台特定字段，如微信的 MsgId、钉钉的 MsgType</td>
+</tr>
+</tbody>
+</table>
+<h3 id="43-metadata">4.3 Metadata 使用场景<a class="headerlink" href="#43-metadata" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>平台</th>
+<th>Metadata 字段</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>微信</td>
+<td><code>msg_id</code>, <code>msg_type</code>, <code>create_time</code></td>
+</tr>
+<tr>
+<td>钉钉</td>
+<td><code>msgtype</code>, <code>sessionWebhook</code>, <code>conversationType</code></td>
+</tr>
+<tr>
+<td>飞书</td>
+<td><code>event_type</code>, <code>chat_id</code>, <code>message_id</code></td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="5">5. 消息流转<a class="headerlink" href="#5" title="Permanent link">¶</a></h2>
+<h3 id="51">5.1 入站消息转换<a class="headerlink" href="#51" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>sequenceDiagram
+    participant EP as 外部平台
+    participant CH as Channel
+    participant MSG as Message
+
+    EP-&gt;&gt;CH: 平台协议消息
+    CH-&gt;&gt;MSG: 构建 Message
+
+    Note over MSG: ID = generateID()<br/>ChannelID = "wechat"<br/>Direction = Inbound<br/>From = 解析发送者<br/>Content = 解析内容<br/>Type = 解析类型<br/>Metadata = 平台字段
+</code></pre>
+<h3 id="52">5.2 出站消息转换<a class="headerlink" href="#52" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>sequenceDiagram
+    participant MSG as Message
+    participant CH as Channel
+    participant EP as 外部平台
+
+    MSG-&gt;&gt;CH: SendMessage(msg)
+    CH-&gt;&gt;CH: 根据 ChannelID 选择渠道
+    CH-&gt;&gt;CH: 根据 Type 选择发送方式
+    CH-&gt;&gt;EP: 平台 API 调用
+</code></pre>
+<hr/>
+<h2 id="6">6. 与其他模块的关系<a class="headerlink" href="#6" title="Permanent link">¶</a></h2>
+<h3 id="61">6.1 依赖关系<a class="headerlink" href="#61" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>graph TB
+    MSG[Message]
+
+    MSG --&gt; UID[UserInfo]
+    MSG --&gt; DIR[Direction]
+    MSG --&gt; MT[MessageType]
+
+    style MSG fill:#9f9
+</code></pre>
+<h3 id="62">6.2 使用方式<a class="headerlink" href="#62" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>创建 Message</th>
+<th>消费 Message</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Channel</td>
+<td>入站时创建</td>
+<td>出站时消费</td>
+</tr>
+<tr>
+<td>Gateway</td>
+<td>不创建</td>
+<td>路由时消费</td>
+</tr>
+<tr>
+<td>Middleware</td>
+<td>不创建</td>
+<td>处理时消费</td>
+</tr>
+<tr>
+<td>SessionManager</td>
+<td>不创建</td>
+<td>推送时消费</td>
+</tr>
+<tr>
+<td>业务层</td>
+<td>出站时创建</td>
+<td>入站时消费</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="7">7. 约束与限制<a class="headerlink" href="#7" title="Permanent link">¶</a></h2>
+<h3 id="71">7.1 字段约束<a class="headerlink" href="#71" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>约束</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ID</code> 必须唯一</td>
+<td>用于消息追踪和去重</td>
+</tr>
+<tr>
+<td><code>ChannelID</code> 必须对应已注册渠道</td>
+<td>否则路由失败</td>
+</tr>
+<tr>
+<td><code>Content</code> 不能为空</td>
+<td>空消息无意义</td>
+</tr>
+<tr>
+<td><code>Timestamp</code> 使用 UTC 时间</td>
+<td>保证时区一致性</td>
+</tr>
+</tbody>
+</table>
+<h3 id="72">7.2 序列化约束<a class="headerlink" href="#72" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>约束</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>使用 JSON 序列化</td>
+<td>便于传输和日志</td>
+</tr>
+<tr>
+<td>Metadata 值必须是可序列化类型</td>
+<td>避免序列化失败</td>
+</tr>
+<tr>
+<td>时间使用 RFC3339 格式</td>
+<td>标准时间格式</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="8">8. 扩展设计<a class="headerlink" href="#8" title="Permanent link">¶</a></h2>
+<h3 id="81">8.1 支持的消息类型<a class="headerlink" href="#81" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>graph TB
+    MT[MessageType]
+
+    MT --&gt; Text[Text 文本]
+    MT --&gt; Image[Image 图片]
+    MT --&gt; File[File 文件]
+    MT --&gt; Audio[Audio 语音]
+    MT --&gt; Video[Video 视频]
+    MT --&gt; Event[Event 事件]
+</code></pre>
+<h3 id="82">8.2 扩展消息类型<a class="headerlink" href="#82" title="Permanent link">¶</a></h3>
+<p>新增消息类型只需添加常量：</p>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-3-1" id="__codelineno-3-1" name="__codelineno-3-1"></a><span class="kd">const</span><span class="w"> </span><span class="p">(</span>
+<a href="#__codelineno-3-2" id="__codelineno-3-2" name="__codelineno-3-2"></a><span class="w">    </span><span class="nx">MessageTypeLocation</span><span class="w"> </span><span class="nx">MessageType</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">"location"</span><span class="w"> </span><span class="c1">// 位置消息</span>
+<a href="#__codelineno-3-3" id="__codelineno-3-3" name="__codelineno-3-3"></a><span class="w">    </span><span class="nx">MessageTypeContact</span><span class="w">  </span><span class="nx">MessageType</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">"contact"</span><span class="w">  </span><span class="c1">// 名片消息</span>
+<a href="#__codelineno-3-4" id="__codelineno-3-4" name="__codelineno-3-4"></a><span class="p">)</span>
+</code></pre></div>
+<hr/>
+<h2 id="9">9. 使用示例<a class="headerlink" href="#9" title="Permanent link">¶</a></h2>
+<h3 id="91">9.1 入站消息示例<a class="headerlink" href="#91" title="Permanent link">¶</a></h3>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-4-1" id="__codelineno-4-1" name="__codelineno-4-1"></a><span class="nx">msg</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">Message</span><span class="p">{</span>
+<a href="#__codelineno-4-2" id="__codelineno-4-2" name="__codelineno-4-2"></a><span class="w">    </span><span class="nx">ID</span><span class="p">:</span><span class="w">        </span><span class="s">"msg_123456"</span><span class="p">,</span>
+<a href="#__codelineno-4-3" id="__codelineno-4-3" name="__codelineno-4-3"></a><span class="w">    </span><span class="nx">ChannelID</span><span class="p">:</span><span class="w"> </span><span class="s">"wechat"</span><span class="p">,</span>
+<a href="#__codelineno-4-4" id="__codelineno-4-4" name="__codelineno-4-4"></a><span class="w">    </span><span class="nx">Direction</span><span class="p">:</span><span class="w"> </span><span class="nx">DirectionInbound</span><span class="p">,</span>
+<a href="#__codelineno-4-5" id="__codelineno-4-5" name="__codelineno-4-5"></a><span class="w">    </span><span class="nx">From</span><span class="p">:</span><span class="w"> </span><span class="nx">UserInfo</span><span class="p">{</span>
+<a href="#__codelineno-4-6" id="__codelineno-4-6" name="__codelineno-4-6"></a><span class="w">        </span><span class="nx">ID</span><span class="p">:</span><span class="w">       </span><span class="s">"wx_user_001"</span><span class="p">,</span>
+<a href="#__codelineno-4-7" id="__codelineno-4-7" name="__codelineno-4-7"></a><span class="w">        </span><span class="nx">Name</span><span class="p">:</span><span class="w">     </span><span class="s">"张三"</span><span class="p">,</span>
+<a href="#__codelineno-4-8" id="__codelineno-4-8" name="__codelineno-4-8"></a><span class="w">        </span><span class="nx">Platform</span><span class="p">:</span><span class="w"> </span><span class="s">"wechat"</span><span class="p">,</span>
+<a href="#__codelineno-4-9" id="__codelineno-4-9" name="__codelineno-4-9"></a><span class="w">    </span><span class="p">},</span>
+<a href="#__codelineno-4-10" id="__codelineno-4-10" name="__codelineno-4-10"></a><span class="w">    </span><span class="nx">Content</span><span class="p">:</span><span class="w">   </span><span class="s">"你好"</span><span class="p">,</span>
+<a href="#__codelineno-4-11" id="__codelineno-4-11" name="__codelineno-4-11"></a><span class="w">    </span><span class="nx">Type</span><span class="p">:</span><span class="w">      </span><span class="nx">MessageTypeText</span><span class="p">,</span>
+<a href="#__codelineno-4-12" id="__codelineno-4-12" name="__codelineno-4-12"></a><span class="w">    </span><span class="nx">Metadata</span><span class="p">:</span><span class="w"> </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kd">interface</span><span class="p">{}{</span>
+<a href="#__codelineno-4-13" id="__codelineno-4-13" name="__codelineno-4-13"></a><span class="w">        </span><span class="s">"msg_id"</span><span class="p">:</span><span class="w">      </span><span class="s">"1234567890"</span><span class="p">,</span>
+<a href="#__codelineno-4-14" id="__codelineno-4-14" name="__codelineno-4-14"></a><span class="w">        </span><span class="s">"msg_type"</span><span class="p">:</span><span class="w">    </span><span class="s">"text"</span><span class="p">,</span>
+<a href="#__codelineno-4-15" id="__codelineno-4-15" name="__codelineno-4-15"></a><span class="w">        </span><span class="s">"create_time"</span><span class="p">:</span><span class="w"> </span><span class="mi">1234567890</span><span class="p">,</span>
+<a href="#__codelineno-4-16" id="__codelineno-4-16" name="__codelineno-4-16"></a><span class="w">    </span><span class="p">},</span>
+<a href="#__codelineno-4-17" id="__codelineno-4-17" name="__codelineno-4-17"></a><span class="w">    </span><span class="nx">Timestamp</span><span class="p">:</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Now</span><span class="p">(),</span>
+<a href="#__codelineno-4-18" id="__codelineno-4-18" name="__codelineno-4-18"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="92">9.2 出站消息示例<a class="headerlink" href="#92" title="Permanent link">¶</a></h3>
+<div class="language-go highlight"><pre><span></span><code><a href="#__codelineno-5-1" id="__codelineno-5-1" name="__codelineno-5-1"></a><span class="nx">msg</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">Message</span><span class="p">{</span>
+<a href="#__codelineno-5-2" id="__codelineno-5-2" name="__codelineno-5-2"></a><span class="w">    </span><span class="nx">ID</span><span class="p">:</span><span class="w">        </span><span class="s">"msg_789012"</span><span class="p">,</span>
+<a href="#__codelineno-5-3" id="__codelineno-5-3" name="__codelineno-5-3"></a><span class="w">    </span><span class="nx">ChannelID</span><span class="p">:</span><span class="w"> </span><span class="s">"dingtalk"</span><span class="p">,</span>
+<a href="#__codelineno-5-4" id="__codelineno-5-4" name="__codelineno-5-4"></a><span class="w">    </span><span class="nx">Direction</span><span class="p">:</span><span class="w"> </span><span class="nx">DirectionOutbound</span><span class="p">,</span>
+<a href="#__codelineno-5-5" id="__codelineno-5-5" name="__codelineno-5-5"></a><span class="w">    </span><span class="nx">From</span><span class="p">:</span><span class="w"> </span><span class="nx">UserInfo</span><span class="p">{</span>
+<a href="#__codelineno-5-6" id="__codelineno-5-6" name="__codelineno-5-6"></a><span class="w">        </span><span class="nx">ID</span><span class="p">:</span><span class="w">       </span><span class="s">"system"</span><span class="p">,</span>
+<a href="#__codelineno-5-7" id="__codelineno-5-7" name="__codelineno-5-7"></a><span class="w">        </span><span class="nx">Name</span><span class="p">:</span><span class="w">     </span><span class="s">"AI助手"</span><span class="p">,</span>
+<a href="#__codelineno-5-8" id="__codelineno-5-8" name="__codelineno-5-8"></a><span class="w">        </span><span class="nx">Platform</span><span class="p">:</span><span class="w"> </span><span class="s">"gort"</span><span class="p">,</span>
+<a href="#__codelineno-5-9" id="__codelineno-5-9" name="__codelineno-5-9"></a><span class="w">    </span><span class="p">},</span>
+<a href="#__codelineno-5-10" id="__codelineno-5-10" name="__codelineno-5-10"></a><span class="w">    </span><span class="nx">To</span><span class="p">:</span><span class="w"> </span><span class="nx">UserInfo</span><span class="p">{</span>
+<a href="#__codelineno-5-11" id="__codelineno-5-11" name="__codelineno-5-11"></a><span class="w">        </span><span class="nx">ID</span><span class="p">:</span><span class="w">       </span><span class="s">"dt_user_001"</span><span class="p">,</span>
+<a href="#__codelineno-5-12" id="__codelineno-5-12" name="__codelineno-5-12"></a><span class="w">        </span><span class="nx">Name</span><span class="p">:</span><span class="w">     </span><span class="s">"李四"</span><span class="p">,</span>
+<a href="#__codelineno-5-13" id="__codelineno-5-13" name="__codelineno-5-13"></a><span class="w">        </span><span class="nx">Platform</span><span class="p">:</span><span class="w"> </span><span class="s">"dingtalk"</span><span class="p">,</span>
+<a href="#__codelineno-5-14" id="__codelineno-5-14" name="__codelineno-5-14"></a><span class="w">    </span><span class="p">},</span>
+<a href="#__codelineno-5-15" id="__codelineno-5-15" name="__codelineno-5-15"></a><span class="w">    </span><span class="nx">Content</span><span class="p">:</span><span class="w">   </span><span class="s">"收到你的消息"</span><span class="p">,</span>
+<a href="#__codelineno-5-16" id="__codelineno-5-16" name="__codelineno-5-16"></a><span class="w">    </span><span class="nx">Type</span><span class="p">:</span><span class="w">      </span><span class="nx">MessageTypeText</span><span class="p">,</span>
+<a href="#__codelineno-5-17" id="__codelineno-5-17" name="__codelineno-5-17"></a><span class="w">    </span><span class="nx">Timestamp</span><span class="p">:</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Now</span><span class="p">(),</span>
+<a href="#__codelineno-5-18" id="__codelineno-5-18" name="__codelineno-5-18"></a><span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="10">10. 相关文档<a class="headerlink" href="#10" title="Permanent link">¶</a></h2>
+<ul>
+<li><a href="../01-gateway/">01-gateway.md</a> - Gateway 模块设计</li>
+<li><a href="../02-channel/">02-channel.md</a> - Channel 模块设计</li>
+<li><a href="../03-session-manager/">03-session-manager.md</a> - SessionManager 模块设计</li>
+<li><a href="../04-middleware/">04-middleware.md</a> - Middleware 模块设计</li>
+</ul>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+</main>
+<footer class="md-footer">
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+<div class="md-copyright__highlight">
+      Copyright © 2026 Raya Info co., Ltd.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "search.suggest", "search.highlight", "content.code.highlight", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+<script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+<script src="../javascripts/mathjax.js"></script>
+<script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script type="module">import mermaid from "https://unpkg.com/mermaid@10.4.0/dist/mermaid.esm.min.mjs";
+window.mermaidConfig = {default: {
+    startOnLoad: false
+}};</script></body>
+</html>
