@@ -2,15 +2,14 @@
 
 # Gort
 
-**Gort is a lightweight multi-channel communication gateway, specifically designed for the "desktop App single-user scenario", providing a unified WebSocket chat communication service access layer. Through standardized Channel interface abstraction, unified access and message forwarding for multiple instant messaging platforms are achieved.**
+**A lightweight multi-channel communication gateway designed for desktop app single-user scenarios, providing a unified WebSocket chat communication service access layer. Through standardized Channel interface abstraction, it achieves unified access and message forwarding for multiple instant messaging platforms.**
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/DotNetAge/gort)](https://goreportcard.com/report/github.com/DotNetAge/gort)
-[![Go Version](https://img.shields.io/badge/go-1.25+-blue.svg)](https://golang.org/dl/)
+[![Go Version](https://img.shields.io/badge/go-1.23+-blue.svg)](https://golang.org/dl/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-gort.rayainfo.cn-6019bd.svg)](https://gort.rayainfo.cn)
-[![codecov](https://codecov.io/gh/DotNetAge/gort/graph/badge.svg?token=placeholder)](https://codecov.io/gh/DotNetAge/gort)
 
-[**官方网站**](https://gort.rayainfo.cn) | [**English**](./README.md) | [**中文说明**](./README_zh-CN.md)
+[**Official Website**](https://gort.rayainfo.cn) | [**English**](./README.md) | [**中文说明**](./README_zh-CN.md)
 
 </div>
 
@@ -20,25 +19,31 @@ A multi-channel communication gateway written in Go that enables unified message
 
 ## Overview
 
-gort is a lightweight, extensible gateway that bridges multiple instant messaging platforms (WeChat, DingTalk, Feishu) with WebSocket clients. It provides a unified message format and a clean architecture for building chatbots and message processing systems.
+gort is a lightweight, extensible gateway that bridges multiple instant messaging platforms with WebSocket clients. It provides a unified message format and a clean architecture for building chatbots and message processing systems.
 
 ### Key Features
 
-- **Multi-Channel Support**: Connect to WeChat, DingTalk, and Feishu through a unified interface
+- **Multi-Channel Support**: Connect to 10+ IM platforms through a unified interface
+  - DingTalk, Feishu, WeChat (domestic)
+  - Telegram, Slack, Discord (international)
+  - WhatsApp, Messenger (customer support)
+  - iMessage (macOS ecosystem)
+  - WeCom (enterprise)
 - **WebSocket Server**: Push messages to connected clients in real-time
 - **Middleware Chain**: Extensible middleware system for cross-cutting concerns
 - **Configuration Management**: Flexible configuration via files, environment variables, or command-line
 - **Test-Driven Development**: Comprehensive test coverage with clear examples
+- **Desktop App Focused**: Optimized for single-user desktop scenarios
 
 ## Installation
 
 ```bash
-go get github.com/example/gort
+go get github.com/DotNetAge/gort
 ```
 
 ### Prerequisites
 
-- Go 1.21 or higher
+- Go 1.23 or higher
 - Make (optional, for using Makefile commands)
 
 ## Quick Start
@@ -50,11 +55,11 @@ import (
     "context"
     "log"
     
-    "github.com/example/gort/pkg/channel"
-    "github.com/example/gort/pkg/config"
-    "github.com/example/gort/pkg/gateway"
-    "github.com/example/gort/pkg/message"
-    "github.com/example/gort/pkg/session"
+    "github.com/DotNetAge/gort/pkg/channel"
+    "github.com/DotNetAge/gort/pkg/config"
+    "github.com/DotNetAge/gort/pkg/gateway"
+    "github.com/DotNetAge/gort/pkg/message"
+    "github.com/DotNetAge/gort/pkg/session"
 )
 
 func main() {
@@ -72,7 +77,10 @@ func main() {
     })
     
     // Create gateway
-    gw := gateway.New(sessionMgr)
+    gw := gateway.New(gateway.Config{
+        WebSocketAddr: ":9000",
+        HTTPAddr:      ":8080",
+    })
     
     // Register channels
     wechat := channel.NewMockChannel("wechat", channel.ChannelTypeWeChat)
@@ -140,8 +148,8 @@ export GORT_CHANNELS_WECHAT_SECRET=your_secret
 
 Configuration values are loaded with the following priority (highest to lowest):
 
-1. Environment variables
-2. Command-line arguments
+1. Command-line arguments
+2. Environment variables
 3. Configuration file
 4. Default values
 
@@ -180,6 +188,21 @@ Configuration values are loaded with the following priority (highest to lowest):
 | `pkg/message`    | Standard message format                                    |
 | `pkg/middleware` | Middleware chain for cross-cutting concerns                |
 | `pkg/config`     | Configuration management with Viper                        |
+
+## Supported Channels
+
+| Channel          | Access Method            | Documentation                                      |
+| ---------------- | ------------------------ | -------------------------------------------------- |
+| DingTalk (钉钉)  | Webhook Robot            | [docs](https://gort.rayainfo.cn/channel/dingtalk)  |
+| Feishu (飞书)    | Self-built App + Token   | [docs](https://gort.rayainfo.cn/channel/feishu)    |
+| Telegram         | Bot Token                | [docs](https://gort.rayainfo.cn/channel/telegram)  |
+| WeChat (公众号)  | Official Account + Token | [docs](https://gort.rayainfo.cn/channel/wechat)    |
+| WhatsApp         | Business API             | [docs](https://gort.rayainfo.cn/channel/whatsapp)  |
+| iMessage         | macOS + imsg CLI         | [docs](https://gort.rayainfo.cn/channel/imessage)  |
+| Messenger        | Page Access Token        | [docs](https://gort.rayainfo.cn/channel/messenger) |
+| WeCom (企业微信) | Webhook Robot            | [docs](https://gort.rayainfo.cn/channel/wecom)     |
+| Slack            | Bot Token                | [docs](https://gort.rayainfo.cn/channel/slack)     |
+| Discord          | Bot Token                | [docs](https://gort.rayainfo.cn/channel/discord)   |
 
 ## API Documentation
 
@@ -269,6 +292,9 @@ go test ./... -cover
 # Run tests with coverage report
 go test ./... -coverprofile=coverage.out
 go tool cover -html=coverage.out
+
+# Run benchmarks
+go test ./... -bench=. -benchmem
 ```
 
 ### Test Coverage
@@ -291,7 +317,16 @@ gort/
 ├── pkg/
 │   ├── channel/          # Channel interface and implementations
 │   │   ├── channel.go    # Interface definitions
-│   │   └── channel_test.go
+│   │   ├── wechat/       # WeChat channel
+│   │   ├── dingtalk/     # DingTalk channel
+│   │   ├── feishu/       # Feishu channel
+│   │   ├── telegram/     # Telegram channel
+│   │   ├── wecom/        # WeCom channel
+│   │   ├── slack/        # Slack channel
+│   │   ├── discord/      # Discord channel
+│   │   ├── imessage/     # iMessage channel
+│   │   ├── whatsapp/     # WhatsApp channel
+│   │   └── messenger/    # Messenger channel
 │   ├── config/           # Configuration management
 │   │   ├── config.go
 │   │   └── config_test.go
@@ -312,7 +347,8 @@ gort/
 │   └── design/           # Design documents
 ├── go.mod
 ├── go.sum
-└── README.md
+├── README.md
+└── README_zh-CN.md
 ```
 
 ## Contributing
@@ -331,6 +367,17 @@ gort/
 - Run `go fmt` before committing
 - Ensure `go vet` passes
 - Maintain test coverage above 85%
+
+## Documentation
+
+For detailed documentation, please visit [gort.rayainfo.cn](https://gort.rayainfo.cn)
+
+- [Gateway Design](https://gort.rayainfo.cn/gateway)
+- [Channel Design](https://gort.rayainfo.cn/channel)
+- [Session Manager](https://gort.rayainfo.cn/session-manager)
+- [Middleware](https://gort.rayainfo.cn/middleware)
+- [Message Format](https://gort.rayainfo.cn/message)
+- [Configuration](https://gort.rayainfo.cn/config)
 
 ## License
 

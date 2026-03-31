@@ -198,3 +198,127 @@ func TestRetry_ZeroMaxAttempts(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, callCount)
 }
+
+// Additional tests for uncovered functions
+
+func TestIsRetryableError(t *testing.T) {
+	// Test with retryable error
+	retryableErr := Retryable(errors.New("retryable"))
+	assert.True(t, IsRetryableError(retryableErr))
+
+	// Test with non-retryable error
+	nonRetryableErr := NonRetryable(errors.New("non-retryable"))
+	assert.False(t, IsRetryableError(nonRetryableErr))
+
+	// Test with plain error
+	plainErr := errors.New("plain error")
+	assert.False(t, IsRetryableError(plainErr))
+
+	// Test with nil
+	assert.False(t, IsRetryableError(nil))
+}
+
+func TestContextWithAttempts(t *testing.T) {
+	ctx := context.Background()
+
+	// Test setting attempts
+	ctxWithAttempts := ContextWithAttempts(ctx, 5)
+	assert.NotNil(t, ctxWithAttempts)
+
+	// Test getting attempts
+	attempts := AttemptsFromContext(ctxWithAttempts)
+	assert.Equal(t, 5, attempts)
+}
+
+func TestAttemptsFromContext_NotSet(t *testing.T) {
+	ctx := context.Background()
+
+	// Test getting attempts when not set
+	attempts := AttemptsFromContext(ctx)
+	assert.Equal(t, 0, attempts)
+}
+
+func TestAttemptsFromContext_DifferentValues(t *testing.T) {
+	tests := []struct {
+		name     string
+		attempts int
+	}{
+		{"zero", 0},
+		{"one", 1},
+		{"ten", 10},
+		{"hundred", 100},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := ContextWithAttempts(context.Background(), tt.attempts)
+			result := AttemptsFromContext(ctx)
+			assert.Equal(t, tt.attempts, result)
+		})
+	}
+}
+
+func TestRetryableError_Unwrap(t *testing.T) {
+	originalErr := errors.New("original error")
+	retryableErr := Retryable(originalErr)
+
+	// Test errors.Is - this uses Unwrap internally
+	assert.True(t, errors.Is(retryableErr, originalErr))
+}
+
+func TestNonRetryableError(t *testing.T) {
+	originalErr := errors.New("permanent error")
+	nonRetryableErr := NonRetryable(originalErr)
+
+	// Test error message
+	assert.Equal(t, originalErr.Error(), nonRetryableErr.Error())
+
+	// Test IsRetryable
+	assert.False(t, IsRetryable(nonRetryableErr))
+
+	// Test errors.Is - this uses Unwrap internally
+	assert.True(t, errors.Is(nonRetryableErr, originalErr))
+}
+
+func TestRetryWithResult_MaxAttemptsExceeded(t *testing.T) {
+	callCount := 0
+	result, err := RetryWithResult(context.Background(), func() (string, error) {
+		callCount++
+		return "", Retryable(errors.New("always fails"))
+	}, WithMaxAttempts(3), WithInitialDelay(time.Millisecond))
+
+	require.Error(t, err)
+	assert.Equal(t, "", result)
+	assert.Equal(t, 3, callCount)
+	assert.True(t, IsRetryable(err))
+}
+
+func TestRetryWithResult_NonRetryableError(t *testing.T) {
+	callCount := 0
+	expectedErr := errors.New("permanent error")
+	result, err := RetryWithResult(context.Background(), func() (string, error) {
+		callCount++
+		return "", NonRetryable(expectedErr)
+	}, WithMaxAttempts(3), WithInitialDelay(time.Millisecond))
+
+	require.Error(t, err)
+	assert.Equal(t, "", result)
+	assert.Equal(t, 1, callCount)
+	assert.False(t, IsRetryable(err))
+}
+
+func TestRetryWithResult_ContextCanceled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	callCount := 0
+	result, err := RetryWithResult(ctx, func() (string, error) {
+		callCount++
+		return "", Retryable(errors.New("error"))
+	}, WithMaxAttempts(3))
+
+	require.Error(t, err)
+	assert.Equal(t, "", result)
+	assert.Equal(t, ErrContextCanceled, err)
+	assert.Equal(t, 0, callCount)
+}

@@ -65,6 +65,13 @@ func (s *Session) Close() error {
 	return err
 }
 
+// IsConnected 安全地检查连接状态
+func (s *Session) IsConnected() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.Conn != nil
+}
+
 func (s *Session) SetMetadata(key string, value interface{}) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -288,15 +295,28 @@ func (m *Manager) readLoop(ctx context.Context, session *Session) {
 		case <-ctx.Done():
 			return
 		default:
-			if session.Conn == nil {
+			// 使用 IsConnected 方法安全地检查连接状态
+			if !session.IsConnected() {
 				return
 			}
-			_, data, err := session.Conn.ReadMessage()
+
+			// 在读取消息前获取连接引用
+			session.mu.Lock()
+			conn := session.Conn
+			session.mu.Unlock()
+
+			if conn == nil {
+				return
+			}
+
+			_, data, err := conn.ReadMessage()
 			if err != nil {
 				return
 			}
 
+			session.mu.Lock()
 			session.LastActive = time.Now()
+			session.mu.Unlock()
 
 			if m.config.OnMessage != nil {
 				var msg message.Message
