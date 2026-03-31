@@ -3,7 +3,7 @@
 # Gort
 
 **A lightweight multi-channel communication gateway designed for desktop app single-user scenarios, providing a unified WebSocket chat communication service access layer. Through standardized Channel interface abstraction, it achieves unified access and message forwarding for multiple instant messaging platforms.**
-
+[![Go Reference](https://pkg.go.dev/badge/github.com/DotNetAge/gort.svg)](https://pkg.go.dev/github.com/DotNetAge/gort)
 [![Go Report Card](https://goreportcard.com/badge/github.com/DotNetAge/gort)](https://goreportcard.com/report/github.com/DotNetAge/gort)
 [![Go Version](https://img.shields.io/badge/go-1.23+-blue.svg)](https://golang.org/dl/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)

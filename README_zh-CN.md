@@ -4,6 +4,7 @@
 
 **一个轻量级多渠道通信网关，专为桌面 App 单用户场景设计，提供统一的 WebSocket 聊天通信服务接入层。通过标准化的 Channel 接口抽象，实现多种即时通讯平台的统一接入和消息转发。**
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/DotNetAge/gort.svg)](https://pkg.go.dev/github.com/DotNetAge/gort)
 [![Go Report Card](https://goreportcard.com/badge/github.com/DotNetAge/gort)](https://goreportcard.com/report/github.com/DotNetAge/gort)
 [![Go Version](https://img.shields.io/badge/go-1.23+-blue.svg)](https://golang.org/dl/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
