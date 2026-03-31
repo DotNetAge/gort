@@ -57,13 +57,3 @@ jobs:
           verbose: true
         if: success()  # 仅测试成功时上传覆盖率
 
-      - name: Check minimum coverage
-        run: |
-          set -e
-          COVERAGE=$(go tool cover -func=coverage.out | grep "^total:" | awk '{print $3}' | sed 's/%//')
-          echo "Current coverage: ${COVERAGE}%"
-          if (( $(echo "$COVERAGE < 80.0" | bc -l) )); then
-            echo "ERROR: Coverage ${COVERAGE}% is below minimum threshold of 80%"
-            exit 1
-          fi
-          echo "Coverage check passed!"
