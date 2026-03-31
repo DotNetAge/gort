@@ -7,7 +7,8 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/DotNetAge/gort)](https://goreportcard.com/report/github.com/DotNetAge/gort)
 [![Go Version](https://img.shields.io/badge/go-1.23+-blue.svg)](https://golang.org/dl/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Documentation](https://img.shields.io/badge/docs-gort.rayainfo.cn-6019bd.svg)](https://gort.rayainfo.cn)
+[![Documentation](https://img.shields.io/badge/docs-gort.rayainfo.cn-cbdc38.svg)](https://gort.rayainfo.cn)
+[![codecov](https://codecov.io/gh/DotNetAge/gort/graph/badge.svg?token=placeholder)](https://codecov.io/gh/DotNetAge/gort)
 
 [**官方网站**](https://gort.rayainfo.cn) | [**English**](./README.md) | [**中文说明**](./README_zh-CN.md)
 
@@ -180,29 +181,29 @@ export GORT_CHANNELS_WECHAT_SECRET=your_secret
 
 ### 核心组件
 
-| 包名              | 描述                                                   |
-| ----------------- | ------------------------------------------------------ |
-| `pkg/gateway`    | 核心协调器，管理渠道和消息路由                         |
-| `pkg/channel`    | 外部 IM 平台的协议适配器                               |
-| `pkg/session`    | WebSocket 连接管理器                                    |
-| `pkg/message`    | 标准消息格式                                           |
-| `pkg/middleware` | 中间件链，处理横切关注点                               |
-| `pkg/config`     | 基于 Viper 的配置管理                                   |
+| 包名             | 描述                           |
+| ---------------- | ------------------------------ |
+| `pkg/gateway`    | 核心协调器，管理渠道和消息路由 |
+| `pkg/channel`    | 外部 IM 平台的协议适配器       |
+| `pkg/session`    | WebSocket 连接管理器           |
+| `pkg/message`    | 标准消息格式                   |
+| `pkg/middleware` | 中间件链，处理横切关注点       |
+| `pkg/config`     | 基于 Viper 的配置管理          |
 
 ## 支持的渠道
 
-| 渠道                | 接入方式          | 文档链接                                               |
-| ------------------- | ----------------- | ------------------------------------------------------ |
-| 钉钉               | Webhook 机器人     | [文档](https://gort.rayainfo.cn/channel/dingtalk)       |
-| 飞书               | 自建应用 + Token  | [文档](https://gort.rayainfo.cn/channel/feishu)         |
-| Telegram            | Bot Token         | [文档](https://gort.rayainfo.cn/channel/telegram)       |
-| 微信（公众号）      | 公众号 + Token    | [文档](https://gort.rayainfo.cn/channel/wechat)         |
-| WhatsApp            | Business API      | [文档](https://gort.rayainfo.cn/channel/whatsapp)       |
-| iMessage            | macOS + imsg CLI  | [文档](https://gort.rayainfo.cn/channel/imessage)       |
-| Messenger           | Page Access Token | [文档](https://gort.rayainfo.cn/channel/messenger)      |
-| 企业微信            | Webhook 机器人     | [文档](https://gort.rayainfo.cn/channel/wecom)          |
-| Slack               | Bot Token         | [文档](https://gort.rayainfo.cn/channel/slack)          |
-| Discord             | Bot Token         | [文档](https://gort.rayainfo.cn/channel/discord)        |
+| 渠道           | 接入方式          | 文档链接                                           |
+| -------------- | ----------------- | -------------------------------------------------- |
+| 钉钉           | Webhook 机器人    | [文档](https://gort.rayainfo.cn/channel/dingtalk)  |
+| 飞书           | 自建应用 + Token  | [文档](https://gort.rayainfo.cn/channel/feishu)    |
+| Telegram       | Bot Token         | [文档](https://gort.rayainfo.cn/channel/telegram)  |
+| 微信（公众号） | 公众号 + Token    | [文档](https://gort.rayainfo.cn/channel/wechat)    |
+| WhatsApp       | Business API      | [文档](https://gort.rayainfo.cn/channel/whatsapp)  |
+| iMessage       | macOS + imsg CLI  | [文档](https://gort.rayainfo.cn/channel/imessage)  |
+| Messenger      | Page Access Token | [文档](https://gort.rayainfo.cn/channel/messenger) |
+| 企业微信       | Webhook 机器人    | [文档](https://gort.rayainfo.cn/channel/wecom)     |
+| Slack          | Bot Token         | [文档](https://gort.rayainfo.cn/channel/slack)     |
+| Discord        | Bot Token         | [文档](https://gort.rayainfo.cn/channel/discord)   |
 
 ## API 文档
 
@@ -301,14 +302,14 @@ go test ./... -bench=. -benchmem
 
 项目保持高测试覆盖率：
 
-| 包名              | 覆盖率 |
-| ----------------- | ------ |
-| pkg/channel       | 100%   |
-| pkg/config        | 96%    |
-| pkg/gateway       | 84%    |
-| pkg/message       | 100%   |
-| pkg/middleware    | 100%   |
-| pkg/session       | 95%    |
+| 包名           | 覆盖率 |
+| -------------- | ------ |
+| pkg/channel    | 100%   |
+| pkg/config     | 96%    |
+| pkg/gateway    | 84%    |
+| pkg/message    | 100%   |
+| pkg/middleware | 100%   |
+| pkg/session    | 95%    |
 
 ## 项目结构
 

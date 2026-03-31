@@ -7,7 +7,8 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/DotNetAge/gort)](https://goreportcard.com/report/github.com/DotNetAge/gort)
 [![Go Version](https://img.shields.io/badge/go-1.23+-blue.svg)](https://golang.org/dl/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Documentation](https://img.shields.io/badge/docs-gort.rayainfo.cn-6019bd.svg)](https://gort.rayainfo.cn)
+[![Documentation](https://img.shields.io/badge/docs-gort.rayainfo.cn-cbdc38.svg)](https://gort.rayainfo.cn)
+[![codecov](https://codecov.io/gh/DotNetAge/gort/graph/badge.svg?token=placeholder)](https://codecov.io/gh/DotNetAge/gort)
 
 [**Official Website**](https://gort.rayainfo.cn) | [**English**](./README.md) | [**中文说明**](./README_zh-CN.md)
 

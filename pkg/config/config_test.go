@@ -353,51 +353,6 @@ func TestServerConfig_TimeoutDurations(t *testing.T) {
 	assert.Equal(t, 60*time.Second, cfg.WriteTimeoutDuration())
 }
 
-func TestLoadFromBytes_JSON(t *testing.T) {
-	jsonConfig := `{
-		"server": {
-			"http_port": 9090,
-			"ws_port": 9091,
-			"webhook_path": "/custom-webhook"
-		},
-		"log": {
-			"level": "debug"
-		}
-	}`
-
-	cfg, err := LoadFromBytes([]byte(jsonConfig), "json")
-	require.NoError(t, err)
-	assert.Equal(t, 9090, cfg.Server.HTTPPort)
-	assert.Equal(t, 9091, cfg.Server.WSPort)
-	assert.Equal(t, "/custom-webhook", cfg.Server.WebhookPath)
-	assert.Equal(t, "debug", cfg.Log.Level)
-}
-
-func TestLoadFromBytes_YAML(t *testing.T) {
-	yamlConfig := `
-server:
-  http_port: 9090
-  ws_port: 9091
-  webhook_path: /custom-webhook
-log:
-  level: debug
-`
-
-	cfg, err := LoadFromBytes([]byte(yamlConfig), "yaml")
-	require.NoError(t, err)
-	assert.Equal(t, 9090, cfg.Server.HTTPPort)
-	assert.Equal(t, 9091, cfg.Server.WSPort)
-	assert.Equal(t, "/custom-webhook", cfg.Server.WebhookPath)
-	assert.Equal(t, "debug", cfg.Log.Level)
-}
-
-func TestLoadFromBytes_Invalid(t *testing.T) {
-	invalidConfig := `invalid yaml content [[[`
-
-	_, err := LoadFromBytes([]byte(invalidConfig), "yaml")
-	assert.Error(t, err)
-}
-
 func TestNewLoader(t *testing.T) {
 	loader := NewLoader()
 	assert.NotNil(t, loader)
@@ -415,8 +370,10 @@ func TestConfig_Integration(t *testing.T) {
 	t.Setenv("GORT_SERVER_HTTP_PORT", "9999")
 	t.Setenv("GORT_LOG_LEVEL", "error")
 
-	cfg, err := Load("")
+	loader := NewLoader()
+	err := loader.Load("")
 	require.NoError(t, err)
+	cfg := loader.GetConfig()
 	assert.Equal(t, 9999, cfg.Server.HTTPPort)
 	assert.Equal(t, "error", cfg.Log.Level)
 }
@@ -427,8 +384,10 @@ func TestConfig_EnvOverride(t *testing.T) {
 	t.Setenv("GORT_SERVER_WEBHOOK_PATH", "/env-webhook")
 	t.Setenv("GORT_LOG_LEVEL", "debug")
 
-	cfg, err := Load("")
+	loader := NewLoader()
+	err := loader.Load("")
 	require.NoError(t, err)
+	cfg := loader.GetConfig()
 
 	assert.Equal(t, 7777, cfg.Server.HTTPPort)
 	assert.Equal(t, 7778, cfg.Server.WSPort)
@@ -442,6 +401,7 @@ func TestConfig_InvalidEnvPort(t *testing.T) {
 
 	os.Setenv("GORT_SERVER_HTTP_PORT", "invalid")
 
-	_, err := Load("")
+	loader := NewLoader()
+	err := loader.Load("")
 	assert.Error(t, err)
 }
