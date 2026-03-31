@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/example/gort/pkg/message"
+	"github.com/DotNetAge/gort/pkg/message"
 )
 
 // BenchmarkBaseChannel_Creation benchmarks BaseChannel creation.

@@ -37,9 +37,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/example/gort/pkg/channel"
-	"github.com/example/gort/pkg/channel/imsg"
-	"github.com/example/gort/pkg/message"
+	"github.com/DotNetAge/gort/pkg/channel"
+	"github.com/DotNetAge/gort/pkg/channel/imsg"
+	"github.com/DotNetAge/gort/pkg/message"
 )
 
 var (

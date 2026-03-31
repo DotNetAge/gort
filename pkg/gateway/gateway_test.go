@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/example/gort/pkg/channel"
-	"github.com/example/gort/pkg/message"
-	"github.com/example/gort/pkg/middleware"
-	"github.com/example/gort/pkg/session"
+	"github.com/DotNetAge/gort/pkg/channel"
+	"github.com/DotNetAge/gort/pkg/message"
+	"github.com/DotNetAge/gort/pkg/middleware"
+	"github.com/DotNetAge/gort/pkg/session"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

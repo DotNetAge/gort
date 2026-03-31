@@ -8,7 +8,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/example/gort/pkg/message"
+	"github.com/DotNetAge/gort/pkg/message"
 )
 
 // Error definitions for channel operations.

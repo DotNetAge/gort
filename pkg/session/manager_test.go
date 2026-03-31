@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/example/gort/pkg/message"
+	"github.com/DotNetAge/gort/pkg/message"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

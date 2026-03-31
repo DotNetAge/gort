@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/example/gort/pkg/message"
+	"github.com/DotNetAge/gort/pkg/message"
 )
 
 var (

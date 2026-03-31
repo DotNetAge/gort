@@ -1,4 +1,4 @@
-module github.com/example/gort
+module github.com/DotNetAge/gort
 
 go 1.23.0
 

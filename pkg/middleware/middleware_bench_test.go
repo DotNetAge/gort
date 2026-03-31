@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/example/gort/pkg/message"
+	"github.com/DotNetAge/gort/pkg/message"
 )
 
 // mockMiddleware implements Middleware for benchmarking.

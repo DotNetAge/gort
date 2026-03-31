@@ -15,8 +15,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/example/gort/pkg/channel"
-	"github.com/example/gort/pkg/message"
+	"github.com/DotNetAge/gort/pkg/channel"
+	"github.com/DotNetAge/gort/pkg/message"
 )
 
 // setupTestServer creates a mock Discord API server for testing.
