@@ -39,7 +39,6 @@ import (
 	"time"
 
 	"github.com/DotNetAge/gort/pkg/channel"
-	"github.com/DotNetAge/gort/pkg/message"
 )
 
 // API endpoints for DingTalk API.
@@ -123,19 +122,19 @@ func (c *Channel) Stop(ctx context.Context) error {
 }
 
 // SendMessage sends a message to DingTalk.
-func (c *Channel) SendMessage(ctx context.Context, msg *message.Message) error {
+func (c *Channel) SendMessage(ctx context.Context, msg *channel.Message) error {
 	if !c.IsRunning() {
 		return channel.ErrChannelNotRunning
 	}
 
 	switch msg.Type {
-	case message.MessageTypeText:
+	case channel.MessageTypeText:
 		return c.sendTextMessage(ctx, msg)
-	case message.MessageTypeImage:
+	case channel.MessageTypeImage:
 		return c.sendImageMessage(ctx, msg)
-	case message.MessageTypeFile:
+	case channel.MessageTypeFile:
 		return c.sendFileMessage(ctx, msg)
-	case message.MessageTypeAudio:
+	case channel.MessageTypeAudio:
 		return c.sendVoiceMessage(ctx, msg)
 	default:
 		return c.sendMarkdownMessage(ctx, msg)
@@ -143,36 +142,36 @@ func (c *Channel) SendMessage(ctx context.Context, msg *message.Message) error {
 }
 
 // HandleWebhook processes incoming webhook requests from DingTalk.
-func (c *Channel) HandleWebhook(path string, data []byte) (*message.Message, error) {
+func (c *Channel) HandleWebhook(path string, data []byte) (*channel.Message, error) {
 	var req WebhookRequest
 	if err := json.Unmarshal(data, &req); err != nil {
 		return nil, fmt.Errorf("failed to parse webhook data: %w", err)
 	}
 
-	msg := &message.Message{
+	msg := &channel.Message{
 		ID:        req.MsgID,
 		ChannelID: "dingtalk",
-		Direction: message.DirectionInbound,
-		From: message.UserInfo{
+		Direction: channel.DirectionInbound,
+		From: channel.UserInfo{
 			ID:       req.SenderID,
 			Name:     req.SenderNick,
 			Platform: "dingtalk",
 		},
-		Timestamp: time.UnixMilli(req.Timestamp),
+		Timestamp: fmt.Sprintf("%d", req.Timestamp),
 	}
 
 	switch req.MsgType {
 	case "text":
-		msg.Type = message.MessageTypeText
+		msg.Type = channel.MessageTypeText
 		msg.Content = req.Content.Content
 	case "picture":
-		msg.Type = message.MessageTypeImage
+		msg.Type = channel.MessageTypeImage
 		msg.Content = req.Content.PicURL
 	case "richText":
-		msg.Type = message.MessageTypeText
+		msg.Type = channel.MessageTypeText
 		msg.Content = req.Content.RichTextContent
 	default:
-		msg.Type = message.MessageTypeEvent
+		msg.Type = channel.MessageTypeEvent
 		msg.SetMetadata("msg_type", req.MsgType)
 	}
 
@@ -280,7 +279,7 @@ type APIResponse struct {
 	ErrMsg  string `json:"errmsg"`
 }
 
-func (c *Channel) sendTextMessage(ctx context.Context, msg *message.Message) error {
+func (c *Channel) sendTextMessage(ctx context.Context, msg *channel.Message) error {
 	textMsg := TextMessage{
 		MsgType: "text",
 	}
@@ -316,7 +315,7 @@ func (c *Channel) sendTextMessage(ctx context.Context, msg *message.Message) err
 	return c.sendAPIRequest(ctx, textMsg)
 }
 
-func (c *Channel) sendMarkdownMessage(ctx context.Context, msg *message.Message) error {
+func (c *Channel) sendMarkdownMessage(ctx context.Context, msg *channel.Message) error {
 	mdMsg := MarkdownMessage{
 		MsgType: "markdown",
 	}
@@ -336,7 +335,7 @@ func (c *Channel) sendMarkdownMessage(ctx context.Context, msg *message.Message)
 	return c.sendAPIRequest(ctx, mdMsg)
 }
 
-func (c *Channel) sendImageMessage(ctx context.Context, msg *message.Message) error {
+func (c *Channel) sendImageMessage(ctx context.Context, msg *channel.Message) error {
 	mediaID, ok := msg.GetMetadata("media_id")
 	if !ok {
 		return errors.New("media_id is required for image messages")
@@ -355,7 +354,7 @@ func (c *Channel) sendImageMessage(ctx context.Context, msg *message.Message) er
 	return c.sendAPIRequest(ctx, imageMsg)
 }
 
-func (c *Channel) sendVoiceMessage(ctx context.Context, msg *message.Message) error {
+func (c *Channel) sendVoiceMessage(ctx context.Context, msg *channel.Message) error {
 	mediaID, ok := msg.GetMetadata("media_id")
 	if !ok {
 		return errors.New("media_id is required for voice messages")
@@ -380,7 +379,7 @@ func (c *Channel) sendVoiceMessage(ctx context.Context, msg *message.Message) er
 	return c.sendAPIRequest(ctx, voiceMsg)
 }
 
-func (c *Channel) sendFileMessage(ctx context.Context, msg *message.Message) error {
+func (c *Channel) sendFileMessage(ctx context.Context, msg *channel.Message) error {
 	mediaID, ok := msg.GetMetadata("media_id")
 	if !ok {
 		return errors.New("media_id is required for file messages")

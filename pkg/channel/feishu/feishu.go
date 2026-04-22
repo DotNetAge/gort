@@ -38,7 +38,6 @@ import (
 	"time"
 
 	"github.com/DotNetAge/gort/pkg/channel"
-	"github.com/DotNetAge/gort/pkg/message"
 )
 
 // API endpoints for Feishu API.
@@ -141,7 +140,7 @@ func (c *Channel) Stop(ctx context.Context) error {
 }
 
 // SendMessage sends a message to Feishu.
-func (c *Channel) SendMessage(ctx context.Context, msg *message.Message) error {
+func (c *Channel) SendMessage(ctx context.Context, msg *channel.Message) error {
 	if !c.IsRunning() {
 		return channel.ErrChannelNotRunning
 	}
@@ -159,15 +158,15 @@ func (c *Channel) SendMessage(ctx context.Context, msg *message.Message) error {
 	}
 
 	switch msg.Type {
-	case message.MessageTypeText:
+	case channel.MessageTypeText:
 		return c.sendTextMessage(ctx, token, receiveID, receiveIDType, msg)
-	case message.MessageTypeImage:
+	case channel.MessageTypeImage:
 		return c.sendImageMessage(ctx, token, receiveID, receiveIDType, msg)
-	case message.MessageTypeFile:
+	case channel.MessageTypeFile:
 		return c.sendFileMessage(ctx, token, receiveID, receiveIDType, msg)
-	case message.MessageTypeAudio:
+	case channel.MessageTypeAudio:
 		return c.sendAudioMessage(ctx, token, receiveID, receiveIDType, msg)
-	case message.MessageTypeVideo:
+	case channel.MessageTypeVideo:
 		return c.sendVideoMessage(ctx, token, receiveID, receiveIDType, msg)
 	default:
 		return c.sendTextMessage(ctx, token, receiveID, receiveIDType, msg)
@@ -175,21 +174,21 @@ func (c *Channel) SendMessage(ctx context.Context, msg *message.Message) error {
 }
 
 // HandleWebhook processes incoming webhook requests from Feishu.
-func (c *Channel) HandleWebhook(path string, data []byte) (*message.Message, error) {
+func (c *Channel) HandleWebhook(path string, data []byte) (*channel.Message, error) {
 	var req WebhookRequest
 	if err := json.Unmarshal(data, &req); err != nil {
 		return nil, fmt.Errorf("failed to parse webhook data: %w", err)
 	}
 
-	msg := &message.Message{
+	msg := &channel.Message{
 		ID:        req.Header.EventID,
 		ChannelID: "feishu",
-		Direction: message.DirectionInbound,
-		Timestamp: time.UnixMilli(req.Header.EventCreatedAt),
+		Direction: channel.DirectionInbound,
+		Timestamp: fmt.Sprintf("%d", req.Header.EventCreatedAt),
 	}
 
 	if req.Event.Sender != nil {
-		msg.From = message.UserInfo{
+		msg.From = channel.UserInfo{
 			ID:       req.Event.Sender.SenderID.OpenID,
 			Name:     req.Event.Sender.SenderID.UnionID,
 			Platform: "feishu",
@@ -198,45 +197,45 @@ func (c *Channel) HandleWebhook(path string, data []byte) (*message.Message, err
 
 	if req.Event.Message != nil {
 		msg.ID = req.Event.Message.MessageID
-		msg.To = message.UserInfo{
+		msg.To = channel.UserInfo{
 			ID:       req.Event.Message.ChatID,
 			Platform: "feishu",
 		}
 
 		switch req.Event.Message.MessageType {
 		case "text":
-			msg.Type = message.MessageTypeText
+			msg.Type = channel.MessageTypeText
 			var content TextContent
 			if err := json.Unmarshal([]byte(req.Event.Message.Content), &content); err == nil {
 				msg.Content = content.Text
 			}
 		case "image":
-			msg.Type = message.MessageTypeImage
+			msg.Type = channel.MessageTypeImage
 			var content ImageContent
 			if err := json.Unmarshal([]byte(req.Event.Message.Content), &content); err == nil {
 				msg.SetMetadata("image_key", content.ImageKey)
 			}
 		case "file":
-			msg.Type = message.MessageTypeFile
+			msg.Type = channel.MessageTypeFile
 			var content FileContent
 			if err := json.Unmarshal([]byte(req.Event.Message.Content), &content); err == nil {
 				msg.SetMetadata("file_key", content.FileKey)
 				msg.SetMetadata("file_name", content.FileName)
 			}
 		case "audio":
-			msg.Type = message.MessageTypeAudio
+			msg.Type = channel.MessageTypeAudio
 			var content AudioContent
 			if err := json.Unmarshal([]byte(req.Event.Message.Content), &content); err == nil {
 				msg.SetMetadata("file_key", content.FileKey)
 			}
 		case "media":
-			msg.Type = message.MessageTypeVideo
+			msg.Type = channel.MessageTypeVideo
 			var content MediaContent
 			if err := json.Unmarshal([]byte(req.Event.Message.Content), &content); err == nil {
 				msg.SetMetadata("file_key", content.FileKey)
 			}
 		default:
-			msg.Type = message.MessageTypeEvent
+			msg.Type = channel.MessageTypeEvent
 			msg.SetMetadata("message_type", req.Event.Message.MessageType)
 		}
 	}
@@ -427,7 +426,7 @@ func (c *Channel) tokenRefreshLoop(ctx context.Context) {
 	}
 }
 
-func (c *Channel) sendTextMessage(ctx context.Context, token, receiveID, receiveIDType string, msg *message.Message) error {
+func (c *Channel) sendTextMessage(ctx context.Context, token, receiveID, receiveIDType string, msg *channel.Message) error {
 	content := TextContent{Text: msg.Content}
 
 	sendReq := SendMessageRequest{
@@ -440,7 +439,7 @@ func (c *Channel) sendTextMessage(ctx context.Context, token, receiveID, receive
 	return c.sendAPIRequest(ctx, token, sendReq)
 }
 
-func (c *Channel) sendImageMessage(ctx context.Context, token, receiveID, receiveIDType string, msg *message.Message) error {
+func (c *Channel) sendImageMessage(ctx context.Context, token, receiveID, receiveIDType string, msg *channel.Message) error {
 	imageKey, ok := msg.GetMetadata("image_key")
 	if !ok {
 		return errors.New("image_key is required for image messages")
@@ -463,7 +462,7 @@ func (c *Channel) sendImageMessage(ctx context.Context, token, receiveID, receiv
 	return c.sendAPIRequest(ctx, token, sendReq)
 }
 
-func (c *Channel) sendFileMessage(ctx context.Context, token, receiveID, receiveIDType string, msg *message.Message) error {
+func (c *Channel) sendFileMessage(ctx context.Context, token, receiveID, receiveIDType string, msg *channel.Message) error {
 	fileKey, ok := msg.GetMetadata("file_key")
 	if !ok {
 		return errors.New("file_key is required for file messages")
@@ -492,7 +491,7 @@ func (c *Channel) sendFileMessage(ctx context.Context, token, receiveID, receive
 	return c.sendAPIRequest(ctx, token, sendReq)
 }
 
-func (c *Channel) sendAudioMessage(ctx context.Context, token, receiveID, receiveIDType string, msg *message.Message) error {
+func (c *Channel) sendAudioMessage(ctx context.Context, token, receiveID, receiveIDType string, msg *channel.Message) error {
 	fileKey, ok := msg.GetMetadata("file_key")
 	if !ok {
 		return errors.New("file_key is required for audio messages")
@@ -515,7 +514,7 @@ func (c *Channel) sendAudioMessage(ctx context.Context, token, receiveID, receiv
 	return c.sendAPIRequest(ctx, token, sendReq)
 }
 
-func (c *Channel) sendVideoMessage(ctx context.Context, token, receiveID, receiveIDType string, msg *message.Message) error {
+func (c *Channel) sendVideoMessage(ctx context.Context, token, receiveID, receiveIDType string, msg *channel.Message) error {
 	fileKey, ok := msg.GetMetadata("file_key")
 	if !ok {
 		return errors.New("file_key is required for video messages")

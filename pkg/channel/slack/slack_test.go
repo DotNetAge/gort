@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/DotNetAge/gort/pkg/channel"
-	"github.com/DotNetAge/gort/pkg/message"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -90,13 +89,13 @@ func TestBuildMessagePayload_Text(t *testing.T) {
 	ch, err := NewChannel("slack", config)
 	require.NoError(t, err)
 
-	msg := message.NewMessage(
+	msg := channel.NewMessage(
 		"msg-001",
 		"slack",
-		message.DirectionOutbound,
-		message.UserInfo{ID: "C123456"},
+		channel.DirectionOutbound,
+		channel.UserInfo{ID: "C123456"},
 		"Hello, World!",
-		message.MessageTypeText,
+		channel.MessageTypeText,
 	)
 
 	payload := ch.buildMessagePayload(msg, "C123456")
@@ -113,13 +112,13 @@ func TestBuildMessagePayload_Markdown(t *testing.T) {
 	ch, err := NewChannel("slack", config)
 	require.NoError(t, err)
 
-	msg := message.NewMessage(
+	msg := channel.NewMessage(
 		"msg-001",
 		"slack",
-		message.DirectionOutbound,
-		message.UserInfo{ID: "C123456"},
+		channel.DirectionOutbound,
+		channel.UserInfo{ID: "C123456"},
 		"*Bold* text",
-		message.MessageTypeMarkdown,
+		channel.MessageTypeMarkdown,
 	)
 
 	payload := ch.buildMessagePayload(msg, "C123456")
@@ -137,13 +136,13 @@ func TestBuildMessagePayload_WithThread(t *testing.T) {
 	ch, err := NewChannel("slack", config)
 	require.NoError(t, err)
 
-	msg := message.NewMessage(
+	msg := channel.NewMessage(
 		"msg-001",
 		"slack",
-		message.DirectionOutbound,
-		message.UserInfo{ID: "C123456"},
+		channel.DirectionOutbound,
+		channel.UserInfo{ID: "C123456"},
 		"Reply in thread",
-		message.MessageTypeText,
+		channel.MessageTypeText,
 	)
 	msg.SetMetadata("thread_ts", "1234567890.123456")
 
@@ -160,13 +159,13 @@ func TestBuildMessagePayload_WithBlocks(t *testing.T) {
 	ch, err := NewChannel("slack", config)
 	require.NoError(t, err)
 
-	msg := message.NewMessage(
+	msg := channel.NewMessage(
 		"msg-001",
 		"slack",
-		message.DirectionOutbound,
-		message.UserInfo{ID: "C123456"},
+		channel.DirectionOutbound,
+		channel.UserInfo{ID: "C123456"},
 		"Message with blocks",
-		message.MessageTypeText,
+		channel.MessageTypeText,
 	)
 
 	blocks := []map[string]interface{}{
@@ -321,7 +320,7 @@ func TestHandleWebhook_Message(t *testing.T) {
 	assert.NoError(t, err)
 	require.NotNil(t, msg)
 	assert.Equal(t, "Hello from Slack", msg.Content)
-	assert.Equal(t, message.MessageTypeText, msg.Type)
+	assert.Equal(t, channel.MessageTypeText, msg.Type)
 	assert.Equal(t, "U123456", msg.From.ID)
 	assert.Equal(t, "C123456", msg.To.ID)
 }
@@ -359,13 +358,13 @@ func TestChannel_SendMessage_NotRunning(t *testing.T) {
 	ch, err := NewChannel("slack", config)
 	require.NoError(t, err)
 
-	msg := message.NewMessage(
+	msg := channel.NewMessage(
 		"msg-001",
 		"slack",
-		message.DirectionOutbound,
-		message.UserInfo{ID: "C123456"},
+		channel.DirectionOutbound,
+		channel.UserInfo{ID: "C123456"},
 		"Test",
-		message.MessageTypeText,
+		channel.MessageTypeText,
 	)
 
 	err = ch.SendMessage(context.Background(), msg)
@@ -382,7 +381,7 @@ func TestChannel_SendMessage_NoChannel(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	handler := func(ctx context.Context, msg *message.Message) error {
+	handler := func(ctx context.Context, msg *channel.Message) error {
 		return nil
 	}
 
@@ -393,13 +392,13 @@ func TestChannel_SendMessage_NoChannel(t *testing.T) {
 	}
 	defer ch.Stop(ctx)
 
-	msg := message.NewMessage(
+	msg := channel.NewMessage(
 		"msg-001",
 		"slack",
-		message.DirectionOutbound,
-		message.UserInfo{}, // No channel
+		channel.DirectionOutbound,
+		channel.UserInfo{}, // No channel
 		"Test",
-		message.MessageTypeText,
+		channel.MessageTypeText,
 	)
 
 	err = ch.SendMessage(ctx, msg)

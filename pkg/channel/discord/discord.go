@@ -41,7 +41,6 @@ import (
 	"time"
 
 	"github.com/DotNetAge/gort/pkg/channel"
-	"github.com/DotNetAge/gort/pkg/message"
 )
 
 // API endpoints for Discord API.
@@ -158,7 +157,7 @@ func (c *Channel) Stop(ctx context.Context) error {
 }
 
 // SendMessage sends a message to Discord.
-func (c *Channel) SendMessage(ctx context.Context, msg *message.Message) error {
+func (c *Channel) SendMessage(ctx context.Context, msg *channel.Message) error {
 	if msg == nil {
 		return errors.New("message is nil")
 	}
@@ -182,18 +181,18 @@ func (c *Channel) SendMessage(ctx context.Context, msg *message.Message) error {
 }
 
 // buildMessagePayload builds the message payload for Discord API.
-func (c *Channel) buildMessagePayload(msg *message.Message) map[string]interface{} {
+func (c *Channel) buildMessagePayload(msg *channel.Message) map[string]interface{} {
 	payload := map[string]interface{}{}
 
 	switch msg.Type {
-	case message.MessageTypeText:
+	case channel.MessageTypeText:
 		payload["content"] = msg.Content
 
-	case message.MessageTypeMarkdown:
+	case channel.MessageTypeMarkdown:
 		// Discord uses markdown natively
 		payload["content"] = msg.Content
 
-	case message.MessageTypeImage:
+	case channel.MessageTypeImage:
 		// For images, create an embed
 		if imageURL, ok := msg.GetMetadata("image_url"); ok {
 			if url, ok := imageURL.(string); ok {
@@ -239,7 +238,7 @@ func (c *Channel) createMessage(ctx context.Context, channelID string, payload m
 }
 
 // EditMessage edits an existing message.
-func (c *Channel) EditMessage(ctx context.Context, channelID, messageID string, msg *message.Message) error {
+func (c *Channel) EditMessage(ctx context.Context, channelID, messageID string, msg *channel.Message) error {
 	payload := c.buildMessagePayload(msg)
 	endpoint := strings.Replace(EndpointEditMessage, "{channel.id}", channelID, 1)
 	endpoint = strings.Replace(endpoint, "{message.id}", messageID, 1)
@@ -388,7 +387,7 @@ func (c *Channel) parseResponse(resp *http.Response, result interface{}) error {
 }
 
 // HandleWebhook handles incoming webhook requests from Discord.
-func (c *Channel) HandleWebhook(path string, data []byte) (*message.Message, error) {
+func (c *Channel) HandleWebhook(path string, data []byte) (*channel.Message, error) {
 	// Verify signature if public key is configured
 	if c.config.PublicKey != "" {
 		// Signature verification should be done at the HTTP handler level
@@ -425,20 +424,20 @@ func (c *Channel) HandleWebhook(path string, data []byte) (*message.Message, err
 		return nil, nil
 	}
 
-	msg := message.NewMessage(
+	msg := channel.NewMessage(
 		event.Data.ID,
 		c.Name(),
-		message.DirectionInbound,
-		message.UserInfo{
+		channel.DirectionInbound,
+		channel.UserInfo{
 			ID:       event.Data.Author.ID,
 			Name:     event.Data.Author.Username,
 			Platform: "discord",
 		},
 		event.Data.Content,
-		message.MessageTypeText,
+		channel.MessageTypeText,
 	)
 
-	msg.To = message.UserInfo{
+	msg.To = channel.UserInfo{
 		ID:       event.Data.ChannelID,
 		Platform: "discord",
 	}

@@ -13,8 +13,21 @@ import (
 
 // Client is a generic HTTP client with common configuration.
 type Client struct {
-	httpClient *http.Client
-	baseURL    string
+	httpClient     *http.Client
+	baseURL        string
+	defaultHeaders map[string]string
+}
+
+func (c *Client) SetDefaultHeaders(headers map[string]string) {
+	c.defaultHeaders = headers
+}
+
+func (c *Client) WithAuth(tokenType, token string) *Client {
+	if c.defaultHeaders == nil {
+		c.defaultHeaders = make(map[string]string)
+	}
+	c.defaultHeaders["Authorization"] = tokenType + " " + token
+	return c
 }
 
 // NewClient creates a new HTTP client with the given base URL and timeout.
@@ -27,7 +40,8 @@ func NewClient(baseURL string, timeout time.Duration) *Client {
 		httpClient: &http.Client{
 			Timeout: timeout,
 		},
-		baseURL: baseURL,
+		baseURL:        baseURL,
+		defaultHeaders: make(map[string]string),
 	}
 }
 
@@ -61,6 +75,15 @@ func (c *Client) Post(ctx context.Context, endpoint string, payload interface{},
 	}
 
 	req.Header.Set("Content-Type", "application/json")
+	for key, value := range c.defaultHeaders {
+		req.Header.Set(key, value)
+	}
+	for key, value := range c.defaultHeaders {
+		req.Header.Set(key, value)
+	}
+	for key, value := range c.defaultHeaders {
+		req.Header.Set(key, value)
+	}
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
@@ -81,6 +104,17 @@ func (c *Client) Post(ctx context.Context, endpoint string, payload interface{},
 	}
 
 	return respBody, nil
+}
+
+func (c *Client) PostJSON(ctx context.Context, endpoint string, payload interface{}, result interface{}) error {
+	respBody, err := c.Post(ctx, endpoint, payload, nil)
+	if err != nil {
+		return err
+	}
+	if result != nil {
+		return json.Unmarshal(respBody, result)
+	}
+	return nil
 }
 
 // PostForm sends a POST request with form data.
@@ -129,6 +163,9 @@ func (c *Client) Get(ctx context.Context, endpoint string, headers map[string]st
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
+	for key, value := range c.defaultHeaders {
+		req.Header.Set(key, value)
+	}
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}

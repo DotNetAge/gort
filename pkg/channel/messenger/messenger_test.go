@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/DotNetAge/gort/pkg/channel"
-	"github.com/DotNetAge/gort/pkg/message"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -47,7 +46,7 @@ func TestMessengerChannel_StartStop(t *testing.T) {
 	ch, err := NewMessengerChannel("messenger", config)
 	require.NoError(t, err)
 
-	err = ch.Start(context.Background(), func(ctx context.Context, msg *message.Message) error {
+	err = ch.Start(context.Background(), func(ctx context.Context, msg *channel.Message) error {
 		return nil
 	})
 	require.NoError(t, err)
@@ -121,8 +120,8 @@ func TestMessengerChannel_ParseWebhookData(t *testing.T) {
 
 	assert.Equal(t, "msg_001", msg.ID)
 	assert.Equal(t, "Hello, World!", msg.Content)
-	assert.Equal(t, message.MessageTypeText, msg.Type)
-	assert.Equal(t, message.DirectionInbound, msg.Direction)
+	assert.Equal(t, channel.MessageTypeText, msg.Type)
+	assert.Equal(t, channel.DirectionInbound, msg.Direction)
 	assert.Equal(t, "user_001", msg.From.ID)
 }
 
@@ -176,7 +175,7 @@ func TestMessengerChannel_ParseWebhookData_Image(t *testing.T) {
 
 	assert.Equal(t, "msg_002", msg.ID)
 	assert.Equal(t, "https://example.com/image.jpg", msg.Content)
-	assert.Equal(t, message.MessageTypeImage, msg.Type)
+	assert.Equal(t, channel.MessageTypeImage, msg.Type)
 }
 
 func TestMessengerChannel_ParseWebhookData_InvalidObject(t *testing.T) {

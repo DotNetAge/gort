@@ -7,7 +7,6 @@ import (
 
 	"github.com/DotNetAge/gort/pkg/channel"
 	"github.com/DotNetAge/gort/pkg/channel/imsg"
-	"github.com/DotNetAge/gort/pkg/message"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -146,7 +145,7 @@ func TestConvertMessage(t *testing.T) {
 		require.NotNil(t, msg)
 		assert.Equal(t, "12345", msg.ID)
 		assert.Equal(t, "Hello, World!", msg.Content)
-		assert.Equal(t, message.MessageTypeText, msg.Type)
+		assert.Equal(t, channel.MessageTypeText, msg.Type)
 		assert.Equal(t, "+14155551212", msg.From.ID)
 		assert.Equal(t, "67890", msg.To.ID)
 	})
@@ -168,7 +167,7 @@ func TestConvertMessage(t *testing.T) {
 
 		msg := ch.convertMessage(imsgMsg)
 		require.NotNil(t, msg)
-		assert.Equal(t, message.MessageTypeEvent, msg.Type)
+		assert.Equal(t, channel.MessageTypeEvent, msg.Type)
 
 		isReaction, _ := msg.GetMetadata("is_reaction")
 		assert.Equal(t, true, isReaction)
@@ -194,7 +193,7 @@ func TestConvertMessage(t *testing.T) {
 
 		msg := ch.convertMessage(imsgMsg)
 		require.NotNil(t, msg)
-		assert.Equal(t, message.MessageTypeImage, msg.Type)
+		assert.Equal(t, channel.MessageTypeImage, msg.Type)
 
 		attachPath, _ := msg.GetMetadata("attachment_path")
 		assert.Equal(t, "/path/to/photo.jpg", attachPath)
@@ -217,13 +216,13 @@ func TestChannel_SendMessage_NotRunning(t *testing.T) {
 		t.Skipf("imsg not installed: %v", err)
 	}
 
-	msg := message.NewMessage(
+	msg := channel.NewMessage(
 		"test-id",
 		"imessage",
-		message.DirectionOutbound,
-		message.UserInfo{ID: "+14155551212"},
+		channel.DirectionOutbound,
+		channel.UserInfo{ID: "+14155551212"},
 		"Test message",
-		message.MessageTypeText,
+		channel.MessageTypeText,
 	)
 
 	err = ch.SendMessage(context.Background(), msg)
@@ -258,7 +257,7 @@ func TestChannel_SendMessage_NoRecipient(t *testing.T) {
 
 	// Start the channel with a mock handler
 	ctx := context.Background()
-	handler := func(ctx context.Context, msg *message.Message) error {
+	handler := func(ctx context.Context, msg *channel.Message) error {
 		return nil
 	}
 
@@ -268,13 +267,13 @@ func TestChannel_SendMessage_NoRecipient(t *testing.T) {
 	}
 	defer ch.Stop(ctx)
 
-	msg := message.NewMessage(
+	msg := channel.NewMessage(
 		"test-id",
 		"imessage",
-		message.DirectionOutbound,
-		message.UserInfo{}, // No recipient
+		channel.DirectionOutbound,
+		channel.UserInfo{}, // No recipient
 		"Test message",
-		message.MessageTypeText,
+		channel.MessageTypeText,
 	)
 
 	err = ch.SendMessage(ctx, msg)
@@ -293,7 +292,7 @@ func TestChannel_Stop(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	handler := func(ctx context.Context, msg *message.Message) error {
+	handler := func(ctx context.Context, msg *channel.Message) error {
 		return nil
 	}
 
@@ -354,7 +353,7 @@ func TestChannel_SendReaction_NotEnabled(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	handler := func(ctx context.Context, msg *message.Message) error {
+	handler := func(ctx context.Context, msg *channel.Message) error {
 		return nil
 	}
 

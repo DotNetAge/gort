@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/DotNetAge/gort/pkg/channel"
-	"github.com/DotNetAge/gort/pkg/message"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -74,7 +73,7 @@ func TestChannel_StartStop(t *testing.T) {
 	ch, err := NewChannel("wecom", config)
 	require.NoError(t, err)
 
-	handler := func(ctx context.Context, msg *message.Message) error {
+	handler := func(ctx context.Context, msg *channel.Message) error {
 		return nil
 	}
 
@@ -118,13 +117,13 @@ func TestBuildTextPayload(t *testing.T) {
 	ch, err := NewChannel("wecom", config)
 	require.NoError(t, err)
 
-	msg := message.NewMessage(
+	msg := channel.NewMessage(
 		"msg-001",
 		"wecom",
-		message.DirectionOutbound,
-		message.UserInfo{},
+		channel.DirectionOutbound,
+		channel.UserInfo{},
 		"Hello, World!",
-		message.MessageTypeText,
+		channel.MessageTypeText,
 	)
 
 	payload, err := ch.buildPayload(msg)
@@ -144,13 +143,13 @@ func TestBuildTextPayload_WithMentions(t *testing.T) {
 	ch, err := NewChannel("wecom", config)
 	require.NoError(t, err)
 
-	msg := message.NewMessage(
+	msg := channel.NewMessage(
 		"msg-001",
 		"wecom",
-		message.DirectionOutbound,
-		message.UserInfo{},
+		channel.DirectionOutbound,
+		channel.UserInfo{},
 		"Hello @all",
-		message.MessageTypeText,
+		channel.MessageTypeText,
 	)
 	msg.SetMetadata("mentioned_list", []string{"@all", "user123"})
 	msg.SetMetadata("mentioned_mobile_list", []string{"13800138000"})
@@ -172,13 +171,13 @@ func TestBuildMarkdownPayload(t *testing.T) {
 	ch, err := NewChannel("wecom", config)
 	require.NoError(t, err)
 
-	msg := message.NewMessage(
+	msg := channel.NewMessage(
 		"msg-001",
 		"wecom",
-		message.DirectionOutbound,
-		message.UserInfo{},
+		channel.DirectionOutbound,
+		channel.UserInfo{},
 		"**Bold** text",
-		message.MessageTypeMarkdown,
+		channel.MessageTypeMarkdown,
 	)
 
 	payload, err := ch.buildPayload(msg)
@@ -198,13 +197,13 @@ func TestBuildMarkdownPayload_V2(t *testing.T) {
 	ch, err := NewChannel("wecom", config)
 	require.NoError(t, err)
 
-	msg := message.NewMessage(
+	msg := channel.NewMessage(
 		"msg-001",
 		"wecom",
-		message.DirectionOutbound,
-		message.UserInfo{},
+		channel.DirectionOutbound,
+		channel.UserInfo{},
 		"# Heading",
-		message.MessageTypeMarkdown,
+		channel.MessageTypeMarkdown,
 	)
 	msg.SetMetadata("markdown_version", "v2")
 
@@ -222,13 +221,13 @@ func TestBuildNewsPayload(t *testing.T) {
 	ch, err := NewChannel("wecom", config)
 	require.NoError(t, err)
 
-	msg := message.NewMessage(
+	msg := channel.NewMessage(
 		"msg-001",
 		"wecom",
-		message.DirectionOutbound,
-		message.UserInfo{},
+		channel.DirectionOutbound,
+		channel.UserInfo{},
 		"Article Title",
-		message.MessageTypeNews,
+		channel.MessageTypeNews,
 	)
 	msg.SetMetadata("description", "Article description")
 	msg.SetMetadata("url", "https://example.com/article")
@@ -251,13 +250,13 @@ func TestBuildFilePayload(t *testing.T) {
 	ch, err := NewChannel("wecom", config)
 	require.NoError(t, err)
 
-	msg := message.NewMessage(
+	msg := channel.NewMessage(
 		"msg-001",
 		"wecom",
-		message.DirectionOutbound,
-		message.UserInfo{},
+		channel.DirectionOutbound,
+		channel.UserInfo{},
 		"File message",
-		message.MessageTypeFile,
+		channel.MessageTypeFile,
 	)
 	msg.SetMetadata("media_id", "media123")
 
@@ -278,13 +277,13 @@ func TestBuildFilePayload_NoMediaID(t *testing.T) {
 	ch, err := NewChannel("wecom", config)
 	require.NoError(t, err)
 
-	msg := message.NewMessage(
+	msg := channel.NewMessage(
 		"msg-001",
 		"wecom",
-		message.DirectionOutbound,
-		message.UserInfo{},
+		channel.DirectionOutbound,
+		channel.UserInfo{},
 		"File message",
-		message.MessageTypeFile,
+		channel.MessageTypeFile,
 	)
 
 	_, err = ch.buildPayload(msg)
@@ -300,13 +299,13 @@ func TestBuildVoicePayload(t *testing.T) {
 	ch, err := NewChannel("wecom", config)
 	require.NoError(t, err)
 
-	msg := message.NewMessage(
+	msg := channel.NewMessage(
 		"msg-001",
 		"wecom",
-		message.DirectionOutbound,
-		message.UserInfo{},
+		channel.DirectionOutbound,
+		channel.UserInfo{},
 		"Voice message",
-		message.MessageTypeVoice,
+		channel.MessageTypeVoice,
 	)
 	msg.SetMetadata("media_id", "voice123")
 
@@ -327,13 +326,13 @@ func TestBuildTemplateCardPayload(t *testing.T) {
 	ch, err := NewChannel("wecom", config)
 	require.NoError(t, err)
 
-	msg := message.NewMessage(
+	msg := channel.NewMessage(
 		"msg-001",
 		"wecom",
-		message.DirectionOutbound,
-		message.UserInfo{},
+		channel.DirectionOutbound,
+		channel.UserInfo{},
 		"Template card",
-		message.MessageTypeTemplateCard,
+		channel.MessageTypeTemplateCard,
 	)
 	msg.SetMetadata("template_card", map[string]interface{}{
 		"card_type": "text_notice",
@@ -357,13 +356,13 @@ func TestBuildTemplateCardPayload_NoData(t *testing.T) {
 	ch, err := NewChannel("wecom", config)
 	require.NoError(t, err)
 
-	msg := message.NewMessage(
+	msg := channel.NewMessage(
 		"msg-001",
 		"wecom",
-		message.DirectionOutbound,
-		message.UserInfo{},
+		channel.DirectionOutbound,
+		channel.UserInfo{},
 		"Template card",
-		message.MessageTypeTemplateCard,
+		channel.MessageTypeTemplateCard,
 	)
 
 	_, err = ch.buildPayload(msg)
@@ -379,13 +378,13 @@ func TestChannel_SendMessage_NotRunning(t *testing.T) {
 	ch, err := NewChannel("wecom", config)
 	require.NoError(t, err)
 
-	msg := message.NewMessage(
+	msg := channel.NewMessage(
 		"msg-001",
 		"wecom",
-		message.DirectionOutbound,
-		message.UserInfo{},
+		channel.DirectionOutbound,
+		channel.UserInfo{},
 		"Test",
-		message.MessageTypeText,
+		channel.MessageTypeText,
 	)
 
 	err = ch.SendMessage(context.Background(), msg)
@@ -402,7 +401,7 @@ func TestChannel_SendMessage_NilMessage(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	handler := func(ctx context.Context, msg *message.Message) error {
+	handler := func(ctx context.Context, msg *channel.Message) error {
 		return nil
 	}
 

@@ -22,7 +22,7 @@
 //
 //	// Start all channels
 //	ctx := context.Background()
-//	handler := func(ctx context.Context, msg *message.Message) error {
+//	handler := func(ctx context.Context, msg *Message) error {
 //	    fmt.Printf("Received: %s\n", msg.Content)
 //	    return nil
 //	}
@@ -41,40 +41,94 @@ import (
 	"context"
 	"errors"
 	"sync"
-
-	"github.com/DotNetAge/gort/pkg/message"
 )
+
+type Direction string
+
+const (
+	DirectionInbound  Direction = "inbound"
+	DirectionOutbound Direction = "outbound"
+)
+
+type MessageType string
+
+const (
+	MessageTypeText        MessageType = "text"
+	MessageTypeImage       MessageType = "image"
+	MessageTypeFile        MessageType = "file"
+	MessageTypeAudio       MessageType = "audio"
+	MessageTypeVideo       MessageType = "video"
+	MessageTypeEvent       MessageType = "event"
+	MessageTypeMarkdown    MessageType = "markdown"
+	MessageTypeNews        MessageType = "news"
+	MessageTypeVoice       MessageType = "voice"
+	MessageTypeTemplateCard MessageType = "template_card"
+)
+
+type UserInfo struct {
+	ID       string
+	Name     string
+	Avatar   string
+	Language string
+	Platform string
+}
+
+type Message struct {
+	ID        string
+	ChannelID string
+	Type      MessageType
+	Direction Direction
+	From      UserInfo
+	To        UserInfo
+	Content   string
+	Data      []byte
+	Raw       []byte
+	Timestamp string
+	Metadata  map[string]interface{}
+}
+
+func (m *Message) GetMetadata(key string) (interface{}, bool) {
+	if m.Metadata == nil {
+		return nil, false
+	}
+	v, ok := m.Metadata[key]
+	return v, ok
+}
+
+func (m *Message) SetMetadata(key string, value interface{}) {
+	if m.Metadata == nil {
+		m.Metadata = make(map[string]interface{})
+	}
+	m.Metadata[key] = value
+}
+
+func NewMessage(id, channelID string, direction Direction, from UserInfo, content string, msgType MessageType) *Message {
+	return &Message{
+		ID:        id,
+		ChannelID: channelID,
+		Type:      msgType,
+		Direction: direction,
+		From:      from,
+		Content:   content,
+		Metadata:  make(map[string]interface{}),
+	}
+}
 
 // Error definitions for channel operations.
 // These errors are returned by various channel methods to indicate specific failure conditions.
 var (
-	// ErrChannelAlreadyRunning is returned when attempting to start a channel that is already running.
-	ErrChannelAlreadyRunning = errors.New("channel is already running")
-
-	// ErrChannelNotRunning is returned when attempting to stop a channel that is not running,
-	// or when trying to send messages through a stopped channel.
-	ErrChannelNotRunning = errors.New("channel is not running")
-
-	// ErrChannelNotFound is returned when attempting to access a channel that does not exist in the registry.
-	ErrChannelNotFound = errors.New("channel not found")
-
-	// ErrChannelAlreadyExists is returned when attempting to register a channel with a name that already exists.
-	ErrChannelAlreadyExists = errors.New("channel already exists")
-
-	// ErrInvalidConfiguration is returned when the channel configuration is invalid or incomplete.
-	ErrInvalidConfiguration = errors.New("invalid channel configuration")
-
-	// ErrAuthenticationFailed is returned when authentication with the messaging platform fails.
-	ErrAuthenticationFailed = errors.New("authentication failed")
-
-	// ErrRateLimited is returned when the request is rate limited by the messaging platform.
-	ErrRateLimited = errors.New("rate limited")
-
-	// ErrMessageTooLarge is returned when a message exceeds the platform's size limits.
-	ErrMessageTooLarge = errors.New("message too large")
-
-	// ErrUnsupportedMessageType is returned when the message type is not supported by the channel.
-	ErrUnsupportedMessageType = errors.New("unsupported message type")
+	ErrChannelAlreadyRunning   = errors.New("channel is already running")
+	ErrChannelNotRunning       = errors.New("channel is not running")
+	ErrChannelNotFound         = errors.New("channel not found")
+	ErrChannelAlreadyExists    = errors.New("channel already exists")
+	ErrInvalidConfiguration    = errors.New("invalid channel configuration")
+	ErrAuthenticationFailed    = errors.New("authentication failed")
+	ErrRateLimited             = errors.New("rate limited")
+	ErrMessageTooLarge         = errors.New("message too large")
+	ErrUnsupportedMessageType  = errors.New("unsupported message type")
+	ErrTokenExpired            = errors.New("token expired or not available")
+	ErrRequiredField           = errors.New("required field is missing")
+	ErrInvalidFormat           = errors.New("invalid format")
 )
 
 // Status represents the current operational status of a channel.
@@ -149,12 +203,12 @@ const (
 //
 // Example:
 //
-//	handler := func(ctx context.Context, msg *message.Message) error {
+//	handler := func(ctx context.Context, msg *Message) error {
 //	    log.Printf("Received message from %s: %s", msg.From.Name, msg.Content)
 //	    // Process the message...
 //	    return nil
 //	}
-type MessageHandler func(ctx context.Context, msg *message.Message) error
+type MessageHandler func(ctx context.Context, msg *Message) error
 
 // Channel is the core interface for all messaging platform adapters.
 // Implementations must be safe for concurrent use.
@@ -177,7 +231,7 @@ type MessageHandler func(ctx context.Context, msg *message.Message) error
 //	ch, _ := telegram.NewChannel("my-bot", telegram.Config{Token: "bot-token"})
 //	ctx := context.Background()
 //
-//	err := ch.Start(ctx, func(ctx context.Context, msg *message.Message) error {
+//	err := ch.Start(ctx, func(ctx context.Context, msg *Message) error {
 //	    fmt.Printf("From %s: %s\n", msg.From.Name, msg.Content)
 //	    return nil
 //	})
@@ -226,7 +280,7 @@ type Channel interface {
 	//   - msg: The message to send
 	//
 	// Returns an error if the message cannot be sent.
-	SendMessage(ctx context.Context, msg *message.Message) error
+	SendMessage(ctx context.Context, msg *Message) error
 
 	// GetStatus returns the current status of the channel.
 	// This provides more detailed status information than IsRunning().
@@ -257,7 +311,7 @@ type WebhookHandler interface {
 	//	    return
 	//	}
 	//	// Process msg...
-	HandleWebhook(path string, data []byte) (*message.Message, error)
+	HandleWebhook(path string, data []byte) (*Message, error)
 }
 
 // OAuthConfig contains OAuth authentication configuration.
@@ -364,6 +418,7 @@ type BaseChannel struct {
 	channelType ChannelType
 	status      Status
 	handler     MessageHandler
+	sender      GatewaySender
 	mu          sync.RWMutex
 }
 
@@ -454,7 +509,7 @@ func (b *BaseChannel) GetHandler() MessageHandler {
 //   - msg: The message to handle
 //
 // Returns ErrChannelNotRunning if no handler is registered.
-func (b *BaseChannel) HandleMessage(ctx context.Context, msg *message.Message) error {
+func (b *BaseChannel) HandleMessage(ctx context.Context, msg *Message) error {
 	b.mu.RLock()
 	handler := b.handler
 	b.mu.RUnlock()
@@ -463,6 +518,40 @@ func (b *BaseChannel) HandleMessage(ctx context.Context, msg *message.Message) e
 		return ErrChannelNotRunning
 	}
 	return handler(ctx, msg)
+}
+
+type GatewaySender interface {
+	Send(to string, message string)
+	Broadcast(message string)
+	SendJSON(to string, v interface{}) error
+	BroadcastJSON(v interface{}) error
+	ClientCount() int
+}
+
+func (b *BaseChannel) SetGatewaySender(s GatewaySender) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if s != nil {
+		b.sender = s
+	}
+}
+
+func (b *BaseChannel) GetGatewaySender() GatewaySender {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.sender
+}
+
+func (b *BaseChannel) SendToGateway(message string) {
+	if s := b.GetGatewaySender(); s != nil {
+		s.Broadcast(message)
+	}
+}
+
+func (b *BaseChannel) SendToGatewayClient(clientID, message string) {
+	if s := b.GetGatewaySender(); s != nil {
+		s.Send(clientID, message)
+	}
 }
 
 // Registry manages a collection of channels.
@@ -620,7 +709,7 @@ func (r *Registry) StopAll(ctx context.Context) error {
 // This type is safe for concurrent use.
 type MockChannel struct {
 	*BaseChannel
-	messages  []*message.Message
+	messages  []*Message
 	sendError error
 	started   bool
 	mu        sync.Mutex
@@ -639,7 +728,7 @@ type MockChannel struct {
 func NewMockChannel(name string, channelType ChannelType) *MockChannel {
 	return &MockChannel{
 		BaseChannel: NewBaseChannel(name, channelType),
-		messages:    make([]*message.Message, 0),
+		messages:    make([]*Message, 0),
 	}
 }
 
@@ -693,7 +782,7 @@ func (m *MockChannel) Stop(ctx context.Context) error {
 //   - msg: The message to "send"
 //
 // Returns sendError if set, otherwise nil.
-func (m *MockChannel) SendMessage(ctx context.Context, msg *message.Message) error {
+func (m *MockChannel) SendMessage(ctx context.Context, msg *Message) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -709,11 +798,11 @@ func (m *MockChannel) SendMessage(ctx context.Context, msg *message.Message) err
 // This is useful for verifying that messages were "sent".
 //
 // Returns a slice of all messages passed to SendMessage.
-func (m *MockChannel) GetMessages() []*message.Message {
+func (m *MockChannel) GetMessages() []*Message {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	result := make([]*message.Message, len(m.messages))
+	result := make([]*Message, len(m.messages))
 	copy(result, m.messages)
 	return result
 }
@@ -745,7 +834,7 @@ func (m *MockChannel) ClearMessages() {
 //   - msg: The message to simulate receiving
 //
 // Returns ErrChannelNotRunning if the channel is not started.
-func (m *MockChannel) SimulateMessage(ctx context.Context, msg *message.Message) error {
+func (m *MockChannel) SimulateMessage(ctx context.Context, msg *Message) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

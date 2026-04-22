@@ -5,7 +5,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/DotNetAge/gort/pkg/message"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,7 +21,7 @@ func TestNewMockChannel(t *testing.T) {
 func TestMockChannel_Start(t *testing.T) {
 	ch := NewMockChannel("wechat", ChannelTypeWeChat)
 
-	handler := func(ctx context.Context, msg *message.Message) error {
+	handler := func(ctx context.Context, msg *Message) error {
 		return nil
 	}
 
@@ -35,7 +34,7 @@ func TestMockChannel_Start(t *testing.T) {
 func TestMockChannel_Start_AlreadyRunning(t *testing.T) {
 	ch := NewMockChannel("wechat", ChannelTypeWeChat)
 
-	handler := func(ctx context.Context, msg *message.Message) error {
+	handler := func(ctx context.Context, msg *Message) error {
 		return nil
 	}
 
@@ -49,7 +48,7 @@ func TestMockChannel_Start_AlreadyRunning(t *testing.T) {
 func TestMockChannel_Stop(t *testing.T) {
 	ch := NewMockChannel("wechat", ChannelTypeWeChat)
 
-	handler := func(ctx context.Context, msg *message.Message) error {
+	handler := func(ctx context.Context, msg *Message) error {
 		return nil
 	}
 
@@ -72,7 +71,7 @@ func TestMockChannel_Stop_NotRunning(t *testing.T) {
 func TestMockChannel_SendMessage(t *testing.T) {
 	ch := NewMockChannel("wechat", ChannelTypeWeChat)
 
-	msg := message.NewMessage("msg_001", "wechat", message.DirectionOutbound, message.UserInfo{}, "test", message.MessageTypeText)
+	msg := NewMessage("msg_001", "wechat", DirectionOutbound, UserInfo{}, "test", MessageTypeText)
 
 	err := ch.SendMessage(context.Background(), msg)
 	require.NoError(t, err)
@@ -87,7 +86,7 @@ func TestMockChannel_SendMessage_Error(t *testing.T) {
 	expectedErr := errors.New("send error")
 	ch.SetSendError(expectedErr)
 
-	msg := message.NewMessage("msg_001", "wechat", message.DirectionOutbound, message.UserInfo{}, "test", message.MessageTypeText)
+	msg := NewMessage("msg_001", "wechat", DirectionOutbound, UserInfo{}, "test", MessageTypeText)
 
 	err := ch.SendMessage(context.Background(), msg)
 	assert.Equal(t, expectedErr, err)
@@ -96,8 +95,8 @@ func TestMockChannel_SendMessage_Error(t *testing.T) {
 func TestMockChannel_SimulateMessage(t *testing.T) {
 	ch := NewMockChannel("wechat", ChannelTypeWeChat)
 
-	receivedMsg := (*message.Message)(nil)
-	handler := func(ctx context.Context, msg *message.Message) error {
+	receivedMsg := (*Message)(nil)
+	handler := func(ctx context.Context, msg *Message) error {
 		receivedMsg = msg
 		return nil
 	}
@@ -105,7 +104,7 @@ func TestMockChannel_SimulateMessage(t *testing.T) {
 	err := ch.Start(context.Background(), handler)
 	require.NoError(t, err)
 
-	msg := message.NewMessage("msg_001", "wechat", message.DirectionInbound, message.UserInfo{}, "test", message.MessageTypeText)
+	msg := NewMessage("msg_001", "wechat", DirectionInbound, UserInfo{}, "test", MessageTypeText)
 
 	err = ch.SimulateMessage(context.Background(), msg)
 	require.NoError(t, err)
@@ -115,7 +114,7 @@ func TestMockChannel_SimulateMessage(t *testing.T) {
 func TestMockChannel_SimulateMessage_NotRunning(t *testing.T) {
 	ch := NewMockChannel("wechat", ChannelTypeWeChat)
 
-	msg := message.NewMessage("msg_001", "wechat", message.DirectionInbound, message.UserInfo{}, "test", message.MessageTypeText)
+	msg := NewMessage("msg_001", "wechat", DirectionInbound, UserInfo{}, "test", MessageTypeText)
 
 	err := ch.SimulateMessage(context.Background(), msg)
 	assert.Equal(t, ErrChannelNotRunning, err)

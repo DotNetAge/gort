@@ -5,7 +5,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/DotNetAge/gort/pkg/message"
 )
 
 // BenchmarkBaseChannel_Creation benchmarks BaseChannel creation.
@@ -52,7 +51,7 @@ func BenchmarkBaseChannel_IsRunning(b *testing.B) {
 // BenchmarkBaseChannel_SetHandler benchmarks handler setting.
 func BenchmarkBaseChannel_SetHandler(b *testing.B) {
 	ch := NewBaseChannel("test", ChannelTypeWeChat)
-	handler := func(ctx context.Context, msg *message.Message) error {
+	handler := func(ctx context.Context, msg *Message) error {
 		return nil
 	}
 	b.ResetTimer()
@@ -65,7 +64,7 @@ func BenchmarkBaseChannel_SetHandler(b *testing.B) {
 // BenchmarkBaseChannel_GetHandler benchmarks handler retrieval.
 func BenchmarkBaseChannel_GetHandler(b *testing.B) {
 	ch := NewBaseChannel("test", ChannelTypeWeChat)
-	handler := func(ctx context.Context, msg *message.Message) error {
+	handler := func(ctx context.Context, msg *Message) error {
 		return nil
 	}
 	ch.SetHandler(handler)
@@ -146,16 +145,16 @@ func BenchmarkChannelCapabilities(b *testing.B) {
 // BenchmarkMessageHandler benchmarks message handler invocation.
 func BenchmarkMessageHandler(b *testing.B) {
 	ctx := context.Background()
-	msg := message.NewMessage(
+	msg := NewMessage(
 		"msg-1",
 		"test",
-		message.DirectionInbound,
-		message.UserInfo{ID: "user-1"},
+		DirectionInbound,
+		UserInfo{ID: "user-1"},
 		"Hello World",
-		message.MessageTypeText,
+		MessageTypeText,
 	)
 
-	handler := func(ctx context.Context, msg *message.Message) error {
+	handler := func(ctx context.Context, msg *Message) error {
 		return nil
 	}
 

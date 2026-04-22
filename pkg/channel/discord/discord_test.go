@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/DotNetAge/gort/pkg/channel"
-	"github.com/DotNetAge/gort/pkg/message"
 )
 
 // setupTestServer creates a mock Discord API server for testing.
@@ -224,7 +223,7 @@ func TestChannel_StartStop(t *testing.T) {
 	ctx := context.Background()
 
 	// Test Start
-	err = ch.Start(ctx, func(ctx context.Context, msg *message.Message) error {
+	err = ch.Start(ctx, func(ctx context.Context, msg *channel.Message) error {
 		return nil
 	})
 	if err != nil {
@@ -271,37 +270,37 @@ func TestChannel_SendMessage(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		msg     *message.Message
+		msg     *channel.Message
 		wantErr bool
 	}{
 		{
 			name: "text message",
-			msg: &message.Message{
+			msg: &channel.Message{
 				ID:      "msg-1",
 				Content: "Hello Discord",
-				Type:    message.MessageTypeText,
-				To:      message.UserInfo{ID: "channel-1"},
+				Type:    channel.MessageTypeText,
+				To:      channel.UserInfo{ID: "channel-1"},
 			},
 			wantErr: false,
 		},
 		{
 			name: "markdown message",
-			msg: &message.Message{
+			msg: &channel.Message{
 				ID:      "msg-2",
 				Content: "**Bold** text",
-				Type:    message.MessageTypeMarkdown,
-				To:      message.UserInfo{ID: "channel-1"},
+				Type:    channel.MessageTypeMarkdown,
+				To:      channel.UserInfo{ID: "channel-1"},
 			},
 			wantErr: false,
 		},
 		{
 			name: "image message with URL",
-			msg: func() *message.Message {
-				m := &message.Message{
+			msg: func() *channel.Message {
+				m := &channel.Message{
 					ID:      "msg-3",
 					Content: "Image message",
-					Type:    message.MessageTypeImage,
-					To:      message.UserInfo{ID: "channel-1"},
+					Type:    channel.MessageTypeImage,
+					To:      channel.UserInfo{ID: "channel-1"},
 				}
 				m.SetMetadata("image_url", "https://example.com/image.png")
 				return m
@@ -315,11 +314,11 @@ func TestChannel_SendMessage(t *testing.T) {
 		},
 		{
 			name: "channel not running",
-			msg: &message.Message{
+			msg: &channel.Message{
 				ID:      "msg-4",
 				Content: "Test",
-				Type:    message.MessageTypeText,
-				To:      message.UserInfo{ID: "channel-1"},
+				Type:    channel.MessageTypeText,
+				To:      channel.UserInfo{ID: "channel-1"},
 			},
 			wantErr: true,
 		},
@@ -360,10 +359,10 @@ func TestChannel_SendMessage_NoChannelID(t *testing.T) {
 
 	ch.SetStatus(channel.StatusRunning)
 
-	msg := &message.Message{
+	msg := &channel.Message{
 		ID:      "msg-1",
 		Content: "Test message",
-		Type:    message.MessageTypeText,
+		Type:    channel.MessageTypeText,
 		// No To.ID
 	}
 
@@ -383,33 +382,33 @@ func TestBuildMessagePayload(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		msg          *message.Message
+		msg          *channel.Message
 		wantContent  string
 		wantEmbeds   bool
 		wantReplyRef bool
 	}{
 		{
 			name: "text message",
-			msg: &message.Message{
+			msg: &channel.Message{
 				Content: "Hello World",
-				Type:    message.MessageTypeText,
+				Type:    channel.MessageTypeText,
 			},
 			wantContent: "Hello World",
 		},
 		{
 			name: "markdown message",
-			msg: &message.Message{
+			msg: &channel.Message{
 				Content: "**Bold**",
-				Type:    message.MessageTypeMarkdown,
+				Type:    channel.MessageTypeMarkdown,
 			},
 			wantContent: "**Bold**",
 		},
 		{
 			name: "image message with URL",
-			msg: func() *message.Message {
-				m := &message.Message{
+			msg: func() *channel.Message {
+				m := &channel.Message{
 					Content: "Image",
-					Type:    message.MessageTypeImage,
+					Type:    channel.MessageTypeImage,
 				}
 				m.SetMetadata("image_url", "https://example.com/img.png")
 				return m
@@ -418,18 +417,18 @@ func TestBuildMessagePayload(t *testing.T) {
 		},
 		{
 			name: "image message without URL",
-			msg: &message.Message{
+			msg: &channel.Message{
 				Content: "Image content",
-				Type:    message.MessageTypeImage,
+				Type:    channel.MessageTypeImage,
 			},
 			wantContent: "Image content",
 		},
 		{
 			name: "message with reply",
-			msg: func() *message.Message {
-				m := &message.Message{
+			msg: func() *channel.Message {
+				m := &channel.Message{
 					Content: "Reply",
-					Type:    message.MessageTypeText,
+					Type:    channel.MessageTypeText,
 				}
 				m.SetMetadata("reply_to_message_id", "original-msg-id")
 				return m
@@ -439,10 +438,10 @@ func TestBuildMessagePayload(t *testing.T) {
 		},
 		{
 			name: "message with embeds",
-			msg: func() *message.Message {
-				m := &message.Message{
+			msg: func() *channel.Message {
+				m := &channel.Message{
 					Content: "With embeds",
-					Type:    message.MessageTypeText,
+					Type:    channel.MessageTypeText,
 				}
 				m.SetMetadata("embeds", []map[string]interface{}{
 					{"title": "Embed Title"},
@@ -769,9 +768,9 @@ func TestChannel_EditMessage(t *testing.T) {
 	}, server.Client())
 
 	ctx := context.Background()
-	msg := &message.Message{
+	msg := &channel.Message{
 		Content: "Edited content",
-		Type:    message.MessageTypeText,
+		Type:    channel.MessageTypeText,
 	}
 
 	err := ch.EditMessage(ctx, "channel-1", "msg-1", msg)
@@ -1029,7 +1028,7 @@ func TestChannel_Start_InvalidToken(t *testing.T) {
 	}, server.Client())
 
 	ctx := context.Background()
-	err := ch.Start(ctx, func(ctx context.Context, msg *message.Message) error {
+	err := ch.Start(ctx, func(ctx context.Context, msg *channel.Message) error {
 		return nil
 	})
 

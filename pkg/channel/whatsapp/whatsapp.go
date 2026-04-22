@@ -46,7 +46,6 @@ import (
 	"time"
 
 	"github.com/DotNetAge/gort/pkg/channel"
-	"github.com/DotNetAge/gort/pkg/message"
 )
 
 const (
@@ -105,7 +104,7 @@ func (w *WhatsAppChannel) Stop(ctx context.Context) error {
 	return nil
 }
 
-func (w *WhatsAppChannel) SendMessage(ctx context.Context, msg *message.Message) error {
+func (w *WhatsAppChannel) SendMessage(ctx context.Context, msg *channel.Message) error {
 	if msg == nil {
 		return channel.ErrUnsupportedMessageType
 	}
@@ -150,7 +149,7 @@ func (w *WhatsAppChannel) SendMessage(ctx context.Context, msg *message.Message)
 	return nil
 }
 
-func (w *WhatsAppChannel) buildMessagePayload(recipientID string, msg *message.Message) map[string]interface{} {
+func (w *WhatsAppChannel) buildMessagePayload(recipientID string, msg *channel.Message) map[string]interface{} {
 	payload := map[string]interface{}{
 		"messaging_product": "whatsapp",
 		"recipient_type":    "individual",
@@ -158,27 +157,27 @@ func (w *WhatsAppChannel) buildMessagePayload(recipientID string, msg *message.M
 	}
 
 	switch msg.Type {
-	case message.MessageTypeText:
+	case channel.MessageTypeText:
 		payload["type"] = "text"
 		payload["text"] = map[string]interface{}{
 			"body": msg.Content,
 		}
-	case message.MessageTypeImage:
+	case channel.MessageTypeImage:
 		payload["type"] = "image"
 		payload["image"] = map[string]interface{}{
 			"link": msg.Content,
 		}
-	case message.MessageTypeAudio:
+	case channel.MessageTypeAudio:
 		payload["type"] = "audio"
 		payload["audio"] = map[string]interface{}{
 			"link": msg.Content,
 		}
-	case message.MessageTypeVideo:
+	case channel.MessageTypeVideo:
 		payload["type"] = "video"
 		payload["video"] = map[string]interface{}{
 			"link": msg.Content,
 		}
-	case message.MessageTypeFile:
+	case channel.MessageTypeFile:
 		payload["type"] = "document"
 		payload["document"] = map[string]interface{}{
 			"link": msg.Content,
@@ -237,11 +236,11 @@ func (w *WhatsAppChannel) SendTemplate(ctx context.Context, recipientID, templat
 	return nil
 }
 
-func (w *WhatsAppChannel) HandleWebhook(path string, data []byte) (*message.Message, error) {
+func (w *WhatsAppChannel) HandleWebhook(path string, data []byte) (*channel.Message, error) {
 	return w.parseWebhookData(data)
 }
 
-func (w *WhatsAppChannel) HandleWebhookWithSignature(data []byte, signature string) (*message.Message, error) {
+func (w *WhatsAppChannel) HandleWebhookWithSignature(data []byte, signature string) (*channel.Message, error) {
 	if w.config.AppSecret != "" {
 		if !w.verifySignature(data, signature) {
 			return nil, ErrInvalidSignature
@@ -268,7 +267,7 @@ func (w *WhatsAppChannel) verifySignature(data []byte, signature string) bool {
 	return hmac.Equal(expectedMAC, actualMAC)
 }
 
-func (w *WhatsAppChannel) parseWebhookData(data []byte) (*message.Message, error) {
+func (w *WhatsAppChannel) parseWebhookData(data []byte) (*channel.Message, error) {
 	var webhook struct {
 		Object string `json:"object"`
 		Entry  []struct {
@@ -344,7 +343,7 @@ func (w *WhatsAppChannel) parseWebhookData(data []byte) (*message.Message, error
 		contactName = change.Contacts[0].Profile.Name
 	}
 
-	msgType := message.MessageTypeText
+	msgType := channel.MessageTypeText
 	content := ""
 
 	switch msg.Type {
@@ -353,37 +352,37 @@ func (w *WhatsAppChannel) parseWebhookData(data []byte) (*message.Message, error
 			content = msg.Text.Body
 		}
 	case "image":
-		msgType = message.MessageTypeImage
+		msgType = channel.MessageTypeImage
 		if msg.Image != nil {
 			content = msg.Image.ID
 		}
 	case "audio":
-		msgType = message.MessageTypeAudio
+		msgType = channel.MessageTypeAudio
 		if msg.Audio != nil {
 			content = msg.Audio.ID
 		}
 	case "video":
-		msgType = message.MessageTypeVideo
+		msgType = channel.MessageTypeVideo
 		if msg.Video != nil {
 			content = msg.Video.ID
 		}
 	case "document":
-		msgType = message.MessageTypeFile
+		msgType = channel.MessageTypeFile
 		if msg.Document != nil {
 			content = msg.Document.ID
 		}
 	case "location":
-		msgType = message.MessageTypeEvent
+		msgType = channel.MessageTypeEvent
 		if msg.Location != nil {
 			content = fmt.Sprintf("%f,%f", msg.Location.Latitude, msg.Location.Longitude)
 		}
 	}
 
-	result := message.NewMessage(
+	result := channel.NewMessage(
 		msg.ID,
 		w.Name(),
-		message.DirectionInbound,
-		message.UserInfo{
+		channel.DirectionInbound,
+		channel.UserInfo{
 			ID:       msg.From,
 			Name:     contactName,
 			Platform: "whatsapp",

@@ -1,0 +1,179 @@
+package gateway
+
+import (
+	"log/slog"
+	"sync"
+	"sync/atomic"
+	"time"
+)
+
+type ConnectionState int
+
+const (
+	StateDisconnected ConnectionState = 0
+	StateConnecting    ConnectionState = 1
+	StateConnected     ConnectionState = 2
+	StateReconnecting  ConnectionState = 3
+)
+
+func (s ConnectionState) String() string {
+	switch s {
+	case StateDisconnected:
+		return "disconnected"
+	case StateConnecting:
+		return "connecting"
+	case StateConnected:
+		return "connected"
+	case StateReconnecting:
+		return "reconnecting"
+	default:
+		return "unknown"
+	}
+}
+
+type HeartbeatConfig struct {
+	Interval       time.Duration
+	ReadTimeout    time.Duration
+	WriteTimeout   time.Duration
+	PingPeriod     time.Duration
+	MaxMissedPings int
+}
+
+func DefaultHeartbeatConfig() *HeartbeatConfig {
+	return &HeartbeatConfig{
+		Interval:       30 * time.Second,
+		ReadTimeout:    10 * time.Second,
+		WriteTimeout:   10 * time.Second,
+		PingPeriod:     27 * time.Second,
+		MaxMissedPings: 3,
+	}
+}
+
+type HeartbeatStats struct {
+	TotalPingsSent     uint64
+	TotalPongsReceived uint64
+	MissedPings        uint64
+	LastPingAt         time.Time
+	LastPongAt         time.Time
+	ConnectionCount    int
+}
+
+type HeartbeatMonitor struct {
+	config      *HeartbeatConfig
+	stats       HeartbeatStats
+	mu          sync.RWMutex
+	onStateChange func(clientID, oldState, newState string)
+	onTimeout    func(clientID string)
+	onReconnect  func(clientID string, attempt int)
+}
+
+func newHeartbeatMonitor(cfg *HeartbeatConfig) *HeartbeatMonitor {
+	if cfg == nil {
+		cfg = DefaultHeartbeatConfig()
+	}
+	return &HeartbeatMonitor{
+		config: cfg,
+	}
+}
+
+func (h *HeartbeatMonitor) Config() *HeartbeatConfig { return h.config }
+
+func (h *HeartbeatMonitor) Stats() HeartbeatStats {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.stats
+}
+
+func (h *HeartbeatMonitor) recordPing() {
+	atomic.AddUint64(&h.stats.TotalPingsSent, 1)
+	h.mu.Lock()
+	h.stats.LastPingAt = time.Now()
+	h.mu.Unlock()
+}
+
+func (h *HeartbeatMonitor) recordPong() {
+	atomic.AddUint64(&h.stats.TotalPongsReceived, 1)
+	h.mu.Lock()
+	h.stats.LastPongAt = time.Now()
+	h.mu.Unlock()
+}
+
+func (h *HeartbeatMonitor) recordMiss() {
+	atomic.AddUint64(&h.stats.MissedPings, 1)
+}
+
+func (h *HeartbeatMonitor) setConnectionCount(n int) {
+	h.mu.Lock()
+	h.stats.ConnectionCount = n
+	h.mu.Unlock()
+}
+
+func (h *HeartbeatMonitor) OnStateChange(fn func(clientID, oldState, newState string)) {
+	h.onStateChange = fn
+}
+
+func (h *HeartbeatMonitor) OnTimeout(fn func(clientID string)) {
+	h.onTimeout = fn
+}
+
+func (h *HeartbeatMonitor) OnReconnect(fn func(clientID string, attempt int)) {
+	h.onReconnect = fn
+}
+
+func (h *HeartbeatMonitor) notifyStateChange(clientID, oldState, newState string) {
+	if h.onStateChange != nil {
+		go h.onStateChange(clientID, oldState, newState)
+		slog.Info("client state changed", "id", clientID, "from", oldState, "to", newState)
+	}
+}
+
+func (h *HeartbeatMonitor) notifyTimeout(clientID string) {
+	if h.onTimeout != nil {
+		go h.onTimeout(clientID)
+		slog.Warn("client heartbeat timeout", "id", clientID)
+	}
+}
+
+func (h *HeartbeatMonitor) notifyReconnect(clientID string, attempt int) {
+	if h.onReconnect != nil {
+		go h.onReconnect(clientID, attempt)
+		slog.Info("client reconnect attempt", "id", clientID, "attempt", attempt)
+	}
+}
+
+type ReconnectConfig struct {
+	Enabled          bool
+	MaxRetries       int
+	InitialInterval  time.Duration
+	MaxInterval      time.Duration
+	Multiplier       float64
+	Jitter           float64
+	Strategy         string
+	OnReconnect      func(attempt int) error
+	OnReconnectFail  func(err error)
+	OnConnected      func()
+}
+
+func DefaultReconnectConfig() *ReconnectConfig {
+	return &ReconnectConfig{
+		Enabled:          true,
+		MaxRetries:       10,
+		InitialInterval:  1 * time.Second,
+		MaxInterval:      60 * time.Second,
+		Multiplier:       2.0,
+		Jitter:           0.2,
+	}
+}
+
+func (r *ReconnectConfig) calcDelay(attempt int) time.Duration {
+	delay := r.InitialInterval
+	for i := 0; i < attempt && delay < r.MaxInterval; i++ {
+		delay = time.Duration(float64(delay) * r.Multiplier)
+	}
+	if delay > r.MaxInterval {
+		delay = r.MaxInterval
+	}
+	jitter := time.Duration(float64(delay) * r.Jitter)
+	delay += jitter
+	return delay
+}

@@ -43,7 +43,6 @@ import (
 	"time"
 
 	"github.com/DotNetAge/gort/pkg/channel"
-	"github.com/DotNetAge/gort/pkg/message"
 )
 
 // API endpoints for Telegram Bot API.
@@ -159,7 +158,7 @@ func (c *Channel) Stop(ctx context.Context) error {
 }
 
 // SendMessage sends a message to Telegram.
-func (c *Channel) SendMessage(ctx context.Context, msg *message.Message) error {
+func (c *Channel) SendMessage(ctx context.Context, msg *channel.Message) error {
 	if !c.IsRunning() {
 		return channel.ErrChannelNotRunning
 	}
@@ -170,15 +169,15 @@ func (c *Channel) SendMessage(ctx context.Context, msg *message.Message) error {
 	}
 
 	switch msg.Type {
-	case message.MessageTypeText:
+	case channel.MessageTypeText:
 		return c.sendTextMessage(ctx, chatID, msg)
-	case message.MessageTypeImage:
+	case channel.MessageTypeImage:
 		return c.sendPhotoMessage(ctx, chatID, msg)
-	case message.MessageTypeFile:
+	case channel.MessageTypeFile:
 		return c.sendDocumentMessage(ctx, chatID, msg)
-	case message.MessageTypeAudio:
+	case channel.MessageTypeAudio:
 		return c.sendAudioMessage(ctx, chatID, msg)
-	case message.MessageTypeVideo:
+	case channel.MessageTypeVideo:
 		return c.sendVideoMessage(ctx, chatID, msg)
 	default:
 		return c.sendTextMessage(ctx, chatID, msg)
@@ -186,7 +185,7 @@ func (c *Channel) SendMessage(ctx context.Context, msg *message.Message) error {
 }
 
 // HandleWebhook processes incoming webhook requests from Telegram.
-func (c *Channel) HandleWebhook(path string, data []byte) (*message.Message, error) {
+func (c *Channel) HandleWebhook(path string, data []byte) (*channel.Message, error) {
 	var update Update
 	if err := json.Unmarshal(data, &update); err != nil {
 		return nil, fmt.Errorf("failed to parse webhook data: %w", err)
@@ -364,7 +363,7 @@ type GetUpdatesResponse struct {
 	Result []Update `json:"result"`
 }
 
-func (c *Channel) parseUpdate(update *Update) (*message.Message, error) {
+func (c *Channel) parseUpdate(update *Update) (*channel.Message, error) {
 	if update.CallbackQuery != nil {
 		return c.parseCallbackQuery(update)
 	}
@@ -387,17 +386,17 @@ func (c *Channel) parseUpdate(update *Update) (*message.Message, error) {
 	return result, nil
 }
 
-func (c *Channel) parseCallbackQuery(update *Update) (*message.Message, error) {
-	result := &message.Message{
+func (c *Channel) parseCallbackQuery(update *Update) (*channel.Message, error) {
+	result := &channel.Message{
 		ID:        strconv.FormatInt(update.UpdateID, 10),
 		ChannelID: "telegram",
-		Direction: message.DirectionInbound,
-		Type:      message.MessageTypeEvent,
-		Timestamp: time.Now(),
+		Direction: channel.DirectionInbound,
+		Type:      channel.MessageTypeEvent,
+		Timestamp: time.Now().Format(time.RFC3339),
 	}
 
 	if update.CallbackQuery.From != nil {
-		result.From = message.UserInfo{
+		result.From = channel.UserInfo{
 			ID:       strconv.FormatInt(update.CallbackQuery.From.ID, 10),
 			Name:     update.CallbackQuery.From.FirstName,
 			Platform: "telegram",
@@ -410,16 +409,16 @@ func (c *Channel) parseCallbackQuery(update *Update) (*message.Message, error) {
 	return result, nil
 }
 
-func (c *Channel) createBaseMessage(msg *MessageObject, isEdited bool) *message.Message {
-	result := &message.Message{
+func (c *Channel) createBaseMessage(msg *MessageObject, isEdited bool) *channel.Message {
+	result := &channel.Message{
 		ID:        strconv.FormatInt(msg.MessageID, 10),
 		ChannelID: "telegram",
-		Direction: message.DirectionInbound,
-		Timestamp: time.Unix(msg.Date, 0),
+		Direction: channel.DirectionInbound,
+		Timestamp: time.Unix(msg.Date, 0).Format(time.RFC3339),
 	}
 
 	if msg.From != nil {
-		result.From = message.UserInfo{
+		result.From = channel.UserInfo{
 			ID:       strconv.FormatInt(msg.From.ID, 10),
 			Name:     msg.From.FirstName,
 			Platform: "telegram",
@@ -430,7 +429,7 @@ func (c *Channel) createBaseMessage(msg *MessageObject, isEdited bool) *message.
 	}
 
 	if msg.Chat != nil {
-		result.To = message.UserInfo{
+		result.To = channel.UserInfo{
 			ID:       strconv.FormatInt(msg.Chat.ID, 10),
 			Name:     msg.Chat.Title,
 			Platform: "telegram",
@@ -445,7 +444,7 @@ func (c *Channel) createBaseMessage(msg *MessageObject, isEdited bool) *message.
 	return result
 }
 
-func (c *Channel) parseMessageContent(msg *MessageObject, result *message.Message) {
+func (c *Channel) parseMessageContent(msg *MessageObject, result *channel.Message) {
 	switch {
 	case msg.Text != "":
 		c.parseTextMessage(msg, result)
@@ -464,13 +463,13 @@ func (c *Channel) parseMessageContent(msg *MessageObject, result *message.Messag
 	}
 }
 
-func (c *Channel) parseTextMessage(msg *MessageObject, result *message.Message) {
-	result.Type = message.MessageTypeText
+func (c *Channel) parseTextMessage(msg *MessageObject, result *channel.Message) {
+	result.Type = channel.MessageTypeText
 	result.Content = msg.Text
 }
 
-func (c *Channel) parsePhotoMessage(msg *MessageObject, result *message.Message) {
-	result.Type = message.MessageTypeImage
+func (c *Channel) parsePhotoMessage(msg *MessageObject, result *channel.Message) {
+	result.Type = channel.MessageTypeImage
 	largestPhoto := msg.Photo[len(msg.Photo)-1]
 	result.Content = largestPhoto.FileID
 	result.SetMetadata("file_id", largestPhoto.FileID)
@@ -481,8 +480,8 @@ func (c *Channel) parsePhotoMessage(msg *MessageObject, result *message.Message)
 	}
 }
 
-func (c *Channel) parseDocumentMessage(msg *MessageObject, result *message.Message) {
-	result.Type = message.MessageTypeFile
+func (c *Channel) parseDocumentMessage(msg *MessageObject, result *channel.Message) {
+	result.Type = channel.MessageTypeFile
 	result.Content = msg.Document.FileID
 	result.SetMetadata("file_id", msg.Document.FileID)
 	result.SetMetadata("file_name", msg.Document.FileName)
@@ -492,8 +491,8 @@ func (c *Channel) parseDocumentMessage(msg *MessageObject, result *message.Messa
 	}
 }
 
-func (c *Channel) parseAudioMessage(msg *MessageObject, result *message.Message) {
-	result.Type = message.MessageTypeAudio
+func (c *Channel) parseAudioMessage(msg *MessageObject, result *channel.Message) {
+	result.Type = channel.MessageTypeAudio
 	result.Content = msg.Audio.FileID
 	result.SetMetadata("file_id", msg.Audio.FileID)
 	result.SetMetadata("duration", msg.Audio.Duration)
@@ -501,8 +500,8 @@ func (c *Channel) parseAudioMessage(msg *MessageObject, result *message.Message)
 	result.SetMetadata("performer", msg.Audio.Performer)
 }
 
-func (c *Channel) parseVideoMessage(msg *MessageObject, result *message.Message) {
-	result.Type = message.MessageTypeVideo
+func (c *Channel) parseVideoMessage(msg *MessageObject, result *channel.Message) {
+	result.Type = channel.MessageTypeVideo
 	result.Content = msg.Video.FileID
 	result.SetMetadata("file_id", msg.Video.FileID)
 	result.SetMetadata("duration", msg.Video.Duration)
@@ -510,21 +509,21 @@ func (c *Channel) parseVideoMessage(msg *MessageObject, result *message.Message)
 	result.SetMetadata("height", msg.Video.Height)
 }
 
-func (c *Channel) parseVoiceMessage(msg *MessageObject, result *message.Message) {
-	result.Type = message.MessageTypeAudio
+func (c *Channel) parseVoiceMessage(msg *MessageObject, result *channel.Message) {
+	result.Type = channel.MessageTypeAudio
 	result.Content = msg.Voice.FileID
 	result.SetMetadata("file_id", msg.Voice.FileID)
 	result.SetMetadata("duration", msg.Voice.Duration)
 }
 
-func (c *Channel) parseLocationMessage(msg *MessageObject, result *message.Message) {
-	result.Type = message.MessageTypeEvent
+func (c *Channel) parseLocationMessage(msg *MessageObject, result *channel.Message) {
+	result.Type = channel.MessageTypeEvent
 	result.SetMetadata("event_type", "location")
 	result.SetMetadata("latitude", msg.Location.Latitude)
 	result.SetMetadata("longitude", msg.Location.Longitude)
 }
 
-func (c *Channel) sendTextMessage(ctx context.Context, chatID int64, msg *message.Message) error {
+func (c *Channel) sendTextMessage(ctx context.Context, chatID int64, msg *channel.Message) error {
 	req := SendMessageRequest{
 		ChatID: chatID,
 		Text:   msg.Content,
@@ -537,7 +536,7 @@ func (c *Channel) sendTextMessage(ctx context.Context, chatID int64, msg *messag
 	return c.sendAPIRequest(ctx, EndpointSendMessage, req)
 }
 
-func (c *Channel) sendPhotoMessage(ctx context.Context, chatID int64, msg *message.Message) error {
+func (c *Channel) sendPhotoMessage(ctx context.Context, chatID int64, msg *channel.Message) error {
 	req := SendPhotoRequest{
 		ChatID: chatID,
 		Photo:  msg.Content,
@@ -550,7 +549,7 @@ func (c *Channel) sendPhotoMessage(ctx context.Context, chatID int64, msg *messa
 	return c.sendAPIRequest(ctx, EndpointSendPhoto, req)
 }
 
-func (c *Channel) sendDocumentMessage(ctx context.Context, chatID int64, msg *message.Message) error {
+func (c *Channel) sendDocumentMessage(ctx context.Context, chatID int64, msg *channel.Message) error {
 	req := SendDocumentRequest{
 		ChatID:   chatID,
 		Document: msg.Content,
@@ -563,7 +562,7 @@ func (c *Channel) sendDocumentMessage(ctx context.Context, chatID int64, msg *me
 	return c.sendAPIRequest(ctx, EndpointSendDocument, req)
 }
 
-func (c *Channel) sendAudioMessage(ctx context.Context, chatID int64, msg *message.Message) error {
+func (c *Channel) sendAudioMessage(ctx context.Context, chatID int64, msg *channel.Message) error {
 	req := map[string]interface{}{
 		"chat_id": chatID,
 		"audio":   msg.Content,
@@ -580,7 +579,7 @@ func (c *Channel) sendAudioMessage(ctx context.Context, chatID int64, msg *messa
 	return c.sendAPIRequest(ctx, EndpointSendAudio, req)
 }
 
-func (c *Channel) sendVideoMessage(ctx context.Context, chatID int64, msg *message.Message) error {
+func (c *Channel) sendVideoMessage(ctx context.Context, chatID int64, msg *channel.Message) error {
 	req := map[string]interface{}{
 		"chat_id": chatID,
 		"video":   msg.Content,

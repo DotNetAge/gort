@@ -42,7 +42,6 @@ import (
 	"time"
 
 	"github.com/DotNetAge/gort/pkg/channel"
-	"github.com/DotNetAge/gort/pkg/message"
 )
 
 // API endpoints for WeCom API.
@@ -147,7 +146,7 @@ func (c *Channel) Stop(ctx context.Context) error {
 }
 
 // SendMessage sends a message via WeCom webhook.
-func (c *Channel) SendMessage(ctx context.Context, msg *message.Message) error {
+func (c *Channel) SendMessage(ctx context.Context, msg *channel.Message) error {
 	if msg == nil {
 		return errors.New("message is nil")
 	}
@@ -165,21 +164,21 @@ func (c *Channel) SendMessage(ctx context.Context, msg *message.Message) error {
 }
 
 // buildPayload builds the webhook payload based on message type.
-func (c *Channel) buildPayload(msg *message.Message) (map[string]interface{}, error) {
+func (c *Channel) buildPayload(msg *channel.Message) (map[string]interface{}, error) {
 	switch msg.Type {
-	case message.MessageTypeText:
+	case channel.MessageTypeText:
 		return c.buildTextPayload(msg)
-	case message.MessageTypeMarkdown:
+	case channel.MessageTypeMarkdown:
 		return c.buildMarkdownPayload(msg)
-	case message.MessageTypeImage:
+	case channel.MessageTypeImage:
 		return c.buildImagePayload(msg)
-	case message.MessageTypeNews:
+	case channel.MessageTypeNews:
 		return c.buildNewsPayload(msg)
-	case message.MessageTypeFile:
+	case channel.MessageTypeFile:
 		return c.buildFilePayload(msg)
-	case message.MessageTypeVoice:
+	case channel.MessageTypeVoice:
 		return c.buildVoicePayload(msg)
-	case message.MessageTypeTemplateCard:
+	case channel.MessageTypeTemplateCard:
 		return c.buildTemplateCardPayload(msg)
 	default:
 		// Default to text message
@@ -188,7 +187,7 @@ func (c *Channel) buildPayload(msg *message.Message) (map[string]interface{}, er
 }
 
 // buildTextPayload builds a text message payload.
-func (c *Channel) buildTextPayload(msg *message.Message) (map[string]interface{}, error) {
+func (c *Channel) buildTextPayload(msg *channel.Message) (map[string]interface{}, error) {
 	content := msg.Content
 	if len(content) > 2048 {
 		return nil, ErrMessageTooLong
@@ -219,7 +218,7 @@ func (c *Channel) buildTextPayload(msg *message.Message) (map[string]interface{}
 }
 
 // buildMarkdownPayload builds a markdown message payload.
-func (c *Channel) buildMarkdownPayload(msg *message.Message) (map[string]interface{}, error) {
+func (c *Channel) buildMarkdownPayload(msg *channel.Message) (map[string]interface{}, error) {
 	content := msg.Content
 	if len(content) > 4096 {
 		return nil, ErrMessageTooLong
@@ -246,7 +245,7 @@ func (c *Channel) buildMarkdownPayload(msg *message.Message) (map[string]interfa
 }
 
 // buildImagePayload builds an image message payload.
-func (c *Channel) buildImagePayload(msg *message.Message) (map[string]interface{}, error) {
+func (c *Channel) buildImagePayload(msg *channel.Message) (map[string]interface{}, error) {
 	// Get image data from metadata
 	imageData, ok := msg.GetMetadata("image_data")
 	if !ok {
@@ -295,7 +294,7 @@ func (c *Channel) buildImagePayload(msg *message.Message) (map[string]interface{
 }
 
 // buildNewsPayload builds a news (图文) message payload.
-func (c *Channel) buildNewsPayload(msg *message.Message) (map[string]interface{}, error) {
+func (c *Channel) buildNewsPayload(msg *channel.Message) (map[string]interface{}, error) {
 	articles := []map[string]interface{}{}
 
 	// Get articles from metadata
@@ -352,7 +351,7 @@ func (c *Channel) buildNewsPayload(msg *message.Message) (map[string]interface{}
 }
 
 // buildFilePayload builds a file message payload.
-func (c *Channel) buildFilePayload(msg *message.Message) (map[string]interface{}, error) {
+func (c *Channel) buildFilePayload(msg *channel.Message) (map[string]interface{}, error) {
 	mediaID, ok := msg.GetMetadata("media_id")
 	if !ok {
 		return nil, errors.New("media_id is required for file messages")
@@ -372,7 +371,7 @@ func (c *Channel) buildFilePayload(msg *message.Message) (map[string]interface{}
 }
 
 // buildVoicePayload builds a voice message payload.
-func (c *Channel) buildVoicePayload(msg *message.Message) (map[string]interface{}, error) {
+func (c *Channel) buildVoicePayload(msg *channel.Message) (map[string]interface{}, error) {
 	mediaID, ok := msg.GetMetadata("media_id")
 	if !ok {
 		return nil, errors.New("media_id is required for voice messages")
@@ -392,7 +391,7 @@ func (c *Channel) buildVoicePayload(msg *message.Message) (map[string]interface{
 }
 
 // buildTemplateCardPayload builds a template card message payload.
-func (c *Channel) buildTemplateCardPayload(msg *message.Message) (map[string]interface{}, error) {
+func (c *Channel) buildTemplateCardPayload(msg *channel.Message) (map[string]interface{}, error) {
 	// Get template card data from metadata
 	cardData, ok := msg.GetMetadata("template_card")
 	if !ok {
@@ -485,7 +484,7 @@ func (c *Channel) GetCapabilities() channel.ChannelCapabilities {
 
 // HandleWebhook handles incoming webhook requests from WeCom.
 // Note: WeCom webhook robots are outbound only, so this method returns an error.
-func (c *Channel) HandleWebhook(path string, data []byte) (*message.Message, error) {
+func (c *Channel) HandleWebhook(path string, data []byte) (*channel.Message, error) {
 	return nil, errors.New("wecom webhook robots do not support inbound messages")
 }
 

@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/DotNetAge/gort/pkg/channel"
-	"github.com/DotNetAge/gort/pkg/message"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -53,7 +52,7 @@ func TestWhatsAppChannel_StartStop(t *testing.T) {
 	ch, err := NewWhatsAppChannel("whatsapp", config)
 	require.NoError(t, err)
 
-	err = ch.Start(context.Background(), func(ctx context.Context, msg *message.Message) error {
+	err = ch.Start(context.Background(), func(ctx context.Context, msg *channel.Message) error {
 		return nil
 	})
 	require.NoError(t, err)
@@ -141,8 +140,8 @@ func TestWhatsAppChannel_ParseWebhookData_Text(t *testing.T) {
 
 	assert.Equal(t, "wamid.msg001", msg.ID)
 	assert.Equal(t, "Hello, World!", msg.Content)
-	assert.Equal(t, message.MessageTypeText, msg.Type)
-	assert.Equal(t, message.DirectionInbound, msg.Direction)
+	assert.Equal(t, channel.MessageTypeText, msg.Type)
+	assert.Equal(t, channel.DirectionInbound, msg.Direction)
 	assert.Equal(t, "987654321", msg.From.ID)
 	assert.Equal(t, "John Doe", msg.From.Name)
 	assert.Equal(t, "whatsapp", msg.From.Platform)
@@ -207,7 +206,7 @@ func TestWhatsAppChannel_ParseWebhookData_Image(t *testing.T) {
 
 	assert.Equal(t, "wamid.msg002", msg.ID)
 	assert.Equal(t, "media_001", msg.Content)
-	assert.Equal(t, message.MessageTypeImage, msg.Type)
+	assert.Equal(t, channel.MessageTypeImage, msg.Type)
 }
 
 func TestWhatsAppChannel_ParseWebhookData_InvalidObject(t *testing.T) {
@@ -240,13 +239,13 @@ func TestWhatsAppChannel_BuildMessagePayload_Text(t *testing.T) {
 	ch, err := NewWhatsAppChannel("whatsapp", config)
 	require.NoError(t, err)
 
-	msg := message.NewMessage(
+	msg := channel.NewMessage(
 		"msg_001",
 		"whatsapp",
-		message.DirectionOutbound,
-		message.UserInfo{},
+		channel.DirectionOutbound,
+		channel.UserInfo{},
 		"Hello, World!",
-		message.MessageTypeText,
+		channel.MessageTypeText,
 	)
 
 	payload := ch.buildMessagePayload("987654321", msg)
@@ -270,13 +269,13 @@ func TestWhatsAppChannel_BuildMessagePayload_Image(t *testing.T) {
 	ch, err := NewWhatsAppChannel("whatsapp", config)
 	require.NoError(t, err)
 
-	msg := message.NewMessage(
+	msg := channel.NewMessage(
 		"msg_001",
 		"whatsapp",
-		message.DirectionOutbound,
-		message.UserInfo{},
+		channel.DirectionOutbound,
+		channel.UserInfo{},
 		"https://example.com/image.jpg",
-		message.MessageTypeImage,
+		channel.MessageTypeImage,
 	)
 
 	payload := ch.buildMessagePayload("987654321", msg)

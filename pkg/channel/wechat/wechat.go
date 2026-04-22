@@ -42,7 +42,6 @@ import (
 	"time"
 
 	"github.com/DotNetAge/gort/pkg/channel"
-	"github.com/DotNetAge/gort/pkg/message"
 )
 
 // API endpoints for WeChat Official Account API.
@@ -155,7 +154,7 @@ func (c *Channel) Stop(ctx context.Context) error {
 }
 
 // SendMessage sends a message to a WeChat user.
-func (c *Channel) SendMessage(ctx context.Context, msg *message.Message) error {
+func (c *Channel) SendMessage(ctx context.Context, msg *channel.Message) error {
 	if !c.IsRunning() {
 		return channel.ErrChannelNotRunning
 	}
@@ -166,15 +165,15 @@ func (c *Channel) SendMessage(ctx context.Context, msg *message.Message) error {
 	}
 
 	switch msg.Type {
-	case message.MessageTypeText:
+	case channel.MessageTypeText:
 		return c.sendTextMessage(ctx, token, msg)
-	case message.MessageTypeImage:
+	case channel.MessageTypeImage:
 		return c.sendImageMessage(ctx, token, msg)
-	case message.MessageTypeFile:
+	case channel.MessageTypeFile:
 		return c.sendFileMessage(ctx, token, msg)
-	case message.MessageTypeAudio:
+	case channel.MessageTypeAudio:
 		return c.sendVoiceMessage(ctx, token, msg)
-	case message.MessageTypeVideo:
+	case channel.MessageTypeVideo:
 		return c.sendVideoMessage(ctx, token, msg)
 	default:
 		return channel.ErrUnsupportedMessageType
@@ -183,45 +182,45 @@ func (c *Channel) SendMessage(ctx context.Context, msg *message.Message) error {
 
 // HandleWebhook processes incoming webhook requests from WeChat.
 // This implements the WebhookHandler interface.
-func (c *Channel) HandleWebhook(path string, data []byte) (*message.Message, error) {
+func (c *Channel) HandleWebhook(path string, data []byte) (*channel.Message, error) {
 	var req WebhookRequest
 	if err := xml.Unmarshal(data, &req); err != nil {
 		return nil, fmt.Errorf("failed to parse webhook data: %w", err)
 	}
 
-	msg := &message.Message{
+	msg := &channel.Message{
 		ID:        req.MsgID,
 		ChannelID: "wechat",
-		Direction: message.DirectionInbound,
-		From: message.UserInfo{
+		Direction: channel.DirectionInbound,
+		From: channel.UserInfo{
 			ID:       req.FromUserName,
 			Platform: "wechat",
 		},
-		To: message.UserInfo{
+		To: channel.UserInfo{
 			ID:       req.ToUserName,
 			Platform: "wechat",
 		},
-		Timestamp: time.Unix(req.CreateTime, 0),
+		Timestamp: fmt.Sprintf("%d", req.CreateTime),
 	}
 
 	switch req.MsgType {
 	case "text":
-		msg.Type = message.MessageTypeText
+		msg.Type = channel.MessageTypeText
 		msg.Content = req.Content
 	case "image":
-		msg.Type = message.MessageTypeImage
+		msg.Type = channel.MessageTypeImage
 		msg.Content = req.PicURL
 		msg.SetMetadata("media_id", req.MediaID)
 	case "voice":
-		msg.Type = message.MessageTypeAudio
+		msg.Type = channel.MessageTypeAudio
 		msg.SetMetadata("media_id", req.MediaID)
 		msg.SetMetadata("format", req.Format)
 	case "video":
-		msg.Type = message.MessageTypeVideo
+		msg.Type = channel.MessageTypeVideo
 		msg.SetMetadata("media_id", req.MediaID)
 		msg.SetMetadata("thumb_media_id", req.ThumbMediaID)
 	default:
-		msg.Type = message.MessageTypeEvent
+		msg.Type = channel.MessageTypeEvent
 		msg.SetMetadata("event_type", req.MsgType)
 	}
 
@@ -335,13 +334,22 @@ func (c *Channel) getToken() (string, error) {
 }
 
 func (c *Channel) refreshToken(ctx context.Context) error {
-	url := fmt.Sprintf("%s%s?grant_type=client_credential&appid=%s&secret=%s",
-		BaseURL, EndpointToken, c.config.AppID, c.config.AppSecret)
+	url := BaseURL + EndpointToken
+	payload := map[string]string{
+		"grant_type": "client_credential",
+		"appid":      c.config.AppID,
+		"secret":     c.config.AppSecret,
+	}
+	reqBody, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal token request: %w", err)
+	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(reqBody))
 	if err != nil {
 		return err
 	}
+	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -393,7 +401,7 @@ func (c *Channel) tokenRefreshLoop(ctx context.Context) {
 	}
 }
 
-func (c *Channel) sendTextMessage(ctx context.Context, token string, msg *message.Message) error {
+func (c *Channel) sendTextMessage(ctx context.Context, token string, msg *channel.Message) error {
 	textMsg := TextMessage{
 		ToUser:  msg.To.ID,
 		MsgType: "text",
@@ -403,7 +411,7 @@ func (c *Channel) sendTextMessage(ctx context.Context, token string, msg *messag
 	return c.sendAPIRequest(ctx, token, EndpointSendMessage, textMsg)
 }
 
-func (c *Channel) sendImageMessage(ctx context.Context, token string, msg *message.Message) error {
+func (c *Channel) sendImageMessage(ctx context.Context, token string, msg *channel.Message) error {
 	mediaID, ok := msg.GetMetadata("media_id")
 	if !ok {
 		return errors.New("media_id is required for image messages")
@@ -423,7 +431,7 @@ func (c *Channel) sendImageMessage(ctx context.Context, token string, msg *messa
 	return c.sendAPIRequest(ctx, token, EndpointSendMessage, imageMsg)
 }
 
-func (c *Channel) sendVoiceMessage(ctx context.Context, token string, msg *message.Message) error {
+func (c *Channel) sendVoiceMessage(ctx context.Context, token string, msg *channel.Message) error {
 	mediaID, ok := msg.GetMetadata("media_id")
 	if !ok {
 		return errors.New("media_id is required for voice messages")
@@ -443,7 +451,7 @@ func (c *Channel) sendVoiceMessage(ctx context.Context, token string, msg *messa
 	return c.sendAPIRequest(ctx, token, EndpointSendMessage, voiceMsg)
 }
 
-func (c *Channel) sendVideoMessage(ctx context.Context, token string, msg *message.Message) error {
+func (c *Channel) sendVideoMessage(ctx context.Context, token string, msg *channel.Message) error {
 	mediaID, ok := msg.GetMetadata("media_id")
 	if !ok {
 		return errors.New("media_id is required for video messages")
@@ -482,7 +490,7 @@ func (c *Channel) sendVideoMessage(ctx context.Context, token string, msg *messa
 	return c.sendAPIRequest(ctx, token, EndpointSendMessage, videoMsg)
 }
 
-func (c *Channel) sendFileMessage(ctx context.Context, token string, msg *message.Message) error {
+func (c *Channel) sendFileMessage(ctx context.Context, token string, msg *channel.Message) error {
 	mediaID, ok := msg.GetMetadata("media_id")
 	if !ok {
 		return errors.New("media_id is required for file messages")

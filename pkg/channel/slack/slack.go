@@ -46,7 +46,6 @@ import (
 	"time"
 
 	"github.com/DotNetAge/gort/pkg/channel"
-	"github.com/DotNetAge/gort/pkg/message"
 )
 
 // API endpoints for Slack API.
@@ -151,7 +150,7 @@ func (c *Channel) Stop(ctx context.Context) error {
 }
 
 // SendMessage sends a message to Slack.
-func (c *Channel) SendMessage(ctx context.Context, msg *message.Message) error {
+func (c *Channel) SendMessage(ctx context.Context, msg *channel.Message) error {
 	if msg == nil {
 		return errors.New("message is nil")
 	}
@@ -175,7 +174,7 @@ func (c *Channel) SendMessage(ctx context.Context, msg *message.Message) error {
 }
 
 // buildMessagePayload builds the message payload for Slack API.
-func (c *Channel) buildMessagePayload(msg *message.Message, channelID string) map[string]interface{} {
+func (c *Channel) buildMessagePayload(msg *channel.Message, channelID string) map[string]interface{} {
 	payload := map[string]interface{}{
 		"channel": channelID,
 	}
@@ -188,15 +187,15 @@ func (c *Channel) buildMessagePayload(msg *message.Message, channelID string) ma
 	}
 
 	switch msg.Type {
-	case message.MessageTypeText:
+	case channel.MessageTypeText:
 		payload["text"] = msg.Content
 
-	case message.MessageTypeMarkdown:
+	case channel.MessageTypeMarkdown:
 		// Slack uses mrkdwn format
 		payload["text"] = msg.Content
 		payload["mrkdwn"] = true
 
-	case message.MessageTypeImage:
+	case channel.MessageTypeImage:
 		// For images, we need to upload the file first or use a URL
 		if imageURL, ok := msg.GetMetadata("image_url"); ok {
 			if url, ok := imageURL.(string); ok {
@@ -212,7 +211,7 @@ func (c *Channel) buildMessagePayload(msg *message.Message, channelID string) ma
 			payload["text"] = msg.Content
 		}
 
-	case message.MessageTypeFile:
+	case channel.MessageTypeFile:
 		// File messages need to be uploaded separately
 		payload["text"] = msg.Content
 
@@ -243,7 +242,7 @@ func (c *Channel) postMessage(ctx context.Context, payload map[string]interface{
 }
 
 // UpdateMessage updates an existing message.
-func (c *Channel) UpdateMessage(ctx context.Context, channelID, timestamp string, msg *message.Message) error {
+func (c *Channel) UpdateMessage(ctx context.Context, channelID, timestamp string, msg *channel.Message) error {
 	payload := c.buildMessagePayload(msg, channelID)
 	payload["ts"] = timestamp
 
@@ -402,7 +401,7 @@ func (c *Channel) parseResponse(resp *http.Response, result interface{}) error {
 }
 
 // HandleWebhook handles incoming webhook requests from Slack.
-func (c *Channel) HandleWebhook(path string, data []byte) (*message.Message, error) {
+func (c *Channel) HandleWebhook(path string, data []byte) (*channel.Message, error) {
 	// Verify signature if signing secret is configured
 	if c.config.SigningSecret != "" {
 		// Signature verification should be done at the HTTP handler level
@@ -442,19 +441,19 @@ func (c *Channel) HandleWebhook(path string, data []byte) (*message.Message, err
 		return nil, nil
 	}
 
-	msg := message.NewMessage(
+	msg := channel.NewMessage(
 		event.Event.TS,
 		c.Name(),
-		message.DirectionInbound,
-		message.UserInfo{
+		channel.DirectionInbound,
+		channel.UserInfo{
 			ID:       event.Event.User,
 			Platform: "slack",
 		},
 		event.Event.Text,
-		message.MessageTypeText,
+		channel.MessageTypeText,
 	)
 
-	msg.To = message.UserInfo{
+	msg.To = channel.UserInfo{
 		ID:       event.Event.Channel,
 		Platform: "slack",
 	}

@@ -39,7 +39,6 @@ import (
 
 	"github.com/DotNetAge/gort/pkg/channel"
 	"github.com/DotNetAge/gort/pkg/channel/imsg"
-	"github.com/DotNetAge/gort/pkg/message"
 )
 
 var (
@@ -185,7 +184,7 @@ func (c *Channel) Stop(ctx context.Context) error {
 }
 
 // SendMessage sends a message via iMessage.
-func (c *Channel) SendMessage(ctx context.Context, msg *message.Message) error {
+func (c *Channel) SendMessage(ctx context.Context, msg *channel.Message) error {
 	if msg == nil {
 		return errors.New("message is nil")
 	}
@@ -363,34 +362,34 @@ func (c *Channel) watchChat(ctx context.Context, chatID int64) {
 }
 
 // convertMessage converts an imsg.Message to a gort message.Message.
-func (c *Channel) convertMessage(imsgMsg *imsg.Message) *message.Message {
+func (c *Channel) convertMessage(imsgMsg *imsg.Message) *channel.Message {
 	if imsgMsg == nil {
 		return nil
 	}
 
-	msgType := message.MessageTypeText
+	msgType := channel.MessageTypeText
 	if imsgMsg.IsReaction {
-		msgType = message.MessageTypeEvent
+		msgType = channel.MessageTypeEvent
 	} else if len(imsgMsg.Attachments) > 0 {
 		// Determine type from first attachment
 		attach := imsgMsg.Attachments[0]
 		switch {
 		case strings.HasPrefix(attach.MIMEType, "image/"):
-			msgType = message.MessageTypeImage
+			msgType = channel.MessageTypeImage
 		case strings.HasPrefix(attach.MIMEType, "video/"):
-			msgType = message.MessageTypeVideo
+			msgType = channel.MessageTypeVideo
 		case strings.HasPrefix(attach.MIMEType, "audio/"):
-			msgType = message.MessageTypeAudio
+			msgType = channel.MessageTypeAudio
 		default:
-			msgType = message.MessageTypeFile
+			msgType = channel.MessageTypeFile
 		}
 	}
 
-	msg := message.NewMessage(
+	msg := channel.NewMessage(
 		strconv.FormatInt(imsgMsg.ID, 10),
 		c.Name(),
-		message.DirectionInbound,
-		message.UserInfo{
+		channel.DirectionInbound,
+		channel.UserInfo{
 			ID:       imsgMsg.Sender,
 			Name:     imsgMsg.Sender,
 			Platform: "imessage",
@@ -400,7 +399,7 @@ func (c *Channel) convertMessage(imsgMsg *imsg.Message) *message.Message {
 	)
 
 	// Set recipient
-	msg.To = message.UserInfo{
+	msg.To = channel.UserInfo{
 		ID:       strconv.FormatInt(imsgMsg.ChatID, 10),
 		Platform: "imessage",
 	}
@@ -408,7 +407,7 @@ func (c *Channel) convertMessage(imsgMsg *imsg.Message) *message.Message {
 	// Parse timestamp
 	if imsgMsg.CreatedAt != "" {
 		if ts, err := time.Parse(time.RFC3339, imsgMsg.CreatedAt); err == nil {
-			msg.Timestamp = ts
+			msg.Timestamp = ts.Format(time.RFC3339)
 		}
 	}
 

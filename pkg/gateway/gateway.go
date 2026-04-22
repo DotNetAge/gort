@@ -1,433 +1,658 @@
-// Package gateway provides the core message routing and coordination layer for the gort system.
-// It manages channels, sessions, and middleware to enable bidirectional message flow between
-// clients and messaging platforms.
-//
-// Architecture Overview:
-//
-//	┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-//	│   Clients   │────▶│   Gateway   │────▶│  Channels   │
-//	│  (WebSocket)│◀────│             │◀────│ (Platforms) │
-//	└─────────────┘     └─────────────┘     └─────────────┘
-//
-// The Gateway acts as a central hub:
-//   - Receives messages from external platforms via Channels
-//   - Routes messages to connected clients via Sessions
-//   - Receives messages from clients and routes to appropriate Channels
-//   - Applies middleware for logging, authentication, rate limiting, etc.
-//
-// Basic Usage:
-//
-//	// Create session manager
-//	sessionManager := session.NewManager(session.Config{
-//	    OnMessage: func(clientID string, msg *message.Message) {
-//	        log.Printf("Message from %s: %s", clientID, msg.Content)
-//	    },
-//	})
-//
-//	// Create gateway
-//	gateway := gateway.New(sessionManager)
-//
-//	// Register channels
-//	ch, _ := telegram.NewChannel("telegram-bot", config)
-//	gateway.RegisterChannel(ch)
-//
-//	// Register handlers
-//	gateway.RegisterChannelHandler(func(ctx context.Context, msg *message.Message) error {
-//	    log.Printf("Channel message: %s", msg.Content)
-//	    return nil
-//	})
-//
-//	// Start the gateway
-//	ctx := context.Background()
-//	if err := gateway.Start(ctx); err != nil {
-//	    log.Fatal(err)
-//	}
-//
-// Thread Safety:
-//
-// The Gateway type is safe for concurrent use. All public methods can be called
-// from multiple goroutines without additional synchronization.
 package gateway
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
+	"fmt"
+	"io"
+	"log/slog"
+	"net/http"
+	"os"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/DotNetAge/gort/pkg/channel"
-	"github.com/DotNetAge/gort/pkg/message"
-	"github.com/DotNetAge/gort/pkg/middleware"
-	"github.com/DotNetAge/gort/pkg/session"
+	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 )
 
-// Error definitions for gateway operations.
-var (
-	// ErrChannelNotFound is returned when attempting to send a message to a channel that doesn't exist.
-	ErrChannelNotFound = errors.New("channel not found")
-
-	// ErrNotRunning is returned when attempting operations on a stopped gateway.
-	ErrNotRunning = errors.New("gateway is not running")
-
-	// ErrAlreadyRunning is returned when attempting to start an already running gateway.
-	ErrAlreadyRunning = errors.New("gateway is already running")
-)
-
-// ClientHandler is the function type for handling messages from connected clients.
-// It receives the context, client identifier, and the message.
-//
-// The handler should return nil on success, or an error if message processing fails.
-// Errors are propagated back to the caller.
-//
-// Example:
-//
-//	handler := func(ctx context.Context, clientID string, msg *message.Message) error {
-//	    log.Printf("Client %s sent: %s", clientID, msg.Content)
-//	    // Process client message...
-//	    return nil
-//	}
-type ClientHandler func(ctx context.Context, clientID string, msg *message.Message) error
-
-// ChannelHandler is the function type for handling messages from channels.
-// It receives the context and the message from the external platform.
-//
-// The handler should return nil on success, or an error if message processing fails.
-// Errors are propagated back to the caller.
-//
-// Example:
-//
-//	handler := func(ctx context.Context, msg *message.Message) error {
-//	    log.Printf("Received from %s: %s", msg.ChannelID, msg.Content)
-//	    // Process channel message...
-//	    return nil
-//	}
-type ChannelHandler func(ctx context.Context, msg *message.Message) error
-
-// Gateway is the core message routing component that coordinates between channels,
-// sessions, and middleware. It manages the flow of messages in both directions:
-// from external platforms to clients, and from clients to external platforms.
-//
-// The Gateway maintains:
-//   - A registry of all configured channels
-//   - A session manager for connected clients
-//   - A middleware chain for message processing
-//
-// This type is safe for concurrent use.
-type Gateway struct {
-	registry       *channel.Registry
-	sessionManager *session.Manager
-	middleware     *middleware.Chain
-
-	clientHandler  ClientHandler
-	channelHandler ChannelHandler
-
-	running bool
-	mu      sync.RWMutex
+type WSConfig struct {
+	AllowedOrigins []string
+	AllowAllInDev  bool
 }
 
-// New creates a new Gateway instance with the given session manager.
-//
-// Parameters:
-//   - sessionManager: The session manager for handling client connections
-//
-// Returns a new Gateway initialized with an empty channel registry and middleware chain.
-//
-// Example:
-//
-//	sessionManager := session.NewManager(session.Config{})
-//	gateway := gateway.New(sessionManager)
-func New(sessionManager *session.Manager) *Gateway {
-	return &Gateway{
-		registry:       channel.NewRegistry(),
-		sessionManager: sessionManager,
-		middleware:     middleware.NewChain(),
+func matchOrigin(origin, pattern string) bool {
+	if strings.HasSuffix(pattern, "*") {
+		prefix := strings.TrimSuffix(pattern, "*")
+		return strings.HasPrefix(origin, prefix)
+	}
+	return origin == pattern
+}
+
+func defaultWSConfig() *WSConfig {
+	return &WSConfig{
+		AllowedOrigins: []string{
+			"http://localhost:*",
+			"http://127.0.0.1:*",
+			"ws://localhost:*",
+			"ws://127.0.0.1:*",
+		},
+		AllowAllInDev: true,
 	}
 }
 
-// RegisterChannel adds a channel to the gateway's registry.
-// The channel can be started and stopped via the gateway's lifecycle methods.
-//
-// Parameters:
-//   - ch: The channel to register
-//
-// Returns an error if a channel with the same name already exists.
-//
-// Example:
-//
-//	ch, _ := telegram.NewChannel("my-bot", config)
-//	if err := gateway.RegisterChannel(ch); err != nil {
-//	    log.Fatal(err)
-//	}
-func (g *Gateway) RegisterChannel(ch channel.Channel) error {
-	return g.registry.Register(ch)
+func WithWSConfig(cfg *WSConfig) Option {
+	return func(s *Server) { s.wsConfig = cfg }
 }
 
-// GetChannel retrieves a channel by name from the registry.
-//
-// Parameters:
-//   - name: The name of the channel to retrieve
-//
-// Returns the channel and true if found, or nil and false if not found.
-//
-// Example:
-//
-//	if ch, ok := gateway.GetChannel("my-bot"); ok {
-//	    fmt.Println(ch.Type())
-//	}
-func (g *Gateway) GetChannel(name string) (channel.Channel, bool) {
-	return g.registry.Get(name)
+var upgrader *websocket.Upgrader
+
+func initUpgrader(cfg *WSConfig) {
+	upgrader = &websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			if cfg == nil {
+				cfg = defaultWSConfig()
+			}
+			origin := r.Header.Get("Origin")
+			if cfg.AllowAllInDev && os.Getenv("GO_ENV") == "development" {
+				return true
+			}
+			for _, allowed := range cfg.AllowedOrigins {
+				if matchOrigin(origin, allowed) {
+					return true
+				}
+			}
+			slog.Warn("rejected WebSocket connection", "origin", origin)
+			return false
+		},
+	}
 }
 
-// RegisterClientHandler sets the handler for messages from connected clients.
-// This handler is called for each message sent by a client before routing to channels.
-//
-// Parameters:
-//   - handler: The function to handle client messages
-//
-// Example:
-//
-//	gateway.RegisterClientHandler(func(ctx context.Context, clientID string, msg *message.Message) error {
-//	    log.Printf("From client %s: %s", clientID, msg.Content)
-//	    return nil
-//	})
-func (g *Gateway) RegisterClientHandler(handler ClientHandler) {
-	g.clientHandler = handler
+type Option func(*Server)
+
+func WithAddr(addr string) Option {
+	return func(s *Server) { s.addr = addr }
 }
 
-// RegisterChannelHandler sets the handler for messages from external channels.
-// This handler is called for each message received from a channel before broadcasting to clients.
-//
-// Parameters:
-//   - handler: The function to handle channel messages
-//
-// Example:
-//
-//	gateway.RegisterChannelHandler(func(ctx context.Context, msg *message.Message) error {
-//	    log.Printf("From channel %s: %s", msg.ChannelID, msg.Content)
-//	    return nil
-//	})
-func (g *Gateway) RegisterChannelHandler(handler ChannelHandler) {
-	g.channelHandler = handler
+func WithPort(port int) Option {
+	return func(s *Server) { s.addr = fmt.Sprintf(":%d", port) }
 }
 
-// Use adds a middleware to the gateway's processing chain.
-// Middleware is applied to all messages passing through the gateway.
-//
-// Parameters:
-//   - m: The middleware to add
-//
-// Example:
-//
-//	gateway.Use(middleware.NewLoggingMiddleware(logger))
-//	gateway.Use(middleware.NewAuthMiddleware(validator))
-func (g *Gateway) Use(m middleware.Middleware) {
-	g.middleware.Use(m)
+func WithPath(path string) Option {
+	return func(s *Server) { s.path = path }
 }
 
-// Start initializes and starts all registered channels.
-// This begins listening for messages from external platforms.
-//
-// Parameters:
-//   - ctx: Context for cancellation and timeouts
-//
-// Returns ErrAlreadyRunning if the gateway is already running,
-// or an error if any channel fails to start.
-//
-// Example:
-//
-//	ctx := context.Background()
-//	if err := gateway.Start(ctx); err != nil {
-//	    log.Fatal(err)
-//	}
-//	defer gateway.Stop(ctx)
-func (g *Gateway) Start(ctx context.Context) error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+func WithHandler(h MessageHandler) Option {
+	return func(s *Server) { s.handler = h }
+}
 
-	if g.running {
+func WithSessionTimeout(d time.Duration) Option {
+	return func(s *Server) { s.sessionTimeout = d }
+}
+
+type MessageHandler func(g *Server, msg *Message)
+
+type client struct {
+	id       string
+	send     chan []byte
+	conn     *websocket.Conn
+	ctx      context.Context
+	done     context.CancelFunc
+	sessions *SessionManager
+}
+
+type Server struct {
+	addr           string
+	path           string
+	handler        MessageHandler
+	sessionTimeout time.Duration
+	heartbeatCfg   *HeartbeatConfig
+	hbMonitor      *HeartbeatMonitor
+	wsConfig       *WSConfig
+
+	mu       sync.RWMutex
+	server   *http.Server
+	running  bool
+	clients  map[string]*client
+	register chan *client
+	channels sync.Map
+}
+
+func New(opts ...Option) *Server {
+	s := &Server{
+		addr:           ":8081",
+		path:           "/ws",
+		sessionTimeout: 30 * time.Minute,
+		clients:        make(map[string]*client),
+		register:       make(chan *client),
+	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
+}
+
+func (s *Server) Start() error {
+	s.mu.Lock()
+	if s.running {
+		s.mu.Unlock()
 		return ErrAlreadyRunning
 	}
+	s.running = true
+	s.mu.Unlock()
 
-	for _, ch := range g.registry.GetAll() {
-		if err := ch.Start(ctx, g.handleChannelMessage); err != nil {
-			g.stopChannels(ctx)
-			return err
-		}
-	}
+	initUpgrader(s.wsConfig)
 
-	g.running = true
-	return nil
+	go s.hubLoop()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc(s.path, s.handleWS)
+	s.server = &http.Server{Addr: s.addr, Handler: mux}
+
+	return s.server.ListenAndServe()
 }
 
-// Stop gracefully shuts down the gateway and all registered channels.
-// This stops listening for messages and closes all channel connections.
-//
-// Parameters:
-//   - ctx: Context for cancellation and timeouts
-//
-// Returns ErrNotRunning if the gateway is not running,
-// or an error if the session manager fails to stop.
-//
-// Example:
-//
-//	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-//	defer cancel()
-//
-//	if err := gateway.Stop(ctx); err != nil {
-//	    log.Printf("Stop error: %v", err)
-//	}
-func (g *Gateway) Stop(ctx context.Context) error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	if !g.running {
+func (s *Server) Shutdown(ctx context.Context) error {
+	s.mu.Lock()
+	if !s.running {
+		s.mu.Unlock()
 		return ErrNotRunning
 	}
+	s.running = false
+	s.mu.Unlock()
 
-	g.stopChannels(ctx)
+	close(s.register)
 
-	if err := g.sessionManager.Stop(ctx); err != nil {
-		return err
+	for _, c := range s.clients {
+		c.sessions.Close()
+		c.sessions.cleanupClient(c.id)
 	}
 
-	g.running = false
+	if s.server != nil {
+		shutdownCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		defer cancel()
+		return s.server.Shutdown(shutdownCtx)
+	}
 	return nil
 }
 
-// stopChannels stops all registered channels.
-// This is an internal helper method that should be called with the lock held.
-func (g *Gateway) stopChannels(ctx context.Context) {
-	for _, ch := range g.registry.GetAll() {
-		ch.Stop(ctx)
+func (s *Server) IsRunning() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.running
+}
+
+func (s *Server) hubLoop() {
+	for c := range s.register {
+		s.mu.RLock()
+		if !s.running {
+			s.mu.RUnlock()
+			return
+		}
+		s.mu.RUnlock()
+
+		s.mu.Lock()
+		s.clients[c.id] = c
+		s.mu.Unlock()
+
+		if s.hbMonitor != nil {
+			s.hbMonitor.setConnectionCount(len(s.clients))
+			s.hbMonitor.notifyStateChange(c.id, StateDisconnected.String(), StateConnected.String())
+		}
+
+		msg := &Message{
+			ID:        uuid.New().String(),
+			ClientID:  c.id,
+			Direction: DirectionInbound,
+			Data:      []byte("connected"),
+			Timestamp: time.Now(),
+		}
+		data, _ := json.Marshal(msg)
+		func() {
+			defer func() { recover() }()
+			select {
+			case c.send <- data:
+			default:
+			}
+		}()
+		slog.Info("client connected", "id", c.id, "total", len(s.clients))
 	}
 }
 
-// IsRunning returns true if the gateway is currently active.
-// This can be used to check the gateway status before operations.
-//
-// Example:
-//
-//	if gateway.IsRunning() {
-//	    fmt.Println("Gateway is active")
-//	}
-func (g *Gateway) IsRunning() bool {
-	g.mu.RLock()
-	defer g.mu.RUnlock()
-	return g.running
+func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		slog.Error("ws upgrade failed", "error", err)
+		return
+	}
+
+	ctx, done := context.WithCancel(context.Background())
+	c := &client{
+		id:       uuid.New().String(),
+		send:     make(chan []byte, 256),
+		conn:     conn,
+		ctx:      ctx,
+		done:     done,
+		sessions: newSessionManager(s.sessionTimeout),
+	}
+
+	s.register <- c
+	go s.writePump(c)
+	go s.readPump(c)
 }
 
-// HandleChannelMessage processes a message received from a channel.
-// This applies middleware and routes the message to registered handlers and clients.
-//
-// Parameters:
-//   - ctx: Context for cancellation
-//   - msg: The message to process
-//
-// Returns an error if middleware processing or message routing fails.
-//
-// Note: This method is typically called internally by channel implementations,
-// but can be used for testing or custom channel implementations.
-func (g *Gateway) HandleChannelMessage(ctx context.Context, msg *message.Message) error {
-	return g.middleware.Execute(ctx, msg, g.processChannelMessage)
-}
+func (s *Server) readPump(c *client) {
+	defer func() {
+		done(c.done)
+		c.sessions.Close()
+		c.sessions.cleanupClient(c.id)
+		s.removeClient(c.id)
+		c.conn.Close()
+		if s.hbMonitor != nil {
+			s.hbMonitor.setConnectionCount(s.ClientCount())
+			s.hbMonitor.notifyTimeout(c.id)
+		}
+	}()
 
-// HandleClientMessage processes a message received from a client.
-// This applies middleware and routes the message to the appropriate channel.
-//
-// Parameters:
-//   - ctx: Context for cancellation
-//   - clientID: The identifier of the sending client
-//   - msg: The message to process
-//
-// Returns an error if middleware processing or message routing fails.
-func (g *Gateway) HandleClientMessage(ctx context.Context, clientID string, msg *message.Message) error {
-	return g.middleware.Execute(ctx, msg, func(ctx context.Context, msg *message.Message) error {
-		return g.processClientMessage(ctx, clientID, msg)
+	c.conn.SetReadLimit(10 << 20)
+	readTimeout := 60 * time.Second
+	if s.heartbeatCfg != nil {
+		readTimeout = s.heartbeatCfg.ReadTimeout
+	}
+	c.conn.SetReadDeadline(time.Now().Add(readTimeout))
+	c.conn.SetPongHandler(func(string) error {
+		c.conn.SetReadDeadline(time.Now().Add(readTimeout))
+		if s.hbMonitor != nil {
+			s.hbMonitor.recordPong()
+		}
+		return nil
 	})
+
+	for {
+		_, raw, err := c.conn.ReadMessage()
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				slog.Error("read error", "id", c.id, "error", err)
+			}
+			return
+		}
+
+		text := string(raw)
+		s.dispatchCommand(c, text)
+	}
 }
 
-// GetClientCount returns the number of currently connected clients.
-// This delegates to the session manager.
-//
-// Example:
-//
-//	fmt.Printf("Connected clients: %d\n", gateway.GetClientCount())
-func (g *Gateway) GetClientCount() int {
-	return g.sessionManager.GetClientCount()
+func (s *Server) dispatchCommand(c *client, text string) {
+	if len(text) > MaxMessageSize {
+		slog.Warn("message exceeds max size", "id", c.id, "size", len(text))
+		return
+	}
+
+	parts := strings.SplitN(text, "|", 5)
+	if len(parts) < 1 {
+		return
+	}
+
+	cmd := Command(parts[0])
+	if !validCommands[cmd] {
+		slog.Warn("unknown command rejected", "id", c.id, "cmd", cmd)
+		return
+	}
+	switch cmd {
+	case CmdSessionStart:
+		s.handleSessionStart(c, parts)
+	case CmdData:
+		s.handleData(c, parts)
+	case CmdSessionEnd:
+		s.handleSessionEnd(c, parts)
+	}
 }
 
-// Broadcast sends a message to all connected clients.
-// This delegates to the session manager.
-//
-// Parameters:
-//   - ctx: Context for cancellation
-//   - msg: The message to broadcast
-//
-// Returns an error if the broadcast fails.
-//
-// Example:
-//
-//	msg := message.NewMessage("system", "Broadcast message")
-//	if err := gateway.Broadcast(ctx, msg); err != nil {
-//	    log.Printf("Broadcast error: %v", err)
-//	}
-func (g *Gateway) Broadcast(ctx context.Context, msg *message.Message) error {
-	return g.sessionManager.Broadcast(ctx, msg)
+func (s *Server) handleSessionStart(c *client, parts []string) {
+	total := 1
+	if len(parts) >= 4 && parts[3] != "" {
+		if _, err := fmt.Sscanf(parts[3], "%d", &total); err != nil {
+			slog.Warn("invalid total format", "id", c.id, "value", parts[3])
+			total = 1
+		}
+	}
+	if total < 1 {
+		total = 1
+	}
+	if total > MaxSessionTotal {
+		total = MaxSessionTotal
+	}
+
+	sess, err := c.sessions.create(c.id, total)
+	if err != nil {
+		slog.Warn("failed to create session", "id", c.id, "error", err)
+		return
+	}
+	resp := fmt.Sprintf("%s|%s|%s||", CmdSessionStart, sess.id, CmdOK)
+	s.sendText(c, resp)
 }
 
-// SendTo sends a message to a specific client.
-// This delegates to the session manager.
-//
-// Parameters:
-//   - ctx: Context for cancellation
-//   - clientID: The identifier of the target client
-//   - msg: The message to send
-//
-// Returns an error if the client is not found or the send fails.
-//
-// Example:
-//
-//	msg := message.NewMessage("system", "Private message")
-//	if err := gateway.SendTo(ctx, "client-123", msg); err != nil {
-//	    log.Printf("Send error: %v", err)
-//	}
-func (g *Gateway) SendTo(ctx context.Context, clientID string, msg *message.Message) error {
-	return g.sessionManager.SendTo(ctx, clientID, msg)
+func (s *Server) handleData(c *client, parts []string) {
+	if len(parts) < 5 {
+		return
+	}
+	sessionID := parts[1]
+	var index, total int
+	fmt.Sscanf(parts[2], "%d", &index)
+	fmt.Sscanf(parts[3], "%d", &total)
+	data := parts[4]
+
+	if err := c.sessions.addData(sessionID, index, []byte(data)); err != nil {
+		slog.Warn("data add failed", "id", c.id, "session", sessionID, "error", err)
+		return
+	}
+
+	resp := fmt.Sprintf("%s|%s|%d|%s||", CmdData, sessionID, index, CmdOK)
+	s.sendText(c, resp)
 }
 
-// handleChannelMessage is the internal handler for channel messages.
-// It sets the message direction and processes through middleware.
-func (g *Gateway) handleChannelMessage(ctx context.Context, msg *message.Message) error {
-	msg.Direction = message.DirectionInbound
-	return g.middleware.Execute(ctx, msg, g.processChannelMessage)
-}
+func (s *Server) handleSessionEnd(c *client, parts []string) {
+	if len(parts) < 2 || parts[1] == "" {
+		return
+	}
+	sessionID := parts[1]
 
-// processChannelMessage processes an inbound channel message.
-// It calls the registered channel handler and broadcasts to all clients.
-func (g *Gateway) processChannelMessage(ctx context.Context, msg *message.Message) error {
-	if g.channelHandler != nil {
-		if err := g.channelHandler(ctx, msg); err != nil {
-			return err
+	sess, complete := c.sessions.assembleAndRemove(sessionID)
+	if !complete {
+		slog.Warn("incomplete session", "id", c.id, "session", sessionID)
+		return
+	}
+
+	var assembled []byte
+	for i := 0; i < sess.total; i++ {
+		if data, ok := sess.parts[i]; ok {
+			assembled = append(assembled, data...)
 		}
 	}
 
-	return g.sessionManager.Broadcast(ctx, msg)
-}
-
-// processClientMessage processes an outbound client message.
-// It calls the registered client handler and routes to the appropriate channel.
-func (g *Gateway) processClientMessage(ctx context.Context, clientID string, msg *message.Message) error {
-	msg.Direction = message.DirectionOutbound
-
-	if g.clientHandler != nil {
-		if err := g.clientHandler(ctx, clientID, msg); err != nil {
-			return err
-		}
+	msg := &Message{
+		ID:        uuid.New().String(),
+		SessionID: sess.id,
+		ClientID:  c.id,
+		Direction: DirectionOutbound,
+		Data:      assembled,
+		Timestamp: time.Now(),
 	}
 
-	ch, ok := g.registry.Get(msg.ChannelID)
+	resp := fmt.Sprintf("%s|%s|%s||", CmdSessionEnd, sessionID, CmdOK)
+	s.sendText(c, resp)
+
+	if s.handler != nil {
+		s.handler(s, msg)
+	}
+}
+
+func (s *Server) sendText(c *client, text string) {
+	select {
+	case c.send <- []byte(text):
+	default:
+	}
+}
+
+func (s *Server) writePump(c *client) {
+	pingPeriod := 54 * time.Second
+	if s.heartbeatCfg != nil {
+		pingPeriod = s.heartbeatCfg.PingPeriod
+	}
+	ticker := time.NewTicker(pingPeriod)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case data, ok := <-c.send:
+			c.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if !ok {
+				c.conn.WriteMessage(websocket.CloseMessage, nil)
+				return
+			}
+			w, err := c.conn.NextWriter(websocket.TextMessage)
+			if err != nil {
+				return
+			}
+			w.Write(data)
+			for i := 0; i < len(c.send); i++ {
+				w.Write([]byte{'\n'})
+				w.Write(<-c.send)
+			}
+			w.Close()
+		case <-ticker.C:
+			c.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if s.hbMonitor != nil {
+				s.hbMonitor.recordPing()
+			}
+			if c.conn.WriteMessage(websocket.PingMessage, nil) != nil {
+				return
+			}
+		case <-c.ctx.Done():
+			return
+		}
+	}
+}
+
+func (s *Server) removeClient(id string) {
+	s.mu.Lock()
+	if c, ok := s.clients[id]; ok {
+		delete(s.clients, id)
+		close(c.send)
+	}
+	s.mu.Unlock()
+	slog.Info("client disconnected", "id", id, "total", len(s.clients))
+}
+
+func done(fn func()) { fn() }
+
+func (s *Server) Send(to string, message string) {
+	msg := &Message{
+		ID:        uuid.New().String(),
+		Direction: DirectionInbound,
+		Data:      []byte(message),
+		Timestamp: time.Now(),
+	}
+	s.sendMessage(to, msg)
+}
+
+func (s *Server) Broadcast(message string) {
+	s.Send("*", message)
+}
+
+func (s *Server) SendFile(to string, filename string) error {
+	f, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	data, err := io.ReadAll(f)
+	if err != nil {
+		return err
+	}
+	msg := &Message{
+		ID:          uuid.New().String(),
+		Direction:   DirectionInbound,
+		Data:        data,
+		ContentType: "file",
+		Timestamp:   time.Now(),
+	}
+	s.sendMessage(to, msg)
+	return nil
+}
+
+func (s *Server) BroadcastFile(filename string) error {
+	return s.SendFile("*", filename)
+}
+
+func (s *Server) SendJSON(to string, v interface{}) error {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	msg := &Message{
+		ID:          uuid.New().String(),
+		Direction:   DirectionInbound,
+		Data:        data,
+		ContentType: "application/json",
+		Timestamp:   time.Now(),
+	}
+	s.sendMessage(to, msg)
+	return nil
+}
+
+func (s *Server) BroadcastJSON(v interface{}) error {
+	return s.SendJSON("*", v)
+}
+
+func (s *Server) sendMessage(to string, msg *Message) {
+	data, _ := json.Marshal(msg)
+
+	if to == "" || to == "*" {
+		s.mu.RLock()
+		defer s.mu.RUnlock()
+		for _, c := range s.clients {
+			select {
+			case c.send <- data:
+			default:
+			}
+		}
+		return
+	}
+
+	s.mu.RLock()
+	c, ok := s.clients[to]
+	s.mu.RUnlock()
 	if !ok {
-		return ErrChannelNotFound
+		slog.Warn("client not found for send", "to", to)
+		return
 	}
+	select {
+	case c.send <- data:
+	default:
+	}
+}
 
-	return ch.SendMessage(ctx, msg)
+func (s *Server) ClientCount() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.clients)
+}
+
+func (s *Server) RegisterChannel(ch channel.Channel) {
+	if gwSender, ok := ch.(interface{ SetGatewaySender(channel.GatewaySender) }); ok {
+		gwSender.SetGatewaySender(s)
+	}
+	s.channels.Store(ch.Name(), ch)
+}
+
+func (s *Server) GetChannel(name string) (channel.Channel, bool) {
+	v, ok := s.channels.Load(name)
+	if !ok {
+		return nil, false
+	}
+	return v.(channel.Channel), ok
+}
+
+func (s *Server) Channels() map[string]channel.Channel {
+	result := make(map[string]channel.Channel)
+	s.channels.Range(func(k, v interface{}) bool {
+		result[k.(string)] = v.(channel.Channel)
+		return true
+	})
+	return result
+}
+
+func WithChannels(chs ...channel.Channel) Option {
+	return func(s *Server) {
+		for _, ch := range chs {
+			s.RegisterChannel(ch)
+		}
+	}
+}
+
+func (s *Server) StartAllChannels(ctx context.Context, handler MessageHandler) error {
+	var lastErr error
+	s.channels.Range(func(_, value interface{}) bool {
+		ch := value.(channel.Channel)
+		if base, ok := ch.(interface{ SetHandler(func(context.Context, *channel.Message) error) }); ok {
+			wrappedHandler := func(cctx context.Context, cmsg *channel.Message) error {
+				gwMsg := FromChannelMessage(cmsg)
+				gwMsg.ChannelID = ch.Name()
+				handler(s, gwMsg)
+				return nil
+			}
+			base.SetHandler(wrappedHandler)
+		}
+		if err := ch.Start(ctx, nil); err != nil {
+			lastErr = err
+			slog.Error("failed to start channel", "name", ch.Name(), "error", err)
+		} else {
+			slog.Info("channel started", "name", ch.Name())
+		}
+		return true
+	})
+	return lastErr
+}
+
+func (s *Server) StopAllChannels(ctx context.Context) error {
+	var lastErr error
+	s.channels.Range(func(_, value interface{}) bool {
+		ch := value.(channel.Channel)
+		if err := ch.Stop(ctx); err != nil {
+			lastErr = err
+			slog.Error("failed to stop channel", "name", ch.Name(), "error", err)
+		}
+		return true
+	})
+	return lastErr
+}
+
+func (s *Server) SendToChannel(ctx context.Context, channelName string, msg *Message) error {
+	ch, ok := s.GetChannel(channelName)
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrClientNotFound, channelName)
+	}
+	chMsg := ToChannelMessage(msg)
+	return ch.SendMessage(ctx, chMsg)
+}
+
+func ToChannelMessage(msg *Message) *channel.Message {
+	return &channel.Message{
+		ID:        msg.ID,
+		Type:      channel.MessageTypeText,
+		Direction: channel.DirectionOutbound,
+		Content:   string(msg.Data),
+		Data:      msg.Data,
+		Timestamp: msg.Timestamp.Format(time.RFC3339),
+		Metadata: map[string]interface{}{
+			"session_id":  msg.SessionID,
+			"client_id":   msg.ClientID,
+			"content_type": msg.ContentType,
+		},
+	}
+}
+
+func FromChannelMessage(msg *channel.Message) *Message {
+	data := []byte(msg.Content)
+	if len(msg.Data) > 0 {
+		data = msg.Data
+	}
+	var ts time.Time
+	if msg.Timestamp != "" {
+		ts, _ = time.Parse(time.RFC3339, msg.Timestamp)
+	}
+	channelID := ""
+	if m, ok := msg.Metadata["channel_id"].(string); ok {
+		channelID = m
+	}
+	return &Message{
+		ID:          msg.ID,
+		SessionID:   channelID,
+		Direction:   DirectionInbound,
+		Data:        data,
+		ContentType: string(msg.Type),
+		Timestamp:    ts,
+	}
 }

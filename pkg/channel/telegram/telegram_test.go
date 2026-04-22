@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/DotNetAge/gort/pkg/channel"
-	"github.com/DotNetAge/gort/pkg/message"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -99,7 +98,7 @@ func TestChannel_StartStop(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	handler := func(ctx context.Context, msg *message.Message) error { return nil }
+	handler := func(ctx context.Context, msg *channel.Message) error { return nil }
 
 	// Test Start
 	err = ch.Start(ctx, handler)
@@ -121,10 +120,10 @@ func TestChannel_SendMessage_NotRunning(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	msg := &message.Message{
-		Type:    message.MessageTypeText,
+	msg := &channel.Message{
+		Type:    channel.MessageTypeText,
 		Content: "test",
-		To:      message.UserInfo{ID: "123456789"},
+		To:      channel.UserInfo{ID: "123456789"},
 	}
 
 	err = ch.SendMessage(context.Background(), msg)
@@ -138,14 +137,14 @@ func TestChannel_SendMessage_InvalidChatID(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	err = ch.Start(ctx, func(ctx context.Context, msg *message.Message) error { return nil })
+	err = ch.Start(ctx, func(ctx context.Context, msg *channel.Message) error { return nil })
 	require.NoError(t, err)
 	defer ch.Stop(ctx)
 
-	msg := &message.Message{
-		Type:    message.MessageTypeText,
+	msg := &channel.Message{
+		Type:    channel.MessageTypeText,
 		Content: "test",
-		To:      message.UserInfo{ID: "invalid_chat_id"},
+		To:      channel.UserInfo{ID: "invalid_chat_id"},
 	}
 
 	err = ch.SendMessage(ctx, msg)
@@ -163,7 +162,7 @@ func TestChannel_HandleWebhook(t *testing.T) {
 		name      string
 		data      []byte
 		wantErr   bool
-		checkFunc func(t *testing.T, msg *message.Message)
+		checkFunc func(t *testing.T, msg *channel.Message)
 	}{
 		{
 			name: "valid text message",
@@ -186,9 +185,9 @@ func TestChannel_HandleWebhook(t *testing.T) {
 				}
 			}`),
 			wantErr: false,
-			checkFunc: func(t *testing.T, msg *message.Message) {
+			checkFunc: func(t *testing.T, msg *channel.Message) {
 				assert.Equal(t, "1", msg.ID)
-				assert.Equal(t, message.MessageTypeText, msg.Type)
+				assert.Equal(t, channel.MessageTypeText, msg.Type)
 				assert.Equal(t, "Hello Telegram", msg.Content)
 				assert.Equal(t, "123456", msg.From.ID)
 				assert.Equal(t, "Test", msg.From.Name)
@@ -212,8 +211,8 @@ func TestChannel_HandleWebhook(t *testing.T) {
 				}
 			}`),
 			wantErr: false,
-			checkFunc: func(t *testing.T, msg *message.Message) {
-				assert.Equal(t, message.MessageTypeImage, msg.Type)
+			checkFunc: func(t *testing.T, msg *channel.Message) {
+				assert.Equal(t, channel.MessageTypeImage, msg.Type)
 				assert.Equal(t, "Photo caption", msg.Content)
 			},
 		},
@@ -235,8 +234,8 @@ func TestChannel_HandleWebhook(t *testing.T) {
 				}
 			}`),
 			wantErr: false,
-			checkFunc: func(t *testing.T, msg *message.Message) {
-				assert.Equal(t, message.MessageTypeFile, msg.Type)
+			checkFunc: func(t *testing.T, msg *channel.Message) {
+				assert.Equal(t, channel.MessageTypeFile, msg.Type)
 			},
 		},
 		{
@@ -256,8 +255,8 @@ func TestChannel_HandleWebhook(t *testing.T) {
 				}
 			}`),
 			wantErr: false,
-			checkFunc: func(t *testing.T, msg *message.Message) {
-				assert.Equal(t, message.MessageTypeAudio, msg.Type)
+			checkFunc: func(t *testing.T, msg *channel.Message) {
+				assert.Equal(t, channel.MessageTypeAudio, msg.Type)
 			},
 		},
 		{
@@ -277,8 +276,8 @@ func TestChannel_HandleWebhook(t *testing.T) {
 				}
 			}`),
 			wantErr: false,
-			checkFunc: func(t *testing.T, msg *message.Message) {
-				assert.Equal(t, message.MessageTypeAudio, msg.Type)
+			checkFunc: func(t *testing.T, msg *channel.Message) {
+				assert.Equal(t, channel.MessageTypeAudio, msg.Type)
 			},
 		},
 		{
@@ -300,8 +299,8 @@ func TestChannel_HandleWebhook(t *testing.T) {
 				}
 			}`),
 			wantErr: false,
-			checkFunc: func(t *testing.T, msg *message.Message) {
-				assert.Equal(t, message.MessageTypeVideo, msg.Type)
+			checkFunc: func(t *testing.T, msg *channel.Message) {
+				assert.Equal(t, channel.MessageTypeVideo, msg.Type)
 			},
 		},
 		{
@@ -320,8 +319,8 @@ func TestChannel_HandleWebhook(t *testing.T) {
 				}
 			}`),
 			wantErr: false,
-			checkFunc: func(t *testing.T, msg *message.Message) {
-				assert.Equal(t, message.MessageTypeEvent, msg.Type)
+			checkFunc: func(t *testing.T, msg *channel.Message) {
+				assert.Equal(t, channel.MessageTypeEvent, msg.Type)
 			},
 		},
 		{
@@ -341,8 +340,8 @@ func TestChannel_HandleWebhook(t *testing.T) {
 				}
 			}`),
 			wantErr: false,
-			checkFunc: func(t *testing.T, msg *message.Message) {
-				assert.Equal(t, message.MessageTypeEvent, msg.Type)
+			checkFunc: func(t *testing.T, msg *channel.Message) {
+				assert.Equal(t, channel.MessageTypeEvent, msg.Type)
 			},
 		},
 		{
@@ -376,25 +375,25 @@ func TestChannel_MessageTypes(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	err = ch.Start(ctx, func(ctx context.Context, msg *message.Message) error { return nil })
+	err = ch.Start(ctx, func(ctx context.Context, msg *channel.Message) error { return nil })
 	require.NoError(t, err)
 	defer ch.Stop(ctx)
 
 	// Test different message types - they should handle gracefully
-	msgTypes := []message.MessageType{
-		message.MessageTypeText,
-		message.MessageTypeImage,
-		message.MessageTypeFile,
-		message.MessageTypeAudio,
-		message.MessageTypeVideo,
+	msgTypes := []channel.MessageType{
+		channel.MessageTypeText,
+		channel.MessageTypeImage,
+		channel.MessageTypeFile,
+		channel.MessageTypeAudio,
+		channel.MessageTypeVideo,
 	}
 
 	for _, msgType := range msgTypes {
 		t.Run(string(msgType), func(t *testing.T) {
-			msg := &message.Message{
+			msg := &channel.Message{
 				Type:    msgType,
 				Content: "test content",
-				To:      message.UserInfo{ID: "123456789"},
+				To:      channel.UserInfo{ID: "123456789"},
 			}
 			// This will fail due to network, but should not panic
 			_ = ch.SendMessage(ctx, msg)
@@ -421,7 +420,7 @@ func TestChannel_WebhookMode(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	err = ch.Start(ctx, func(ctx context.Context, msg *message.Message) error { return nil })
+	err = ch.Start(ctx, func(ctx context.Context, msg *channel.Message) error { return nil })
 	// May fail due to network, but should attempt webhook setup
 	if err == nil {
 		defer ch.Stop(ctx)

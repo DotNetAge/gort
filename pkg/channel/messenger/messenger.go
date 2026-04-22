@@ -40,7 +40,6 @@ import (
 	"time"
 
 	"github.com/DotNetAge/gort/pkg/channel"
-	"github.com/DotNetAge/gort/pkg/message"
 )
 
 const (
@@ -93,7 +92,7 @@ func (m *MessengerChannel) Stop(ctx context.Context) error {
 	return nil
 }
 
-func (m *MessengerChannel) SendMessage(ctx context.Context, msg *message.Message) error {
+func (m *MessengerChannel) SendMessage(ctx context.Context, msg *channel.Message) error {
 	if msg == nil {
 		return channel.ErrUnsupportedMessageType
 	}
@@ -137,7 +136,7 @@ func (m *MessengerChannel) SendMessage(ctx context.Context, msg *message.Message
 	return nil
 }
 
-func (m *MessengerChannel) buildMessagePayload(recipientID string, msg *message.Message) map[string]interface{} {
+func (m *MessengerChannel) buildMessagePayload(recipientID string, msg *channel.Message) map[string]interface{} {
 	payload := map[string]interface{}{
 		"recipient": map[string]string{
 			"id": recipientID,
@@ -147,11 +146,11 @@ func (m *MessengerChannel) buildMessagePayload(recipientID string, msg *message.
 	}
 
 	switch msg.Type {
-	case message.MessageTypeText:
+	case channel.MessageTypeText:
 		payload["message"] = map[string]interface{}{
 			"text": msg.Content,
 		}
-	case message.MessageTypeImage:
+	case channel.MessageTypeImage:
 		payload["message"] = map[string]interface{}{
 			"attachment": map[string]interface{}{
 				"type": "image",
@@ -160,7 +159,7 @@ func (m *MessengerChannel) buildMessagePayload(recipientID string, msg *message.
 				},
 			},
 		}
-	case message.MessageTypeAudio:
+	case channel.MessageTypeAudio:
 		payload["message"] = map[string]interface{}{
 			"attachment": map[string]interface{}{
 				"type": "audio",
@@ -169,7 +168,7 @@ func (m *MessengerChannel) buildMessagePayload(recipientID string, msg *message.
 				},
 			},
 		}
-	case message.MessageTypeVideo:
+	case channel.MessageTypeVideo:
 		payload["message"] = map[string]interface{}{
 			"attachment": map[string]interface{}{
 				"type": "video",
@@ -178,7 +177,7 @@ func (m *MessengerChannel) buildMessagePayload(recipientID string, msg *message.
 				},
 			},
 		}
-	case message.MessageTypeFile:
+	case channel.MessageTypeFile:
 		payload["message"] = map[string]interface{}{
 			"attachment": map[string]interface{}{
 				"type": "file",
@@ -196,7 +195,7 @@ func (m *MessengerChannel) buildMessagePayload(recipientID string, msg *message.
 	return payload
 }
 
-func (m *MessengerChannel) HandleWebhook(path string, data []byte) (*message.Message, error) {
+func (m *MessengerChannel) HandleWebhook(path string, data []byte) (*channel.Message, error) {
 	if m.config.AppSecret != "" {
 		return nil, fmt.Errorf("signature verification requires HTTP headers")
 	}
@@ -204,7 +203,7 @@ func (m *MessengerChannel) HandleWebhook(path string, data []byte) (*message.Mes
 	return m.parseWebhookData(data)
 }
 
-func (m *MessengerChannel) HandleWebhookWithSignature(data []byte, signature string) (*message.Message, error) {
+func (m *MessengerChannel) HandleWebhookWithSignature(data []byte, signature string) (*channel.Message, error) {
 	if m.config.AppSecret != "" {
 		if !m.verifySignature(data, signature) {
 			return nil, ErrInvalidSignature
@@ -231,7 +230,7 @@ func (m *MessengerChannel) verifySignature(data []byte, signature string) bool {
 	return hmac.Equal(expectedMAC, actualMAC)
 }
 
-func (m *MessengerChannel) parseWebhookData(data []byte) (*message.Message, error) {
+func (m *MessengerChannel) parseWebhookData(data []byte) (*channel.Message, error) {
 	var webhook struct {
 		Object string `json:"object"`
 		Entry  []struct {
@@ -272,7 +271,7 @@ func (m *MessengerChannel) parseWebhookData(data []byte) (*message.Message, erro
 		return nil, nil
 	}
 
-	msgType := message.MessageTypeText
+	msgType := channel.MessageTypeText
 	content := messaging.Message.Text
 
 	if len(messaging.Message.Attachments) > 0 {
@@ -280,21 +279,21 @@ func (m *MessengerChannel) parseWebhookData(data []byte) (*message.Message, erro
 		content = attachment.Payload.URL
 		switch attachment.Type {
 		case "image":
-			msgType = message.MessageTypeImage
+			msgType = channel.MessageTypeImage
 		case "audio":
-			msgType = message.MessageTypeAudio
+			msgType = channel.MessageTypeAudio
 		case "video":
-			msgType = message.MessageTypeVideo
+			msgType = channel.MessageTypeVideo
 		case "file":
-			msgType = message.MessageTypeFile
+			msgType = channel.MessageTypeFile
 		}
 	}
 
-	msg := message.NewMessage(
+	msg := channel.NewMessage(
 		messaging.Message.MID,
 		m.Name(),
-		message.DirectionInbound,
-		message.UserInfo{
+		channel.DirectionInbound,
+		channel.UserInfo{
 			ID:       messaging.Sender.ID,
 			Name:     "",
 			Platform: "messenger",

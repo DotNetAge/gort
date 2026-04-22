@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/DotNetAge/gort/pkg/channel"
-	"github.com/DotNetAge/gort/pkg/message"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -120,7 +119,7 @@ func TestChannel_StartStop(t *testing.T) {
 	ch.httpClient = &http.Client{Timeout: 5 * time.Second}
 
 	ctx := context.Background()
-	handler := func(ctx context.Context, msg *message.Message) error { return nil }
+	handler := func(ctx context.Context, msg *channel.Message) error { return nil }
 
 	// Test Start - will fail because we can't override the base URL easily
 	// So we test the validation and state changes
@@ -147,8 +146,8 @@ func TestChannel_SendMessage_NotRunning(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	msg := &message.Message{
-		Type:    message.MessageTypeText,
+	msg := &channel.Message{
+		Type:    channel.MessageTypeText,
 		Content: "test",
 	}
 
@@ -167,7 +166,7 @@ func TestChannel_HandleWebhook(t *testing.T) {
 		name      string
 		data      []byte
 		wantErr   bool
-		checkFunc func(t *testing.T, msg *message.Message)
+		checkFunc func(t *testing.T, msg *channel.Message)
 	}{
 		{
 			name: "valid text message",
@@ -203,9 +202,9 @@ func TestChannel_HandleWebhook(t *testing.T) {
 				}
 			}`),
 			wantErr: false,
-			checkFunc: func(t *testing.T, msg *message.Message) {
+			checkFunc: func(t *testing.T, msg *channel.Message) {
 				assert.Equal(t, "om_xxx", msg.ID)
-				assert.Equal(t, message.MessageTypeText, msg.Type)
+				assert.Equal(t, channel.MessageTypeText, msg.Type)
 				assert.Equal(t, "Hello Feishu", msg.Content)
 				assert.Equal(t, "ou_xxx", msg.From.ID)
 				assert.Equal(t, "oc_xxx", msg.To.ID)
@@ -235,8 +234,8 @@ func TestChannel_HandleWebhook(t *testing.T) {
 				}
 			}`),
 			wantErr: false,
-			checkFunc: func(t *testing.T, msg *message.Message) {
-				assert.Equal(t, message.MessageTypeImage, msg.Type)
+			checkFunc: func(t *testing.T, msg *channel.Message) {
+				assert.Equal(t, channel.MessageTypeImage, msg.Type)
 				imgKey, _ := msg.GetMetadata("image_key")
 				assert.Equal(t, "img_xxx", imgKey)
 			},
@@ -256,8 +255,8 @@ func TestChannel_HandleWebhook(t *testing.T) {
 				}
 			}`),
 			wantErr: false,
-			checkFunc: func(t *testing.T, msg *message.Message) {
-				assert.Equal(t, message.MessageTypeFile, msg.Type)
+			checkFunc: func(t *testing.T, msg *channel.Message) {
+				assert.Equal(t, channel.MessageTypeFile, msg.Type)
 				fileKey, _ := msg.GetMetadata("file_key")
 				assert.Equal(t, "file_xxx", fileKey)
 				fileName, _ := msg.GetMetadata("file_name")
@@ -279,8 +278,8 @@ func TestChannel_HandleWebhook(t *testing.T) {
 				}
 			}`),
 			wantErr: false,
-			checkFunc: func(t *testing.T, msg *message.Message) {
-				assert.Equal(t, message.MessageTypeAudio, msg.Type)
+			checkFunc: func(t *testing.T, msg *channel.Message) {
+				assert.Equal(t, channel.MessageTypeAudio, msg.Type)
 			},
 		},
 		{
@@ -298,8 +297,8 @@ func TestChannel_HandleWebhook(t *testing.T) {
 				}
 			}`),
 			wantErr: false,
-			checkFunc: func(t *testing.T, msg *message.Message) {
-				assert.Equal(t, message.MessageTypeVideo, msg.Type)
+			checkFunc: func(t *testing.T, msg *channel.Message) {
+				assert.Equal(t, channel.MessageTypeVideo, msg.Type)
 			},
 		},
 		{
@@ -322,8 +321,8 @@ func TestChannel_HandleWebhook(t *testing.T) {
 				}
 			}`),
 			wantErr: false,
-			checkFunc: func(t *testing.T, msg *message.Message) {
-				assert.Equal(t, message.MessageTypeEvent, msg.Type)
+			checkFunc: func(t *testing.T, msg *channel.Message) {
+				assert.Equal(t, channel.MessageTypeEvent, msg.Type)
 			},
 		},
 	}
@@ -355,20 +354,20 @@ func TestChannel_MessageTypes(t *testing.T) {
 	ctx := context.Background()
 
 	// Test different message types when not running
-	msgTypes := []message.MessageType{
-		message.MessageTypeText,
-		message.MessageTypeImage,
-		message.MessageTypeFile,
-		message.MessageTypeAudio,
-		message.MessageTypeVideo,
+	msgTypes := []channel.MessageType{
+		channel.MessageTypeText,
+		channel.MessageTypeImage,
+		channel.MessageTypeFile,
+		channel.MessageTypeAudio,
+		channel.MessageTypeVideo,
 	}
 
 	for _, msgType := range msgTypes {
 		t.Run(string(msgType), func(t *testing.T) {
-			msg := &message.Message{
+			msg := &channel.Message{
 				Type:    msgType,
 				Content: "test content",
-				To:      message.UserInfo{ID: "ou_xxx"},
+				To:      channel.UserInfo{ID: "ou_xxx"},
 			}
 			err := ch.SendMessage(ctx, msg)
 			assert.ErrorIs(t, err, channel.ErrChannelNotRunning)
