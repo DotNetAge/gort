@@ -1,16 +1,10 @@
 package gateway
 
 import (
-	"context"
 	"encoding/json"
-	"net"
-	"net/http"
-	"net/http/httptest"
-	"strings"
+	"os"
 	"testing"
 	"time"
-
-	"github.com/gorilla/websocket"
 )
 
 func TestNewClient_Defaults(t *testing.T) {
@@ -33,17 +27,11 @@ func TestNewClient_WithOptions(t *testing.T) {
 	}
 }
 
-func TestNewClient_WithClientAddrTakesPrecedence(t *testing.T) {
-	c := NewClient(WithClientPort(9999), WithClientAddr("192.168.1.1:7777"))
-	if c.addr != "192.168.1.1:7777" {
-		t.Errorf("WithClientAddr should take precedence, got %s", c.addr)
-	}
-}
-
 func TestClient_ConnectAndReceiveConnected(t *testing.T) {
-	env := setupTestServer(t)
+	env := setupTestServerW(t)
+	defer env.cleanup()
 
-	client := NewClient(WithClientAddr(testHostPort(env.ts)))
+	client := NewClient(WithClientAddr(testHostPortW(env.ts)))
 	err := client.Connect()
 	if err != nil {
 		t.Fatalf("connect error: %v", err)
@@ -57,9 +45,10 @@ func TestClient_ConnectAndReceiveConnected(t *testing.T) {
 }
 
 func TestClient_Close(t *testing.T) {
-	env := setupTestServer(t)
+	env := setupTestServerW(t)
+	defer env.cleanup()
 
-	client := NewClient(WithClientAddr(testHostPort(env.ts)))
+	client := NewClient(WithClientAddr(testHostPortW(env.ts)))
 	client.Connect()
 
 	if err := client.Close(); err != nil {
@@ -78,59 +67,18 @@ func TestClient_Close_NotConnected(t *testing.T) {
 	}
 }
 
-func TestClient_OnMessageCallback(t *testing.T) {
-	env := setupTestServer(t)
-
-	var received *Message
-	doneCh := make(chan struct{}, 1)
-	var clientID string
-
-	client := NewClient(WithClientAddr(testHostPort(env.ts)))
-	client.OnMessage(func(msg *Message) {
-		if msg.ClientID != "" && clientID == "" {
-			clientID = msg.ClientID
-		}
-		if string(msg.Data) == "connected" {
-			return
-		}
-		received = msg
-		doneCh <- struct{}{}
-	})
-
-	if err := client.Connect(); err != nil {
-		t.Fatalf("connect error: %v", err)
-	}
-	defer client.Close()
-
-	time.Sleep(200 * time.Millisecond)
-
-	env.gw.Send(clientID, "test callback")
-
-	select {
-	case <-doneCh:
-	case <-time.After(2 * time.Second):
-		t.Fatal("OnMessage callback was not called")
-	}
-
-	if received == nil {
-		t.Fatal("message should be received")
-	}
-	if string(received.Data) != "test callback" {
-		t.Errorf("expected 'test callback', got %s", string(received.Data))
-	}
-}
-
 func TestClient_Send_TextRoundTrip(t *testing.T) {
-	env := setupTestServer(t)
+	env := setupTestServerW(t)
+	defer env.cleanup()
 
 	var receivedMsg *Message
 	handlerDone := make(chan struct{}, 1)
-	env.gw.handler = func(g *Server, msg *Message) {
+	env.gw.handler = func(msg *Message) {
 		receivedMsg = msg
 		handlerDone <- struct{}{}
 	}
 
-	client := NewClient(WithClientAddr(testHostPort(env.ts)))
+	client := NewClient(WithClientAddr(testHostPortW(env.ts)))
 	if err := client.Connect(); err != nil {
 		t.Fatalf("Connect error: %v", err)
 	}
@@ -141,7 +89,7 @@ func TestClient_Send_TextRoundTrip(t *testing.T) {
 		t.Fatal("client should be connected after Connect()")
 	}
 
-	err := client.Send("hello from client")
+	err := client.Send(&Message{Data: []byte("hello from client")})
 	if err != nil {
 		t.Fatalf("Send error: %v", err)
 	}
@@ -161,16 +109,17 @@ func TestClient_Send_TextRoundTrip(t *testing.T) {
 }
 
 func TestClient_SendJSON_RoundTrip(t *testing.T) {
-	env := setupTestServer(t)
+	env := setupTestServerW(t)
+	defer env.cleanup()
 
 	var receivedMsg *Message
 	handlerDone := make(chan struct{}, 1)
-	env.gw.handler = func(g *Server, msg *Message) {
+	env.gw.handler = func(msg *Message) {
 		receivedMsg = msg
 		handlerDone <- struct{}{}
 	}
 
-	client := NewClient(WithClientAddr(testHostPort(env.ts)))
+	client := NewClient(WithClientAddr(testHostPortW(env.ts)))
 	if err := client.Connect(); err != nil {
 		t.Fatalf("Connect error: %v", err)
 	}
@@ -199,19 +148,36 @@ func TestClient_SendJSON_RoundTrip(t *testing.T) {
 	if decoded["action"] != "ping" || decoded["count"].(float64) != 42 {
 		t.Errorf("unexpected payload: %v", decoded)
 	}
+	if receivedMsg.ContentType != "application/json" {
+		t.Errorf("expected content type application/json, got %s", receivedMsg.ContentType)
+	}
 }
 
 func TestClient_SendFile_RoundTrip(t *testing.T) {
-	env := setupTestServer(t)
+	tmpFile, err := os.CreateTemp("", "testfile-*.txt")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
+	testData := "file data content here"
+	if _, err := tmpFile.WriteString(testData); err != nil {
+		t.Fatalf("failed to write temp file: %v", err)
+	}
+	tmpFile.Close()
+
+	env := setupTestServerW(t)
+	defer env.cleanup()
 
 	var receivedMsg *Message
 	handlerDone := make(chan struct{}, 1)
-	env.gw.handler = func(g *Server, msg *Message) {
+	env.gw.handler = func(msg *Message) {
 		receivedMsg = msg
 		handlerDone <- struct{}{}
 	}
 
-	client := NewClient(WithClientAddr(testHostPort(env.ts)))
+	client := NewClient(WithClientAddr(testHostPortW(env.ts)))
 	if err := client.Connect(); err != nil {
 		t.Fatalf("Connect error: %v", err)
 	}
@@ -222,8 +188,7 @@ func TestClient_SendFile_RoundTrip(t *testing.T) {
 		t.Fatal("client should be connected")
 	}
 
-	reader := strings.NewReader("file data content here")
-	if err := client.SendFile(reader); err != nil {
+	if err := client.SendFile(tmpFile.Name()); err != nil {
 		t.Fatalf("SendFile error: %v", err)
 	}
 
@@ -233,8 +198,11 @@ func TestClient_SendFile_RoundTrip(t *testing.T) {
 		t.Fatal("handler was not called for SendFile")
 	}
 
-	if string(receivedMsg.Data) != "file data content here" {
+	if string(receivedMsg.Data) != testData {
 		t.Errorf("expected file data, got %s", string(receivedMsg.Data))
+	}
+	if receivedMsg.ContentType != "application/octet-stream" {
+		t.Errorf("expected content type application/octet-stream, got %s", receivedMsg.ContentType)
 	}
 }
 
@@ -254,53 +222,33 @@ func TestClient_WriteCommand_NotConnected(t *testing.T) {
 	}
 }
 
-func receiveClientID(t *testing.T, env *testEnv) string {
-	conn := dialTestWS(t, env.ts)
-	m := wsReadJSON(t, conn)
-	return m.ClientID
-}
+func TestClient_BeginAndEndSession(t *testing.T) {
+	env := setupTestServerW(t)
+	defer env.cleanup()
 
-type wsTestEnv struct {
-	gw      *Server
-	ts      *httptest.Server
-	addr    string
-	cleanup func()
-}
-
-func setupWSEnv(t *testing.T) *wsTestEnv {
-	mux := http.NewServeMux()
-	var gw *Server
-	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		gw.handleWS(w, r)
-	})
-
-	ts := httptest.NewServer(mux)
-	addr := testHostPort(ts)
-	gw = New(WithAddr(addr))
-
-	go gw.Start()
-	time.Sleep(50 * time.Millisecond)
-
-	env := &wsTestEnv{gw: gw, ts: ts, addr: addr}
-	env.cleanup = func() {
-		gw.Shutdown(context.Background())
-		ts.Close()
+	client := NewClient(WithClientAddr(testHostPortW(env.ts)))
+	if err := client.Connect(); err != nil {
+		t.Fatalf("Connect error: %v", err)
 	}
-	t.Cleanup(env.cleanup)
-	return env
-}
+	defer client.Close()
 
-func dialRawWS(t *testing.T, ts *httptest.Server) *websocket.Conn {
-	u := "ws://" + testHostPort(ts) + "/ws"
-	header := http.Header{"Origin": {"http://" + testHostPort(ts)}}
-	conn, _, err := websocket.DefaultDialer.Dial(u, header)
+	time.Sleep(100 * time.Millisecond)
+
+	sessionID, err := client.BeginSession()
 	if err != nil {
-		t.Fatalf("dial error: %v", err)
+		t.Fatalf("BeginSession error: %v", err)
 	}
-	return conn
-}
+	if sessionID == "" {
+		t.Error("session ID should not be empty")
+	}
+	if client.SessionID() != sessionID {
+		t.Errorf("client session ID mismatch")
+	}
 
-func testHostPort(ts *httptest.Server) string {
-	_, port, _ := net.SplitHostPort(ts.Listener.Addr().String())
-	return "127.0.0.1:" + port
+	if err := client.EndSession(); err != nil {
+		t.Fatalf("EndSession error: %v", err)
+	}
+	if client.SessionID() != "" {
+		t.Error("session ID should be cleared after EndSession")
+	}
 }

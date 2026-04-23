@@ -392,9 +392,11 @@ func (l *Loader) Load(configPath string) error {
 			return fmt.Errorf("failed to read config: %w", err)
 		}
 	}
-	if err := v.Unmarshal(l.config); err != nil {
+	var cfg Config
+	if err := v.Unmarshal(&cfg); err != nil {
 		return fmt.Errorf("failed to unmarshal config: %w", err)
 	}
+	l.config = &cfg
 	return l.config.Validate()
 }
 
@@ -417,4 +419,11 @@ func (l *Loader) GetConfig() *Config {
 //   - v: The viper instance to configure
 func setDefaults(v *viper.Viper) {
 	v.SetDefault("server.http_port", 8080)
+	v.SetDefault("server.ws_port", 8081)
+	v.SetDefault("server.webhook_path", "/webhook")
+	v.SetDefault("server.read_timeout", 30)
+	v.SetDefault("server.write_timeout", 30)
+	v.SetDefault("log.level", "info")
+	v.SetDefault("log.format", "text")
+	v.SetDefault("log.output", "stdout")
 }

@@ -460,6 +460,8 @@ func (c *Channel) parseMessageContent(msg *MessageObject, result *channel.Messag
 		c.parseVoiceMessage(msg, result)
 	case msg.Location != nil:
 		c.parseLocationMessage(msg, result)
+	case msg.Contact != nil:
+		c.parseContactMessage(msg, result)
 	}
 }
 
@@ -471,7 +473,11 @@ func (c *Channel) parseTextMessage(msg *MessageObject, result *channel.Message) 
 func (c *Channel) parsePhotoMessage(msg *MessageObject, result *channel.Message) {
 	result.Type = channel.MessageTypeImage
 	largestPhoto := msg.Photo[len(msg.Photo)-1]
-	result.Content = largestPhoto.FileID
+	if msg.Caption != "" {
+		result.Content = msg.Caption
+	} else {
+		result.Content = largestPhoto.FileID
+	}
 	result.SetMetadata("file_id", largestPhoto.FileID)
 	result.SetMetadata("width", largestPhoto.Width)
 	result.SetMetadata("height", largestPhoto.Height)
@@ -521,6 +527,14 @@ func (c *Channel) parseLocationMessage(msg *MessageObject, result *channel.Messa
 	result.SetMetadata("event_type", "location")
 	result.SetMetadata("latitude", msg.Location.Latitude)
 	result.SetMetadata("longitude", msg.Location.Longitude)
+}
+
+func (c *Channel) parseContactMessage(msg *MessageObject, result *channel.Message) {
+	result.Type = channel.MessageTypeEvent
+	result.SetMetadata("event_type", "contact")
+	result.SetMetadata("phone_number", msg.Contact.PhoneNumber)
+	result.SetMetadata("first_name", msg.Contact.FirstName)
+	result.SetMetadata("last_name", msg.Contact.LastName)
 }
 
 func (c *Channel) sendTextMessage(ctx context.Context, chatID int64, msg *channel.Message) error {

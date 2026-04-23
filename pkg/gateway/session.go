@@ -1,21 +1,20 @@
 package gateway
 
 import (
-	"fmt"
 	"log/slog"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
 )
 
 type session struct {
-	id        string
-	clientID  string
-	total     int
-	parts     map[int][]byte
-	createdAt time.Time
+	id           string
+	clientID     string
+	messages     []*Message
+	pendingFrames map[int][]byte
+	frameTotal   int
+	createdAt    time.Time
 }
 
 type SessionManager struct {
@@ -25,7 +24,6 @@ type SessionManager struct {
 	done         chan struct{}
 	once         sync.Once
 	maxSessions  int
-	currentCount int32
 }
 
 const defaultMaxSessions = 1000
@@ -41,23 +39,45 @@ func newSessionManager(timeout time.Duration) *SessionManager {
 	return sm
 }
 
-func (sm *SessionManager) create(clientID string, total int) (*session, error) {
-	count := atomic.AddInt32(&sm.currentCount, 1)
-	if int(count) > sm.maxSessions {
-		atomic.AddInt32(&sm.currentCount, -1)
-		return nil, fmt.Errorf("session limit reached (%d)", sm.maxSessions)
+func (sm *SessionManager) create(clientID string) (*session, error) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	if len(sm.sessions) >= sm.maxSessions {
+		return nil, ErrSessionLimitReached
 	}
 	id := uuid.New().String()
 	s := &session{
-		id:        id,
-		clientID:  clientID,
-		total:     total,
-		parts:     make(map[int][]byte, total),
-		createdAt: time.Now(),
+		id:            id,
+		clientID:      clientID,
+		messages:      make([]*Message, 0),
+		pendingFrames: make(map[int][]byte),
+		createdAt:     time.Now(),
 	}
-	sm.mu.Lock()
 	sm.sessions[id] = s
-	sm.mu.Unlock()
+	return s, nil
+}
+
+func (sm *SessionManager) createWithID(clientID, id string) (*session, error) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	if _, exists := sm.sessions[id]; exists {
+		return nil, ErrSessionNotFound
+	}
+
+	if len(sm.sessions) >= sm.maxSessions {
+		return nil, ErrSessionLimitReached
+	}
+
+	s := &session{
+		id:            id,
+		clientID:      clientID,
+		messages:      make([]*Message, 0),
+		pendingFrames: make(map[int][]byte),
+		createdAt:     time.Now(),
+	}
+	sm.sessions[id] = s
 	return s, nil
 }
 
@@ -68,7 +88,7 @@ func (sm *SessionManager) get(id string) (*session, bool) {
 	return s, ok
 }
 
-func (sm *SessionManager) addData(id string, index int, data []byte) error {
+func (sm *SessionManager) addMessage(id string, msg *Message) error {
 	sm.mu.RLock()
 	s, ok := sm.sessions[id]
 	sm.mu.RUnlock()
@@ -77,10 +97,21 @@ func (sm *SessionManager) addData(id string, index int, data []byte) error {
 	}
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
-	if _, exists := s.parts[index]; exists {
-		return nil
+	s.messages = append(s.messages, msg)
+	return nil
+}
+
+func (sm *SessionManager) addFrame(id string, index, total int, data []byte) error {
+	sm.mu.RLock()
+	s, ok := sm.sessions[id]
+	sm.mu.RUnlock()
+	if !ok {
+		return ErrSessionNotFound
 	}
-	s.parts[index] = data
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	s.pendingFrames[index] = data
+	s.frameTotal = total
 	return nil
 }
 
@@ -89,18 +120,40 @@ func (sm *SessionManager) assembleAndRemove(id string) (*session, bool) {
 	s, ok := sm.sessions[id]
 	if ok {
 		delete(sm.sessions, id)
-		atomic.AddInt32(&sm.currentCount, -1)
 	}
 	sm.mu.Unlock()
-	return s, ok && len(s.parts) == s.total
+	if !ok {
+		return nil, false
+	}
+
+	complete := false
+	if s.frameTotal > 0 && len(s.pendingFrames) == s.frameTotal {
+		var assembled []byte
+		for i := 0; i < s.frameTotal; i++ {
+			if data, ok := s.pendingFrames[i]; ok {
+				assembled = append(assembled, data...)
+			} else {
+				slog.Warn("incomplete frame session", "id", id, "expected", s.frameTotal, "got", len(s.pendingFrames))
+				return s, false
+			}
+		}
+		msg := &Message{
+			ID:        uuid.New().String(),
+			SessionID: id,
+			ClientID:  s.clientID,
+			Direction: DirectionOutbound,
+			Data:      assembled,
+			Timestamp: time.Now(),
+		}
+		s.messages = append(s.messages, msg)
+		complete = true
+	}
+	return s, complete
 }
 
 func (sm *SessionManager) remove(id string) {
 	sm.mu.Lock()
-	if _, exists := sm.sessions[id]; exists {
-		delete(sm.sessions, id)
-		atomic.AddInt32(&sm.currentCount, -1)
-	}
+	delete(sm.sessions, id)
 	sm.mu.Unlock()
 }
 

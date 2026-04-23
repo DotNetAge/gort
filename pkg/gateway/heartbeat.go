@@ -62,6 +62,7 @@ type HeartbeatMonitor struct {
 	config      *HeartbeatConfig
 	stats       HeartbeatStats
 	mu          sync.RWMutex
+	cbMu        sync.RWMutex
 	onStateChange func(clientID, oldState, newState string)
 	onTimeout    func(clientID string)
 	onReconnect  func(clientID string, attempt int)
@@ -109,34 +110,49 @@ func (h *HeartbeatMonitor) setConnectionCount(n int) {
 }
 
 func (h *HeartbeatMonitor) OnStateChange(fn func(clientID, oldState, newState string)) {
+	h.cbMu.Lock()
+	defer h.cbMu.Unlock()
 	h.onStateChange = fn
 }
 
 func (h *HeartbeatMonitor) OnTimeout(fn func(clientID string)) {
+	h.cbMu.Lock()
+	defer h.cbMu.Unlock()
 	h.onTimeout = fn
 }
 
 func (h *HeartbeatMonitor) OnReconnect(fn func(clientID string, attempt int)) {
+	h.cbMu.Lock()
+	defer h.cbMu.Unlock()
 	h.onReconnect = fn
 }
 
 func (h *HeartbeatMonitor) notifyStateChange(clientID, oldState, newState string) {
-	if h.onStateChange != nil {
-		go h.onStateChange(clientID, oldState, newState)
+	h.cbMu.RLock()
+	fn := h.onStateChange
+	h.cbMu.RUnlock()
+	if fn != nil {
+		go fn(clientID, oldState, newState)
 		slog.Info("client state changed", "id", clientID, "from", oldState, "to", newState)
 	}
 }
 
 func (h *HeartbeatMonitor) notifyTimeout(clientID string) {
-	if h.onTimeout != nil {
-		go h.onTimeout(clientID)
+	h.cbMu.RLock()
+	fn := h.onTimeout
+	h.cbMu.RUnlock()
+	if fn != nil {
+		go fn(clientID)
 		slog.Warn("client heartbeat timeout", "id", clientID)
 	}
 }
 
 func (h *HeartbeatMonitor) notifyReconnect(clientID string, attempt int) {
-	if h.onReconnect != nil {
-		go h.onReconnect(clientID, attempt)
+	h.cbMu.RLock()
+	fn := h.onReconnect
+	h.cbMu.RUnlock()
+	if fn != nil {
+		go fn(clientID, attempt)
 		slog.Info("client reconnect attempt", "id", clientID, "attempt", attempt)
 	}
 }

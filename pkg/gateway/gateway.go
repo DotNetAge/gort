@@ -46,14 +46,12 @@ func WithWSConfig(cfg *WSConfig) Option {
 	return func(s *Server) { s.wsConfig = cfg }
 }
 
-var upgrader *websocket.Upgrader
-
-func initUpgrader(cfg *WSConfig) {
-	upgrader = &websocket.Upgrader{
+func newUpgrader(cfg *WSConfig) *websocket.Upgrader {
+	if cfg == nil {
+		cfg = defaultWSConfig()
+	}
+	return &websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
-			if cfg == nil {
-				cfg = defaultWSConfig()
-			}
 			origin := r.Header.Get("Origin")
 			if cfg.AllowAllInDev && os.Getenv("GO_ENV") == "development" {
 				return true
@@ -91,7 +89,7 @@ func WithSessionTimeout(d time.Duration) Option {
 	return func(s *Server) { s.sessionTimeout = d }
 }
 
-type MessageHandler func(g *Server, msg *Message)
+type MessageHandler func(msg *Message)
 
 type client struct {
 	id       string
@@ -110,6 +108,8 @@ type Server struct {
 	heartbeatCfg   *HeartbeatConfig
 	hbMonitor      *HeartbeatMonitor
 	wsConfig       *WSConfig
+	upgrader       *websocket.Upgrader
+	cmdRegistry    *CommandRegistry
 
 	mu       sync.RWMutex
 	server   *http.Server
@@ -126,6 +126,7 @@ func New(opts ...Option) *Server {
 		sessionTimeout: 30 * time.Minute,
 		clients:        make(map[string]*client),
 		register:       make(chan *client),
+		cmdRegistry:    NewCommandRegistry(),
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -142,7 +143,7 @@ func (s *Server) Start() error {
 	s.running = true
 	s.mu.Unlock()
 
-	initUpgrader(s.wsConfig)
+	s.upgrader = newUpgrader(s.wsConfig)
 
 	go s.hubLoop()
 
@@ -201,27 +202,12 @@ func (s *Server) hubLoop() {
 			s.hbMonitor.notifyStateChange(c.id, StateDisconnected.String(), StateConnected.String())
 		}
 
-		msg := &Message{
-			ID:        uuid.New().String(),
-			ClientID:  c.id,
-			Direction: DirectionInbound,
-			Data:      []byte("connected"),
-			Timestamp: time.Now(),
-		}
-		data, _ := json.Marshal(msg)
-		func() {
-			defer func() { recover() }()
-			select {
-			case c.send <- data:
-			default:
-			}
-		}()
 		slog.Info("client connected", "id", c.id, "total", len(s.clients))
 	}
 }
 
 func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
+	conn, err := s.upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		slog.Error("ws upgrade failed", "error", err)
 		return
@@ -240,11 +226,21 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 	s.register <- c
 	go s.writePump(c)
 	go s.readPump(c)
+
+	msg := &Message{
+		ID:        uuid.New().String(),
+		ClientID:  c.id,
+		Direction: DirectionInbound,
+		Timestamp: time.Now(),
+	}
+	if data, err := json.Marshal(msg); err == nil {
+		conn.WriteMessage(websocket.TextMessage, data)
+	}
 }
 
 func (s *Server) readPump(c *client) {
 	defer func() {
-		done(c.done)
+		c.done()
 		c.sessions.Close()
 		c.sessions.cleanupClient(c.id)
 		s.removeClient(c.id)
@@ -278,8 +274,16 @@ func (s *Server) readPump(c *client) {
 			return
 		}
 
-		text := string(raw)
-		s.dispatchCommand(c, text)
+		// Client writePump may batch multiple protocol messages into a single
+		// WebSocket frame separated by newlines. Split them and process each one.
+		lines := strings.Split(string(raw), "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			s.dispatchCommand(c, line)
+		}
 	}
 }
 
@@ -289,7 +293,13 @@ func (s *Server) dispatchCommand(c *client, text string) {
 		return
 	}
 
-	parts := strings.SplitN(text, "|", 5)
+	trimmed := strings.TrimSpace(text)
+	if strings.HasPrefix(trimmed, "{") {
+		s.handleJSONMessage(c, trimmed)
+		return
+	}
+
+	parts := strings.SplitN(trimmed, "|", 5)
 	if len(parts) < 1 {
 		return
 	}
@@ -299,99 +309,187 @@ func (s *Server) dispatchCommand(c *client, text string) {
 		slog.Warn("unknown command rejected", "id", c.id, "cmd", cmd)
 		return
 	}
+
 	switch cmd {
-	case CmdSessionStart:
-		s.handleSessionStart(c, parts)
-	case CmdData:
-		s.handleData(c, parts)
-	case CmdSessionEnd:
-		s.handleSessionEnd(c, parts)
+	case CmdBegn:
+		s.handleBegn(c, parts)
+	case CmdText:
+		s.handleText(c, parts)
+	case CmdJSON:
+		s.handleJSON(c, parts)
+	case CmdFile:
+		s.handleFile(c, parts)
+	case CmdFrame:
+		s.handleFrame(c, parts)
+	case CmdClse:
+		s.handleClse(c, parts)
+	case CmdCmd:
+		s.handleCommand(c, parts)
 	}
 }
 
-func (s *Server) handleSessionStart(c *client, parts []string) {
-	total := 1
-	if len(parts) >= 4 && parts[3] != "" {
-		if _, err := fmt.Sscanf(parts[3], "%d", &total); err != nil {
-			slog.Warn("invalid total format", "id", c.id, "value", parts[3])
-			total = 1
-		}
-	}
-	if total < 1 {
-		total = 1
-	}
-	if total > MaxSessionTotal {
-		total = MaxSessionTotal
-	}
-
-	sess, err := c.sessions.create(c.id, total)
-	if err != nil {
-		slog.Warn("failed to create session", "id", c.id, "error", err)
+func (s *Server) handleJSONMessage(c *client, text string) {
+	var proto ProtocolMessage
+	if err := json.Unmarshal([]byte(text), &proto); err != nil {
+		slog.Warn("invalid JSON message", "id", c.id, "error", err)
 		return
 	}
-	resp := fmt.Sprintf("%s|%s|%s||", CmdSessionStart, sess.id, CmdOK)
+
+	msg := &Message{
+		ID:          proto.ID,
+		ClientID:    c.id,
+		SessionID:   proto.SessID,
+		Direction:   DirectionOutbound,
+		Data:        []byte(proto.Data),
+		ContentType: "application/octet-stream",
+		Timestamp:   time.Now(),
+	}
+
+	switch proto.Cmd {
+	case CmdText, CmdJSON, CmdFile:
+		if proto.Cmd == CmdJSON {
+			msg.ContentType = "application/json"
+		}
+		if s.handler != nil {
+			s.handler(msg)
+		}
+		s.sendOK(c)
+	case CmdBegn, CmdFrame, CmdClse:
+		slog.Warn("JSON format not supported for session commands", "id", c.id, "cmd", proto.Cmd)
+		s.sendErr(c, "session commands must use pipe format")
+	default:
+		slog.Warn("unknown JSON command", "id", c.id, "cmd", proto.Cmd)
+	}
+}
+
+func (s *Server) handleBegn(c *client, parts []string) {
+	sessionID := ""
+	if len(parts) >= 2 {
+		sessionID = parts[1]
+	}
+
+	var sess *session
+	var err error
+
+	if sessionID != "" {
+		sess, err = c.sessions.createWithID(c.id, sessionID)
+		if err != nil {
+			slog.Warn("session create with id failed", "id", c.id, "session", sessionID, "error", err)
+			s.sendErr(c, err.Error())
+			return
+		}
+	} else {
+		sess, err = c.sessions.create(c.id)
+		if err != nil {
+			slog.Warn("session create failed", "id", c.id, "error", err)
+			s.sendErr(c, err.Error())
+			return
+		}
+	}
+	resp := fmt.Sprintf("%s|%s|%s||", CmdBegn, sess.id, CmdOK)
 	s.sendText(c, resp)
 }
 
-func (s *Server) handleData(c *client, parts []string) {
+func (s *Server) handleText(c *client, parts []string) {
+	s.handleContentCommand(c, parts, "text/plain")
+}
+
+func (s *Server) handleJSON(c *client, parts []string) {
+	s.handleContentCommand(c, parts, "application/json")
+}
+
+func (s *Server) handleFile(c *client, parts []string) {
+	s.handleContentCommand(c, parts, "application/octet-stream")
+}
+
+func (s *Server) handleContentCommand(c *client, parts []string, contentType string) {
+	if len(parts) < 2 {
+		return
+	}
+	sessionID := parts[1]
+	data := ""
+	if len(parts) >= 3 {
+		data = parts[2]
+	}
+
+	msg := &Message{
+		ID:          uuid.New().String(),
+		ClientID:     c.id,
+		SessionID:    sessionID,
+		Direction:    DirectionOutbound,
+		Data:         []byte(data),
+		ContentType:  contentType,
+		Timestamp:    time.Now(),
+	}
+
+	if sessionID != "" {
+		if err := c.sessions.addMessage(sessionID, msg); err != nil {
+			slog.Warn("add message to session failed", "id", c.id, "session", sessionID)
+			s.sendErr(c, err.Error())
+			return
+		}
+	} else {
+		if s.handler != nil {
+			s.handler(msg)
+		}
+	}
+	s.sendOK(c)
+}
+
+func (s *Server) handleFrame(c *client, parts []string) {
 	if len(parts) < 5 {
 		return
 	}
 	sessionID := parts[1]
+	if sessionID == "" {
+		slog.Warn("frame without session id", "id", c.id)
+		return
+	}
 	var index, total int
 	fmt.Sscanf(parts[2], "%d", &index)
 	fmt.Sscanf(parts[3], "%d", &total)
 	data := parts[4]
 
-	if err := c.sessions.addData(sessionID, index, []byte(data)); err != nil {
-		slog.Warn("data add failed", "id", c.id, "session", sessionID, "error", err)
+	if err := c.sessions.addFrame(sessionID, index, total, []byte(data)); err != nil {
+		slog.Warn("frame add failed", "id", c.id, "session", sessionID, "error", err)
 		return
 	}
-
-	resp := fmt.Sprintf("%s|%s|%d|%s||", CmdData, sessionID, index, CmdOK)
-	s.sendText(c, resp)
 }
 
-func (s *Server) handleSessionEnd(c *client, parts []string) {
+func (s *Server) handleClse(c *client, parts []string) {
 	if len(parts) < 2 || parts[1] == "" {
 		return
 	}
 	sessionID := parts[1]
 
-	sess, complete := c.sessions.assembleAndRemove(sessionID)
-	if !complete {
-		slog.Warn("incomplete session", "id", c.id, "session", sessionID)
+	sess, _ := c.sessions.assembleAndRemove(sessionID)
+	if sess == nil {
+		slog.Warn("session not found", "id", c.id, "session", sessionID)
 		return
 	}
 
-	var assembled []byte
-	for i := 0; i < sess.total; i++ {
-		if data, ok := sess.parts[i]; ok {
-			assembled = append(assembled, data...)
+	if s.handler != nil {
+		for _, msg := range sess.messages {
+			msg.ClientID = c.id
+			s.handler(msg)
 		}
 	}
+	s.sendOK(c)
+}
 
-	msg := &Message{
-		ID:        uuid.New().String(),
-		SessionID: sess.id,
-		ClientID:  c.id,
-		Direction: DirectionOutbound,
-		Data:      assembled,
-		Timestamp: time.Now(),
-	}
+func (s *Server) sendOK(c *client) {
+	s.sendText(c, fmt.Sprintf("%s|||", CmdOK))
+}
 
-	resp := fmt.Sprintf("%s|%s|%s||", CmdSessionEnd, sessionID, CmdOK)
-	s.sendText(c, resp)
-
-	if s.handler != nil {
-		s.handler(s, msg)
-	}
+func (s *Server) sendErr(c *client, reason string) {
+	s.sendText(c, fmt.Sprintf("%s|%s|||", CmdErr, reason))
 }
 
 func (s *Server) sendText(c *client, text string) {
 	select {
 	case c.send <- []byte(text):
 	default:
+		slog.Warn("send buffer full, dropping message", "client_id", c.id, "message_len", len(text))
 	}
 }
 
@@ -445,14 +543,13 @@ func (s *Server) removeClient(id string) {
 	slog.Info("client disconnected", "id", id, "total", len(s.clients))
 }
 
-func done(fn func()) { fn() }
-
 func (s *Server) Send(to string, message string) {
 	msg := &Message{
-		ID:        uuid.New().String(),
-		Direction: DirectionInbound,
-		Data:      []byte(message),
-		Timestamp: time.Now(),
+		ID:          uuid.New().String(),
+		Direction:   DirectionInbound,
+		Data:        []byte(message),
+		ContentType: "text/plain",
+		Timestamp:   time.Now(),
 	}
 	s.sendMessage(to, msg)
 }
@@ -475,7 +572,7 @@ func (s *Server) SendFile(to string, filename string) error {
 		ID:          uuid.New().String(),
 		Direction:   DirectionInbound,
 		Data:        data,
-		ContentType: "file",
+		ContentType: "application/octet-stream",
 		Timestamp:   time.Now(),
 	}
 	s.sendMessage(to, msg)
@@ -506,8 +603,22 @@ func (s *Server) BroadcastJSON(v interface{}) error {
 	return s.SendJSON("*", v)
 }
 
+func (s *Server) SendBatch(to string, msgs []*Message) {
+	for _, msg := range msgs {
+		s.sendMessage(to, msg)
+	}
+}
+
+func (s *Server) BroadcastBatch(msgs []*Message) {
+	s.SendBatch("*", msgs)
+}
+
 func (s *Server) sendMessage(to string, msg *Message) {
-	data, _ := json.Marshal(msg)
+	data, err := json.Marshal(msg)
+	if err != nil {
+		slog.Error("failed to marshal message", "id", msg.ID, "error", err)
+		return
+	}
 
 	if to == "" || to == "*" {
 		s.mu.RLock()
@@ -516,6 +627,7 @@ func (s *Server) sendMessage(to string, msg *Message) {
 			select {
 			case c.send <- data:
 			default:
+				slog.Warn("send buffer full, dropping message", "client_id", c.id, "message_id", msg.ID)
 			}
 		}
 		return
@@ -531,6 +643,7 @@ func (s *Server) sendMessage(to string, msg *Message) {
 	select {
 	case c.send <- data:
 	default:
+		slog.Warn("send buffer full, dropping message", "client_id", to, "message_id", msg.ID)
 	}
 }
 
@@ -576,16 +689,18 @@ func (s *Server) StartAllChannels(ctx context.Context, handler MessageHandler) e
 	var lastErr error
 	s.channels.Range(func(_, value interface{}) bool {
 		ch := value.(channel.Channel)
-		if base, ok := ch.(interface{ SetHandler(func(context.Context, *channel.Message) error) }); ok {
-			wrappedHandler := func(cctx context.Context, cmsg *channel.Message) error {
-				gwMsg := FromChannelMessage(cmsg)
-				gwMsg.ChannelID = ch.Name()
-				handler(s, gwMsg)
-				return nil
-			}
+		wrappedHandler := func(cctx context.Context, cmsg *channel.Message) error {
+			gwMsg := FromChannelMessage(cmsg)
+			gwMsg.ChannelID = ch.Name()
+			handler(gwMsg)
+			return nil
+		}
+		if base, ok := ch.(interface {
+			SetHandler(func(context.Context, *channel.Message) error)
+		}); ok {
 			base.SetHandler(wrappedHandler)
 		}
-		if err := ch.Start(ctx, nil); err != nil {
+		if err := ch.Start(ctx, wrappedHandler); err != nil {
 			lastErr = err
 			slog.Error("failed to start channel", "name", ch.Name(), "error", err)
 		} else {
@@ -619,18 +734,37 @@ func (s *Server) SendToChannel(ctx context.Context, channelName string, msg *Mes
 }
 
 func ToChannelMessage(msg *Message) *channel.Message {
+	// Preserve the original message type from metadata if available.
+	// When converting back, the original MessageType is stored in metadata.
+	msgType := channel.MessageTypeText
+	switch msg.ContentType {
+	case "application/json":
+		msgType = channel.MessageTypeText
+	case "application/octet-stream":
+		msgType = channel.MessageTypeFile
+	case "image/png", "image/jpeg", "image/gif", "image/webp":
+		msgType = channel.MessageTypeImage
+	}
+
+	metadata := map[string]interface{}{
+		"session_id":   msg.SessionID,
+		"client_id":    msg.ClientID,
+		"content_type": msg.ContentType,
+	}
+	// Preserve original message type for round-trip fidelity
+	if msg.ChannelID != "" {
+		metadata["channel_id"] = msg.ChannelID
+	}
+
 	return &channel.Message{
 		ID:        msg.ID,
-		Type:      channel.MessageTypeText,
+		ChannelID: msg.ChannelID,
+		Type:      msgType,
 		Direction: channel.DirectionOutbound,
 		Content:   string(msg.Data),
 		Data:      msg.Data,
 		Timestamp: msg.Timestamp.Format(time.RFC3339),
-		Metadata: map[string]interface{}{
-			"session_id":  msg.SessionID,
-			"client_id":   msg.ClientID,
-			"content_type": msg.ContentType,
-		},
+		Metadata:  metadata,
 	}
 }
 
@@ -643,16 +777,36 @@ func FromChannelMessage(msg *channel.Message) *Message {
 	if msg.Timestamp != "" {
 		ts, _ = time.Parse(time.RFC3339, msg.Timestamp)
 	}
-	channelID := ""
-	if m, ok := msg.Metadata["channel_id"].(string); ok {
-		channelID = m
+	sessionID := ""
+	if v, ok := msg.Metadata["session_id"].(string); ok {
+		sessionID = v
 	}
+	clientID := ""
+	if v, ok := msg.Metadata["client_id"].(string); ok {
+		clientID = v
+	}
+	channelID := msg.ChannelID
+	if channelID == "" {
+		if v, ok := msg.Metadata["channel_id"].(string); ok {
+			channelID = v
+		}
+	}
+
+	// Use the original MessageType as ContentType for better type fidelity.
+	// This avoids the semantic mismatch of storing MessageType as ContentType.
+	contentType := string(msg.Type)
+	if contentType == "" {
+		contentType = "text/plain"
+	}
+
 	return &Message{
 		ID:          msg.ID,
-		SessionID:   channelID,
+		SessionID:   sessionID,
+		ClientID:    clientID,
+		ChannelID:   channelID,
 		Direction:   DirectionInbound,
 		Data:        data,
-		ContentType: string(msg.Type),
-		Timestamp:    ts,
+		ContentType: contentType,
+		Timestamp:   ts,
 	}
 }

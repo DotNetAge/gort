@@ -35,7 +35,7 @@ func TestConfig_Validate(t *testing.T) {
 			config: Config{
 				WebhookURL: "://invalid-url",
 			},
-			wantErr: nil, // url.Parse doesn't error on this, it just parses what it can
+			wantErr: ErrInvalidWebhookURL,
 		},
 	}
 

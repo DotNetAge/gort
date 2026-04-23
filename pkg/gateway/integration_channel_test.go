@@ -166,7 +166,7 @@ func TestStartAllChannels_Lifecycle(t *testing.T) {
 	gw.RegisterChannel(ch1)
 	gw.RegisterChannel(ch2)
 
-	gw.StartAllChannels(context.Background(), func(g *Server, msg *Message) {})
+	gw.StartAllChannels(context.Background(), func(msg *Message) {})
 
 	if !ch1.IsRunning() {
 		t.Error("ch1 should be running after StartAllChannels")
@@ -199,7 +199,7 @@ func TestStartAllChannels_WrapsHandler(t *testing.T) {
 	wrappedHandler := func(cctx context.Context, cmsg *channel.Message) error {
 		gwMsg := FromChannelMessage(cmsg)
 		gwMsg.ChannelID = ch.Name()
-		env.gw.handler(env.gw, gwMsg)
+		env.gw.handler(gwMsg)
 		return nil
 	}
 
@@ -215,7 +215,7 @@ func TestStartAllChannels_WrapsHandler(t *testing.T) {
 		Timestamp: time.Now().Format(time.RFC3339),
 	}
 
-	env.gw.handler = func(g *Server, msg *Message) {
+	env.gw.handler = func(msg *Message) {
 		receivedMsg = msg
 		handlerDone <- struct{}{}
 	}
@@ -418,12 +418,12 @@ func TestEndToEnd_WebSocketToChannel(t *testing.T) {
 	conn := dialTestWS(t, env.ts)
 	extractClientIDFromConn(t, conn)
 
-	env.gw.handler = func(g *Server, msg *Message) {
-		g.SendToChannel(context.Background(), "e2e-target", msg)
+	env.gw.handler = func(msg *Message) {
+		env.gw.SendToChannel(context.Background(), "e2e-target", msg)
 	}
 
-	sessionID := doSessionStart(t, conn, 1)
-	doData(t, conn, sessionID, 0, 1, "send to dingtalk")
+	sessionID := doSessionStart(t, conn)
+	doSendText(t, conn, sessionID, "send to dingtalk")
 	doSessionEnd(t, conn, sessionID)
 
 	time.Sleep(200 * time.Millisecond)

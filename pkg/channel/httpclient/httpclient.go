@@ -56,7 +56,8 @@ func NewClientWithTransport(baseURL string, timeout time.Duration, transport *ht
 			Timeout:   timeout,
 			Transport: transport,
 		},
-		baseURL: baseURL,
+		baseURL:        baseURL,
+		defaultHeaders: make(map[string]string),
 	}
 }
 
@@ -75,12 +76,6 @@ func (c *Client) Post(ctx context.Context, endpoint string, payload interface{},
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	for key, value := range c.defaultHeaders {
-		req.Header.Set(key, value)
-	}
-	for key, value := range c.defaultHeaders {
-		req.Header.Set(key, value)
-	}
 	for key, value := range c.defaultHeaders {
 		req.Header.Set(key, value)
 	}
@@ -132,6 +127,9 @@ func (c *Client) PostForm(ctx context.Context, endpoint string, formData map[str
 	}
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	for key, value := range c.defaultHeaders {
+		req.Header.Set(key, value)
+	}
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
@@ -204,6 +202,9 @@ func (c *Client) Do(ctx context.Context, method, endpoint string, body []byte, h
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
+	for key, value := range c.defaultHeaders {
+		req.Header.Set(key, value)
+	}
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}

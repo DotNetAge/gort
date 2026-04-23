@@ -451,13 +451,6 @@ func (c *Channel) generateSignature(timestamp int64) string {
 	return url.QueryEscape(signature)
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 // GetCapabilities returns the capabilities of the DingTalk channel.
 func (c *Channel) GetCapabilities() channel.ChannelCapabilities {
 	return channel.ChannelCapabilities{

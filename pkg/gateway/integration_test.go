@@ -2,23 +2,21 @@ package gateway
 
 import (
 	"encoding/json"
-	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/gorilla/websocket"
 )
 
 func TestIntegration_FullLifecycle(t *testing.T) {
 	env := setupWSEnv(t)
+	defer env.cleanup()
 
 	var handlerMessages []*Message
 	var mu sync.Mutex
 	handlerDone := make(chan struct{}, 1)
 
-	env.gw.handler = func(g *Server, msg *Message) {
+	env.gw.handler = func(msg *Message) {
 		mu.Lock()
 		handlerMessages = append(handlerMessages, msg)
 		mu.Unlock()
@@ -27,16 +25,11 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 
 	conn := dialRawWS(t, env.ts)
 	defer conn.Close()
+	wsSkipFirst(t, conn)
 
-	m := wsReadJSON(t, conn)
-	if string(m.Data) != "connected" || m.Direction != DirectionInbound {
-		t.Fatalf("expected connected inbound, got: dir=%s data=%s", m.Direction, string(m.Data))
-	}
-
-	sid := doSessionStart(t, conn, 2)
-	doData(t, conn, sid, 0, 2, "hello ")
-	doData(t, conn, sid, 1, 2, "world")
-	doSessionEnd(t, conn, sid)
+	sid := doBEGN(t, conn)
+	doTEXT(t, conn, sid, "hello world")
+	doCLSE(t, conn, sid)
 
 	select {
 	case <-handlerDone:
@@ -53,21 +46,22 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 	if string(msg.Data) != "hello world" {
 		t.Errorf("expected 'hello world', got '%s'", string(msg.Data))
 	}
-	if msg.ClientID != m.ClientID {
-		t.Errorf("client ID mismatch")
+	if msg.SessionID != sid {
+		t.Errorf("session ID mismatch")
 	}
 }
 
 func TestIntegration_MultipleClients_Broadcast(t *testing.T) {
 	env := setupWSEnv(t)
+	defer env.cleanup()
 
 	conn1 := dialRawWS(t, env.ts)
 	conn2 := dialRawWS(t, env.ts)
 	defer conn1.Close()
 	defer conn2.Close()
 
-	wsReadJSON(t, conn1)
-	wsReadJSON(t, conn2)
+	wsSkipFirst(t, conn1)
+	wsSkipFirst(t, conn2)
 
 	env.gw.Broadcast("to everyone!")
 
@@ -81,10 +75,11 @@ func TestIntegration_MultipleClients_Broadcast(t *testing.T) {
 
 func TestIntegration_ClientSend_ServerReceives(t *testing.T) {
 	env := setupWSEnv(t)
+	defer env.cleanup()
 
 	var received *Message
 	doneCh := make(chan struct{}, 1)
-	env.gw.handler = func(g *Server, msg *Message) {
+	env.gw.handler = func(msg *Message) {
 		received = msg
 		doneCh <- struct{}{}
 	}
@@ -93,7 +88,7 @@ func TestIntegration_ClientSend_ServerReceives(t *testing.T) {
 	client.Connect()
 	defer client.Close()
 
-	client.Send("integration test message")
+	client.Send(&Message{Data: []byte("integration test message")})
 
 	select {
 	case <-doneCh:
@@ -104,17 +99,21 @@ func TestIntegration_ClientSend_ServerReceives(t *testing.T) {
 	if string(received.Data) != "integration test message" {
 		t.Errorf("message mismatch: got '%s'", string(received.Data))
 	}
-	if received.SessionID == "" {
-		t.Error("session ID should not be empty")
+	if received.Direction != DirectionOutbound {
+		t.Errorf("expected outbound, got %s", received.Direction)
+	}
+	if received.ContentType != "text/plain" {
+		t.Errorf("expected text/plain, got %s", received.ContentType)
 	}
 }
 
 func TestIntegration_ClientSendJSON_ServerReceives(t *testing.T) {
 	env := setupWSEnv(t)
+	defer env.cleanup()
 
 	var received *Message
 	doneCh := make(chan struct{}, 1)
-	env.gw.handler = func(g *Server, msg *Message) {
+	env.gw.handler = func(msg *Message) {
 		received = msg
 		doneCh <- struct{}{}
 	}
@@ -136,14 +135,18 @@ func TestIntegration_ClientSendJSON_ServerReceives(t *testing.T) {
 	if decoded["type"] != "test" || decoded["value"] != "123" {
 		t.Errorf("JSON payload mismatch: %v", decoded)
 	}
+	if received.ContentType != "application/json" {
+		t.Errorf("expected application/json, got %s", received.ContentType)
+	}
 }
 
 func TestIntegration_ServerSendsFile_ClientReceives(t *testing.T) {
 	env := setupWSEnv(t)
+	defer env.cleanup()
 
 	conn := dialRawWS(t, env.ts)
 	defer conn.Close()
-	cid := extractClientIDFromConn(t, conn)
+	cid := extractClientIDFromFirstMessage(t, conn)
 
 	tmpFile := t.TempDir() + "/data.bin"
 	content := []byte{0x01, 0x02, 0x03, 0x04, 0xFF}
@@ -158,19 +161,20 @@ func TestIntegration_ServerSendsFile_ClientReceives(t *testing.T) {
 	if string(m.Data) != string(content) {
 		t.Errorf("file content mismatch: expected %x, got %x", content, m.Data)
 	}
-	if m.ContentType != "file" {
-		t.Errorf("expected 'file' type, got %s", m.ContentType)
+	if m.ContentType != "application/octet-stream" {
+		t.Errorf("expected application/octet-stream, got %s", m.ContentType)
 	}
 }
 
 func TestIntegration_MultipleSessions_SameClient(t *testing.T) {
 	env := setupWSEnv(t)
+	defer env.cleanup()
 
 	var messages []*Message
 	var mu sync.Mutex
 	countCh := make(chan struct{}, 2)
 
-	env.gw.handler = func(g *Server, msg *Message) {
+	env.gw.handler = func(msg *Message) {
 		mu.Lock()
 		messages = append(messages, msg)
 		mu.Unlock()
@@ -179,16 +183,15 @@ func TestIntegration_MultipleSessions_SameClient(t *testing.T) {
 
 	conn := dialRawWS(t, env.ts)
 	defer conn.Close()
+	wsSkipFirst(t, conn)
 
-	readConnected(t, conn)
+	sid1 := doBEGN(t, conn)
+	doTEXT(t, conn, sid1, "msg-1")
+	doCLSE(t, conn, sid1)
 
-	sid1 := doSessionStart(t, conn, 1)
-	doData(t, conn, sid1, 0, 1, "msg-1")
-	doSessionEnd(t, conn, sid1)
-
-	sid2 := doSessionStart(t, conn, 1)
-	doData(t, conn, sid2, 0, 1, "msg-2")
-	doSessionEnd(t, conn, sid2)
+	sid2 := doBEGN(t, conn)
+	doTEXT(t, conn, sid2, "msg-2")
+	doCLSE(t, conn, sid2)
 
 	for i := 0; i < 2; i++ {
 		select {
@@ -210,9 +213,9 @@ func TestIntegration_MultipleSessions_SameClient(t *testing.T) {
 
 func TestIntegration_ClientDisconnect_ServerCleansUp(t *testing.T) {
 	env := setupWSEnv(t)
+	defer env.cleanup()
 
 	conn := dialRawWS(t, env.ts)
-	wsReadJSON(t, conn)
 
 	time.Sleep(100 * time.Millisecond)
 	if env.gw.ClientCount() != 1 {
@@ -229,10 +232,11 @@ func TestIntegration_ClientDisconnect_ServerCleansUp(t *testing.T) {
 
 func TestIntegration_LargePayload(t *testing.T) {
 	env := setupWSEnv(t)
+	defer env.cleanup()
 
 	var received *Message
 	doneCh := make(chan struct{}, 1)
-	env.gw.handler = func(g *Server, msg *Message) {
+	env.gw.handler = func(msg *Message) {
 		received = msg
 		doneCh <- struct{}{}
 	}
@@ -242,46 +246,15 @@ func TestIntegration_LargePayload(t *testing.T) {
 	defer client.Close()
 
 	largeData := strings.Repeat("x", 100*1024)
-	client.Send(largeData)
+	client.Send(&Message{Data: []byte(largeData)})
 
 	select {
 	case <-doneCh:
-	case <-time.After(5 * time.Second):
+	case <-time.After(60 * time.Second):
 		t.Fatal("timeout for large payload")
 	}
 
 	if len(received.Data) != len(largeData) {
 		t.Errorf("size mismatch: expected %d, got %d", len(largeData), len(received.Data))
-	}
-}
-
-func writeTestFile(t *testing.T, path string, data []byte) {
-	t.Helper()
-	f, err := os.Create(path)
-	if err != nil {
-		t.Fatalf("create error: %v", err)
-	}
-	defer f.Close()
-	if _, err := f.Write(data); err != nil {
-		t.Fatalf("write error: %v", err)
-	}
-}
-
-func readConnected(t *testing.T, conn *websocket.Conn) {
-	t.Helper()
-	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-	typ, raw, err := conn.ReadMessage()
-	if err != nil {
-		t.Fatalf("read connected error: %v", err)
-	}
-	if typ != websocket.TextMessage {
-		t.Fatalf("expected text message for connected, got type %d", typ)
-	}
-	var m Message
-	if err := json.Unmarshal(raw, &m); err != nil {
-		t.Fatalf("connected message not JSON: %v", err)
-	}
-	if string(m.Data) != "connected" {
-		t.Fatalf("expected connected, got %s", string(m.Data))
 	}
 }

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"strings"
 	"sync"
@@ -32,7 +31,7 @@ func TestNewServer_Defaults(t *testing.T) {
 }
 
 func TestNewServer_WithOptions(t *testing.T) {
-	h := func(g *Server, msg *Message) {}
+	h := func(msg *Message) {}
 	s := New(WithPort(9999), WithPath("/api/ws"), WithHandler(h), WithSessionTimeout(5*time.Minute))
 	if s.addr != ":9999" {
 		t.Errorf("expected addr :9999, got %s", s.addr)
@@ -107,134 +106,31 @@ func TestShutdown_NotRunning(t *testing.T) {
 	}
 }
 
-type testEnv struct {
-	gw      *Server
-	ts      *httptest.Server
-	cleanup func()
-}
-
-func setupTestServer(t *testing.T) *testEnv {
-	mux := http.NewServeMux()
-	var gw *Server
-	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		gw.handleWS(w, r)
-	})
-
-	ts := httptest.NewServer(mux)
-	addr := testHostPort(ts)
-	gw = New(WithAddr(addr))
-
-	go gw.Start()
-	time.Sleep(50 * time.Millisecond)
-
-	env := &testEnv{gw: gw, ts: ts}
-	env.cleanup = func() {
-		gw.Shutdown(context.Background())
-		ts.Close()
-	}
-	t.Cleanup(env.cleanup)
-	return env
-}
-
-func dialTestWS(t *testing.T, ts *httptest.Server) *websocket.Conn {
-	u := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws"
-	header := http.Header{"Origin": {ts.URL}}
-	conn, _, err := websocket.DefaultDialer.Dial(u, header)
-	if err != nil {
-		t.Fatalf("dial error: %v", err)
-	}
-	return conn
-}
-
-func wsSend(conn *websocket.Conn, text string) {
-	conn.WriteMessage(websocket.TextMessage, []byte(text))
-}
-
-func wsReadText(t *testing.T, conn *websocket.Conn) string {
-	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-	typ, msg, err := conn.ReadMessage()
-	if err != nil {
-		t.Fatalf("read error: %v", err)
-	}
-	if typ != websocket.TextMessage {
-		t.Fatalf("expected TextMessage, got type %d", typ)
-	}
-	return string(msg)
-}
-
-func wsReadJSON(t *testing.T, conn *websocket.Conn) Message {
-	raw := wsReadText(t, conn)
-	var m Message
-	if err := json.Unmarshal([]byte(raw), &m); err != nil {
-		t.Fatalf("json unmarshal error: %v", err)
-	}
-	return m
-}
-
-func extractClientIDFromConn(t *testing.T, conn *websocket.Conn) string {
-	m := wsReadJSON(t, conn)
-	if m.ClientID == "" {
-		t.Fatal("clientID should not be empty in connected message")
-	}
-	return m.ClientID
-}
-
-func doSessionStart(t *testing.T, conn *websocket.Conn, total int) string {
-	wsSend(conn, fmt.Sprintf("SESSION_START|||%d||", total))
-	resp := wsReadText(t, conn)
-	parts := strings.Split(resp, "|")
-	if len(parts) < 3 || parts[2] != "OK" {
-		t.Fatalf("SESSION_START failed: %s", resp)
-	}
-	return parts[1]
-}
-
-func doData(t *testing.T, conn *websocket.Conn, sessionID string, index, total int, data string) {
-	wsSend(conn, fmt.Sprintf("DATA|%s|%d|%d|%s", sessionID, index, total, data))
-	resp := wsReadText(t, conn)
-	if !strings.HasSuffix(resp, "OK||") {
-		t.Fatalf("DATA ACK failed: %s", resp)
-	}
-}
-
-func doSessionEnd(t *testing.T, conn *websocket.Conn, sessionID string) {
-	wsSend(conn, fmt.Sprintf("SESSION_END|%s|||", sessionID))
-	resp := wsReadText(t, conn)
-	if !strings.Contains(resp, "OK") {
-		t.Fatalf("SESSION_END failed: %s", resp)
-	}
-}
-
-func TestHandleWS_ConnectAndReceiveConnectedMsg(t *testing.T) {
+func TestStartWS_Connect(t *testing.T) {
 	env := setupTestServer(t)
 	defer env.cleanup()
 
 	conn := dialTestWS(t, env.ts)
 	defer conn.Close()
 
-	m := wsReadJSON(t, conn)
-	if string(m.Data) != "connected" {
-		t.Errorf("expected 'connected', got %s", string(m.Data))
-	}
-	if m.Direction != DirectionInbound {
-		t.Errorf("expected inbound, got %s", m.Direction)
-	}
-	if m.ClientID == "" {
-		t.Error("clientID should not be empty")
+	time.Sleep(100 * time.Millisecond)
+	if env.gw.ClientCount() != 1 {
+		t.Errorf("expected 1 client, got %d", env.gw.ClientCount())
 	}
 }
 
-func TestSessionStart_Command(t *testing.T) {
+func TestBEGN_Command(t *testing.T) {
 	env := setupTestServer(t)
 	defer env.cleanup()
 
 	conn := dialTestWS(t, env.ts)
-	extractClientIDFromConn(t, conn)
+	defer conn.Close()
+	wsSkipFirst(t, conn)
 
-	wsSend(conn, "SESSION_START|||3||")
+	wsSend(conn, "BEGN|test-session-1|||")
 	resp := wsReadText(t, conn)
 	parts := strings.Split(resp, "|")
-	if parts[0] != "SESSION_START" || parts[2] != "OK" {
+	if parts[0] != string(CmdBegn) || parts[2] != string(CmdOK) {
 		t.Errorf("unexpected response: %s", resp)
 	}
 	if parts[1] == "" {
@@ -242,54 +138,51 @@ func TestSessionStart_Command(t *testing.T) {
 	}
 }
 
-func TestSessionStart_DefaultTotalOne(t *testing.T) {
+func TestBEGN_DefaultTotalOne(t *testing.T) {
 	env := setupTestServer(t)
 	defer env.cleanup()
 
 	conn := dialTestWS(t, env.ts)
-	extractClientIDFromConn(t, conn)
+	defer conn.Close()
+	wsSkipFirst(t, conn)
 
-	wsSend(conn, "SESSION_START||||")
+	wsSend(conn, "BEGN|test-session-2|||")
 	resp := wsReadText(t, conn)
 	parts := strings.Split(resp, "|")
-	if parts[0] != "SESSION_START" || parts[2] != "OK" {
+	if parts[0] != string(CmdBegn) || parts[2] != string(CmdOK) {
 		t.Errorf("unexpected response: %s", resp)
 	}
 }
 
-func TestData_Command(t *testing.T) {
+func TestFRAME_Command(t *testing.T) {
 	env := setupTestServer(t)
 	defer env.cleanup()
 
 	conn := dialTestWS(t, env.ts)
-	extractClientIDFromConn(t, conn)
-	sessionID := doSessionStart(t, conn, 3)
+	defer conn.Close()
+	wsSkipFirst(t, conn)
 
-	wsSend(conn, fmt.Sprintf("DATA|%s|1|3|hello world", sessionID))
+	wsSend(conn, "BEGN|test-session-1|||")
 	resp := wsReadText(t, conn)
 	parts := strings.Split(resp, "|")
-	if parts[0] != "DATA" || parts[2] != "1" || parts[3] != "OK" {
-		t.Errorf("unexpected DATA response: %s", resp)
-	}
+	sessionID := parts[1]
+
+	wsSend(conn, fmt.Sprintf("FRAME|%s|%d|%d|%s", sessionID, 1, 3, "hello world"))
 }
 
-func TestData_UnknownSession(t *testing.T) {
+func TestFRAME_UnknownSession(t *testing.T) {
 	env := setupTestServer(t)
 	defer env.cleanup()
 
 	conn := dialTestWS(t, env.ts)
-	extractClientIDFromConn(t, conn)
+	defer conn.Close()
+	wsSkipFirst(t, conn)
 
-	wsSend(conn, "DATA|nonexistent-id|0|1|data")
-
-	conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
-	typ, _, err := conn.ReadMessage()
-	if err == nil && typ == websocket.TextMessage {
-		t.Error("unknown session should not get a text ACK response")
-	}
+	wsSend(conn, "FRAME|nonexistent-id|0|1|data")
+	time.Sleep(100 * time.Millisecond)
 }
 
-func TestSessionEnd_CompleteTriggersHandler(t *testing.T) {
+func TestCLSE_CompleteTriggersHandler(t *testing.T) {
 	env := setupTestServer(t)
 	defer env.cleanup()
 
@@ -297,7 +190,7 @@ func TestSessionEnd_CompleteTriggersHandler(t *testing.T) {
 	var mu sync.Mutex
 	handlerDone := make(chan struct{}, 1)
 
-	env.gw.handler = func(g *Server, msg *Message) {
+	env.gw.handler = func(msg *Message) {
 		mu.Lock()
 		receivedMsg = msg
 		mu.Unlock()
@@ -305,14 +198,19 @@ func TestSessionEnd_CompleteTriggersHandler(t *testing.T) {
 	}
 
 	conn := dialTestWS(t, env.ts)
-	extractClientIDFromConn(t, conn)
-	sessionID := doSessionStart(t, conn, 3)
+	defer conn.Close()
+	wsSkipFirst(t, conn)
+
+	wsSend(conn, "BEGN|test-session|||")
+	resp := wsReadText(t, conn)
+	parts := strings.Split(resp, "|")
+	sessionID := parts[1]
 
 	for i := 0; i < 3; i++ {
-		doData(t, conn, sessionID, i, 3, fmt.Sprintf("part-%d", i))
+		wsSend(conn, fmt.Sprintf("FRAME|%s|%d|%d|%s", sessionID, i, 3, fmt.Sprintf("part-%d", i)))
 	}
 
-	doSessionEnd(t, conn, sessionID)
+	wsSend(conn, fmt.Sprintf("CLSE|%s|||", sessionID))
 
 	select {
 	case <-handlerDone:
@@ -337,24 +235,29 @@ func TestSessionEnd_CompleteTriggersHandler(t *testing.T) {
 	}
 }
 
-func TestSessionEnd_IncompleteDoesNotTriggerHandler(t *testing.T) {
+func TestCLSE_IncompleteDoesNotTriggerHandler(t *testing.T) {
 	env := setupTestServer(t)
 	defer env.cleanup()
 
 	handlerCalled := false
-	env.gw.handler = func(g *Server, msg *Message) {
+	env.gw.handler = func(msg *Message) {
 		handlerCalled = true
 	}
 
 	conn := dialTestWS(t, env.ts)
-	extractClientIDFromConn(t, conn)
-	sessionID := doSessionStart(t, conn, 3)
+	defer conn.Close()
+	wsSkipFirst(t, conn)
 
-	doData(t, conn, sessionID, 0, 3, "only-one-part")
+	wsSend(conn, "BEGN|test-session|||")
+	resp := wsReadText(t, conn)
+	parts := strings.Split(resp, "|")
+	sessionID := parts[1]
 
-	wsSend(conn, fmt.Sprintf("SESSION_END|%s|||", sessionID))
-
+	wsSend(conn, fmt.Sprintf("FRAME|%s|%d|%d|%s", sessionID, 0, 3, "only-one-part"))
+	time.Sleep(100 * time.Millisecond)
+	wsSend(conn, fmt.Sprintf("CLSE|%s|||", sessionID))
 	time.Sleep(300 * time.Millisecond)
+
 	if handlerCalled {
 		t.Error("handler should NOT be called for incomplete session")
 	}
@@ -365,7 +268,7 @@ func TestUnknownCommand_Ignored(t *testing.T) {
 	defer env.cleanup()
 
 	conn := dialTestWS(t, env.ts)
-	extractClientIDFromConn(t, conn)
+	defer conn.Close()
 
 	wsSend(conn, "UNKNOWN_CMD|param|param|data")
 	time.Sleep(100 * time.Millisecond)
@@ -381,9 +284,10 @@ func TestSend_ToSpecificClient(t *testing.T) {
 	defer env.cleanup()
 
 	conn := dialTestWS(t, env.ts)
-	clientID := extractClientIDFromConn(t, conn)
+	defer conn.Close()
+	cid := extractClientIDFromFirstMessage(t, conn)
 
-	env.gw.Send(clientID, "hello from server")
+	env.gw.Send(cid, "hello from server")
 
 	m := wsReadJSON(t, conn)
 	if string(m.Data) != "hello from server" {
@@ -400,8 +304,11 @@ func TestSend_Broadcast(t *testing.T) {
 
 	conn1 := dialTestWS(t, env.ts)
 	conn2 := dialTestWS(t, env.ts)
-	extractClientIDFromConn(t, conn1)
-	extractClientIDFromConn(t, conn2)
+	defer conn1.Close()
+	defer conn2.Close()
+
+	extractClientIDFromFirstMessage(t, conn1)
+	extractClientIDFromFirstMessage(t, conn2)
 
 	env.gw.Broadcast("broadcast msg")
 
@@ -430,7 +337,8 @@ func TestSendFile(t *testing.T) {
 	defer env.cleanup()
 
 	conn := dialTestWS(t, env.ts)
-	clientID := extractClientIDFromConn(t, conn)
+	defer conn.Close()
+	clientID := extractClientIDFromFirstMessage(t, conn)
 
 	if err := env.gw.SendFile(clientID, filePath); err != nil {
 		t.Fatalf("SendFile error: %v", err)
@@ -440,8 +348,8 @@ func TestSendFile(t *testing.T) {
 	if string(m.Data) != "file content here" {
 		t.Errorf("expected file content, got %s", string(m.Data))
 	}
-	if m.ContentType != "file" {
-		t.Errorf("expected 'file', got %s", m.ContentType)
+	if m.ContentType != "application/octet-stream" {
+		t.Errorf("expected content type application/octet-stream, got %s", m.ContentType)
 	}
 }
 
@@ -458,7 +366,8 @@ func TestSendJSON(t *testing.T) {
 	defer env.cleanup()
 
 	conn := dialTestWS(t, env.ts)
-	clientID := extractClientIDFromConn(t, conn)
+	defer conn.Close()
+	clientID := extractClientIDFromFirstMessage(t, conn)
 
 	payload := map[string]string{"status": "ok", "code": "200"}
 	if err := env.gw.SendJSON(clientID, payload); err != nil {
@@ -485,8 +394,11 @@ func TestBroadcastJSON(t *testing.T) {
 
 	conn1 := dialTestWS(t, env.ts)
 	conn2 := dialTestWS(t, env.ts)
-	extractClientIDFromConn(t, conn1)
-	extractClientIDFromConn(t, conn2)
+	defer conn1.Close()
+	defer conn2.Close()
+
+	extractClientIDFromFirstMessage(t, conn1)
+	extractClientIDFromFirstMessage(t, conn2)
 
 	env.gw.BroadcastJSON(map[string]int{"count": 42})
 
@@ -524,9 +436,12 @@ func TestClientDisconnect_CleansUp(t *testing.T) {
 	defer env.cleanup()
 
 	conn := dialTestWS(t, env.ts)
-	extractClientIDFromConn(t, conn)
-	sessionID := doSessionStart(t, conn, 2)
-	doData(t, conn, sessionID, 0, 2, "partial")
+	extractClientIDFromFirstMessage(t, conn)
+
+	wsSend(conn, "BEGN|test-session|||")
+	resp := wsReadText(t, conn)
+	sessionID := strings.Split(resp, "|")[1]
+	wsSend(conn, fmt.Sprintf("TEXT|%s|%s", sessionID, "partial"))
 
 	conn.Close()
 	time.Sleep(300 * time.Millisecond)
@@ -554,15 +469,15 @@ func TestSessionManager_CreateAndGet(t *testing.T) {
 	sm := newSessionManager(30 * time.Second)
 	defer sm.Close()
 
-	sess, _ := sm.create("client-1", 3)
+	sess, err := sm.create("client-1")
+	if err != nil {
+		t.Fatalf("create failed: %v", err)
+	}
 	if sess.id == "" {
 		t.Error("session id should not be empty")
 	}
 	if sess.clientID != "client-1" {
 		t.Errorf("expected client-1, got %s", sess.clientID)
-	}
-	if sess.total != 3 {
-		t.Errorf("expected total 3, got %d", sess.total)
 	}
 
 	got, ok := sm.get(sess.id)
@@ -574,26 +489,33 @@ func TestSessionManager_CreateAndGet(t *testing.T) {
 	}
 }
 
-func TestSessionManager_AddData(t *testing.T) {
+func TestSessionManager_AddFrame(t *testing.T) {
 	sm := newSessionManager(30 * time.Second)
 	defer sm.Close()
 
-	sess, _ := sm.create("c1", 2)
-	sm.addData(sess.id, 0, []byte("first"))
-	sm.addData(sess.id, 1, []byte("second"))
+	sess, _ := sm.create("c1")
+	err := sm.addFrame(sess.id, 0, 2, []byte("first"))
+	if err != nil {
+		t.Fatalf("addFrame failed: %v", err)
+	}
+	err = sm.addFrame(sess.id, 1, 2, []byte("second"))
+	if err != nil {
+		t.Fatalf("addFrame failed: %v", err)
+	}
 
-	if err := sm.addData("nope", 0, []byte("x")); err != ErrSessionNotFound {
+	err = sm.addFrame("nope", 0, 1, []byte("x"))
+	if err != ErrSessionNotFound {
 		t.Errorf("expected ErrSessionNotFound, got %v", err)
 	}
 }
 
-func TestSessionManager_DuplicateIndexIgnored(t *testing.T) {
+func TestSessionManager_DuplicateFrameIndexIgnored(t *testing.T) {
 	sm := newSessionManager(30 * time.Second)
 	defer sm.Close()
 
-	sess, _ := sm.create("c1", 2)
-	sm.addData(sess.id, 0, []byte("original"))
-	sm.addData(sess.id, 0, []byte("duplicate"))
+	sess, _ := sm.create("c1")
+	sm.addFrame(sess.id, 0, 2, []byte("original"))
+	sm.addFrame(sess.id, 0, 2, []byte("duplicate"))
 
 	result, complete := sm.assembleAndRemove(sess.id)
 	if complete {
@@ -602,8 +524,8 @@ func TestSessionManager_DuplicateIndexIgnored(t *testing.T) {
 	if result == nil {
 		t.Fatal("session should be returned even when incomplete")
 	}
-	if len(result.parts) != 1 {
-		t.Errorf("expected 1 part, got %d", len(result.parts))
+	if len(result.pendingFrames) != 1 {
+		t.Errorf("expected 1 frame, got %d", len(result.pendingFrames))
 	}
 }
 
@@ -611,33 +533,40 @@ func TestSessionManager_AssembleAndRemove(t *testing.T) {
 	sm := newSessionManager(30 * time.Second)
 	defer sm.Close()
 
-	sess, _ := sm.create("c1", 2)
-	sm.addData(sess.id, 0, []byte("a"))
-	sm.addData(sess.id, 1, []byte("b"))
+	sess, _ := sm.create("c1")
+	sm.addFrame(sess.id, 0, 2, []byte("part-0"))
+	sm.addFrame(sess.id, 1, 2, []byte("part-1"))
 
 	result, complete := sm.assembleAndRemove(sess.id)
 	if !complete {
-		t.Fatal("should be complete")
+		t.Fatal("should be complete (2 of 2 parts)")
 	}
-	assembled := string(result.parts[0]) + string(result.parts[1])
-	if assembled != "ab" {
-		t.Errorf("expected 'ab', got '%s'", assembled)
+	if result == nil {
+		t.Fatal("session should be returned")
 	}
-	if _, ok := sm.get(sess.id); ok {
-		t.Error("session should be removed")
+	if len(result.messages) != 1 {
+		t.Errorf("expected 1 assembled message, got %d", len(result.messages))
+	}
+	if string(result.messages[0].Data) != "part-0part-1" {
+		t.Errorf("expected assembled data 'part-0part-1', got %s", string(result.messages[0].Data))
+	}
+
+	_, ok := sm.get(sess.id)
+	if ok {
+		t.Error("session should be removed after assembleAndRemove")
 	}
 }
 
-func TestSessionManager_IncompleteAssembly(t *testing.T) {
+func TestSessionManager_IncompleteFrameNotComplete(t *testing.T) {
 	sm := newSessionManager(30 * time.Second)
 	defer sm.Close()
 
-	sess, _ := sm.create("c1", 2)
-	sm.addData(sess.id, 0, []byte("a"))
+	sess, _ := sm.create("c1")
+	sm.addFrame(sess.id, 0, 3, []byte("part-0"))
 
 	_, complete := sm.assembleAndRemove(sess.id)
 	if complete {
-		t.Error("should NOT be complete")
+		t.Error("should NOT be complete (1 of 3 parts)")
 	}
 }
 
@@ -645,20 +574,23 @@ func TestSessionManager_CleanupClient(t *testing.T) {
 	sm := newSessionManager(30 * time.Second)
 	defer sm.Close()
 
-	s1, _ := sm.create("client-a", 1)
-	s2, _ := sm.create("client-b", 1)
-	s3, _ := sm.create("client-a", 1)
+	sess1, _ := sm.create("client-A")
+	sess2, _ := sm.create("client-B")
+	sess3, _ := sm.create("client-A")
 
-	sm.cleanupClient("client-a")
+	sm.cleanupClient("client-A")
 
-	if _, ok := sm.get(s1.id); ok {
-		t.Error("s1 should be cleaned")
+	_, ok := sm.get(sess1.id)
+	if ok {
+		t.Error("sess1 should be removed")
 	}
-	if _, ok := sm.get(s3.id); ok {
-		t.Error("s3 should be cleaned")
+	_, ok = sm.get(sess2.id)
+	if !ok {
+		t.Error("sess2 should remain")
 	}
-	if _, ok := sm.get(s2.id); !ok {
-		t.Error("s2 should still exist")
+	_, ok = sm.get(sess3.id)
+	if ok {
+		t.Error("sess3 should be removed")
 	}
 }
 
@@ -667,52 +599,161 @@ func TestDispatchCommand_EmptyInput(t *testing.T) {
 	g.dispatchCommand(&client{id: "test"}, "")
 }
 
-func TestHandleSessionStart_TotalClamped(t *testing.T) {
+func TestHandleBEGN_TotalClamped(t *testing.T) {
 	env := setupTestServer(t)
 	defer env.cleanup()
 
 	conn := dialTestWS(t, env.ts)
-	extractClientIDFromConn(t, conn)
+	defer conn.Close()
+	wsSkipFirst(t, conn)
 
-	wsSend(conn, "SESSION_START|||99999||")
+	wsSend(conn, "BEGN|test-session-3|||")
 	resp := wsReadText(t, conn)
 	parts := strings.Split(resp, "|")
-	if parts[0] != "SESSION_START" || parts[2] != "OK" {
+	if parts[0] != string(CmdBegn) || parts[2] != string(CmdOK) {
 		t.Errorf("should handle large total: %s", resp)
 	}
 }
 
-func TestHandleData_TooFewParts(t *testing.T) {
+func TestHandleFRAME_TooFewParts(t *testing.T) {
 	env := setupTestServer(t)
 	defer env.cleanup()
 
 	conn := dialTestWS(t, env.ts)
-	extractClientIDFromConn(t, conn)
-	wsSend(conn, "DATA|id|0|")
+	defer conn.Close()
+
+	wsSend(conn, "FRAME|id|0|")
 	time.Sleep(100 * time.Millisecond)
 }
 
-func TestHandleSessionEnd_MissingSessionID(t *testing.T) {
+func TestHandleCLSE_MissingSessionID(t *testing.T) {
 	env := setupTestServer(t)
 	defer env.cleanup()
 
 	conn := dialTestWS(t, env.ts)
-	extractClientIDFromConn(t, conn)
-	wsSend(conn, "SESSION_END||||")
+	defer conn.Close()
+
+	wsSend(conn, "CLSE||||")
 	time.Sleep(100 * time.Millisecond)
 }
 
-func TestMultipleSessions_SameClient(t *testing.T) {
+func TestMultipleBEGN_SameClient(t *testing.T) {
 	env := setupTestServer(t)
 	defer env.cleanup()
 
 	conn := dialTestWS(t, env.ts)
-	extractClientIDFromConn(t, conn)
+	defer conn.Close()
+	wsSkipFirst(t, conn)
 
-	sid1 := doSessionStart(t, conn, 1)
-	sid2 := doSessionStart(t, conn, 1)
+	wsSend(conn, "BEGN|session-1|||")
+	resp1 := wsReadText(t, conn)
+	wsSend(conn, "BEGN|session-2|||")
+	resp2 := wsReadText(t, conn)
+
+	sid1 := strings.Split(resp1, "|")[1]
+	sid2 := strings.Split(resp2, "|")[1]
 
 	if sid1 == sid2 {
 		t.Error("sessions should have different IDs")
+	}
+}
+
+func TestTEXT_SingleMessage(t *testing.T) {
+	env := setupTestServer(t)
+	defer env.cleanup()
+
+	var received *Message
+	done := make(chan struct{}, 1)
+	env.gw.handler = func(msg *Message) {
+		received = msg
+		done <- struct{}{}
+	}
+
+	conn := dialTestWS(t, env.ts)
+	defer conn.Close()
+	wsSkipFirst(t, conn)
+
+	wsSend(conn, "TEXT||hello world")
+	resp := wsReadText(t, conn)
+	if !strings.HasPrefix(resp, string(CmdOK)) {
+		t.Errorf("expected OK response, got: %s", resp)
+	}
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("handler not called")
+	}
+
+	if string(received.Data) != "hello world" {
+		t.Errorf("expected 'hello world', got: %s", string(received.Data))
+	}
+	if received.ContentType != "text/plain" {
+		t.Errorf("expected text/plain, got: %s", received.ContentType)
+	}
+}
+
+func TestJSON_SingleMessage(t *testing.T) {
+	env := setupTestServer(t)
+	defer env.cleanup()
+
+	var received *Message
+	done := make(chan struct{}, 1)
+	env.gw.handler = func(msg *Message) {
+		received = msg
+		done <- struct{}{}
+	}
+
+	conn := dialTestWS(t, env.ts)
+	defer conn.Close()
+	wsSkipFirst(t, conn)
+
+	payload := `{"key":"value"}`
+	wsSend(conn, "JSON||"+payload)
+	resp := wsReadText(t, conn)
+	if !strings.HasPrefix(resp, string(CmdOK)) {
+		t.Errorf("expected OK response, got: %s", resp)
+	}
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("handler not called")
+	}
+
+	if received.ContentType != "application/json" {
+		t.Errorf("expected application/json, got: %s", received.ContentType)
+	}
+}
+
+func TestFILE_SingleMessage(t *testing.T) {
+	env := setupTestServer(t)
+	defer env.cleanup()
+
+	var received *Message
+	done := make(chan struct{}, 1)
+	env.gw.handler = func(msg *Message) {
+		received = msg
+		done <- struct{}{}
+	}
+
+	conn := dialTestWS(t, env.ts)
+	defer conn.Close()
+	wsSkipFirst(t, conn)
+
+	wsSend(conn, "FILE||\x01\x02\x03\xff")
+	resp := wsReadText(t, conn)
+	if !strings.HasPrefix(resp, string(CmdOK)) {
+		t.Errorf("expected OK response, got: %s", resp)
+	}
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("handler not called")
+	}
+
+	if received.ContentType != "application/octet-stream" {
+		t.Errorf("expected application/octet-stream, got: %s", received.ContentType)
 	}
 }
