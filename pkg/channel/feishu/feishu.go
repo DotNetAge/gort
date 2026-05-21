@@ -436,7 +436,7 @@ func (c *Channel) sendTextMessage(ctx context.Context, token, receiveID, receive
 		ReceiveIDType: receiveIDType,
 	}
 
-	return c.sendAPIRequest(ctx, token, sendReq)
+	return c.sendAPIRequest(ctx, token, receiveIDType, sendReq)
 }
 
 func (c *Channel) sendImageMessage(ctx context.Context, token, receiveID, receiveIDType string, msg *channel.Message) error {
@@ -459,7 +459,7 @@ func (c *Channel) sendImageMessage(ctx context.Context, token, receiveID, receiv
 		ReceiveIDType: receiveIDType,
 	}
 
-	return c.sendAPIRequest(ctx, token, sendReq)
+	return c.sendAPIRequest(ctx, token, receiveIDType, sendReq)
 }
 
 func (c *Channel) sendFileMessage(ctx context.Context, token, receiveID, receiveIDType string, msg *channel.Message) error {
@@ -488,7 +488,7 @@ func (c *Channel) sendFileMessage(ctx context.Context, token, receiveID, receive
 		ReceiveIDType: receiveIDType,
 	}
 
-	return c.sendAPIRequest(ctx, token, sendReq)
+	return c.sendAPIRequest(ctx, token, receiveIDType, sendReq)
 }
 
 func (c *Channel) sendAudioMessage(ctx context.Context, token, receiveID, receiveIDType string, msg *channel.Message) error {
@@ -511,7 +511,7 @@ func (c *Channel) sendAudioMessage(ctx context.Context, token, receiveID, receiv
 		ReceiveIDType: receiveIDType,
 	}
 
-	return c.sendAPIRequest(ctx, token, sendReq)
+	return c.sendAPIRequest(ctx, token, receiveIDType, sendReq)
 }
 
 func (c *Channel) sendVideoMessage(ctx context.Context, token, receiveID, receiveIDType string, msg *channel.Message) error {
@@ -540,11 +540,11 @@ func (c *Channel) sendVideoMessage(ctx context.Context, token, receiveID, receiv
 		ReceiveIDType: receiveIDType,
 	}
 
-	return c.sendAPIRequest(ctx, token, sendReq)
+	return c.sendAPIRequest(ctx, token, receiveIDType, sendReq)
 }
 
-func (c *Channel) sendAPIRequest(ctx context.Context, token string, payload interface{}) error {
-	url := fmt.Sprintf("%s%s?receive_id_type=%s", BaseURL, EndpointSendMessage, "open_id")
+func (c *Channel) sendAPIRequest(ctx context.Context, token, receiveIDType string, payload interface{}) error {
+	url := fmt.Sprintf("%s%s?receive_id_type=%s", BaseURL, EndpointSendMessage, receiveIDType)
 
 	body, err := json.Marshal(payload)
 	if err != nil {

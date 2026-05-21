@@ -89,29 +89,27 @@ func (sm *SessionManager) get(id string) (*session, bool) {
 }
 
 func (sm *SessionManager) addMessage(id string, msg *Message) error {
-	sm.mu.RLock()
+	sm.mu.Lock()
 	s, ok := sm.sessions[id]
-	sm.mu.RUnlock()
 	if !ok {
+		sm.mu.Unlock()
 		return ErrSessionNotFound
 	}
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
 	s.messages = append(s.messages, msg)
+	sm.mu.Unlock()
 	return nil
 }
 
 func (sm *SessionManager) addFrame(id string, index, total int, data []byte) error {
-	sm.mu.RLock()
+	sm.mu.Lock()
 	s, ok := sm.sessions[id]
-	sm.mu.RUnlock()
 	if !ok {
+		sm.mu.Unlock()
 		return ErrSessionNotFound
 	}
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
 	s.pendingFrames[index] = data
 	s.frameTotal = total
+	sm.mu.Unlock()
 	return nil
 }
 

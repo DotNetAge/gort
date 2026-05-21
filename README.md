@@ -2,39 +2,49 @@
 
 # Gort
 
-**A lightweight multi-channel communication gateway designed for desktop app single-user scenarios, providing a unified WebSocket chat communication service access layer. Through standardized Channel interface abstraction, it achieves unified access and message forwarding for multiple instant messaging platforms.**
+**A lightweight JSON-RPC 2.0 WebSocket gateway for real-time bidirectional communication between desktop apps and AI agents.**
+
+Gort's JSON-RPC gateway also extends different communication methods through the **Channel** mechanism, achieving seamless conversion between IM platform message formats and JSON-RPC data.
+
 [![Go Reference](https://pkg.go.dev/badge/github.com/DotNetAge/gort.svg)](https://pkg.go.dev/github.com/DotNetAge/gort)
 [![Go Report Card](https://goreportcard.com/badge/github.com/DotNetAge/gort)](https://goreportcard.com/report/github.com/DotNetAge/gort)
 [![Go Version](https://img.shields.io/badge/go-1.23+-blue.svg)](https://golang.org/dl/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Documentation](https://img.shields.io/badge/docs-gort.rayainfo.cn-cbdc38.svg)](https://gort.rayainfo.cn)
-[![codecov](https://codecov.io/gh/DotNetAge/gort/graph/badge.svg?token=placeholder)](https://codecov.io/gh/DotNetAge/gort)
 
-[**Official Website**](https://gort.rayainfo.cn) | [**English**](./README.md) | [**中文说明**](./README_zh-CN.md)
+[**English**](./README.md) | [**中文说明**](./README_zh-CN.md)
 
 </div>
 
 ---
 
-A multi-channel communication gateway written in Go that enables unified message handling across different IM platforms.
-
 ## Overview
 
-gort is a lightweight, extensible gateway that bridges multiple instant messaging platforms with WebSocket clients. It provides a unified message format and a clean architecture for building chatbots and message processing systems.
+Gort is a WebSocket-based JSON-RPC 2.0 communication library that provides a Server and Client for real-time bidirectional messaging. Each IM platform (WeChat, DingTalk, Feishu, Telegram, etc.) implements the `channel.Channel` interface to complete:
 
-### Key Features
+1. **Inbound**: IM platform message → `channel.Message` → converted to JSON-RPC → pushed to WebSocket Client
+2. **Outbound**: JSON-RPC Notification → converted to `channel.Message` → sent to IM platform
 
-- **Multi-Channel Support**: Connect to 10+ IM platforms through a unified interface
-  - DingTalk, Feishu, WeChat (domestic)
-  - Telegram, Slack, Discord (international)
-  - WhatsApp, Messenger (customer support)
-  - iMessage (macOS ecosystem)
-  - WeCom (enterprise)
-- **WebSocket Server**: Push messages to connected clients in real-time
-- **Middleware Chain**: Extensible middleware system for cross-cutting concerns
-- **Configuration Management**: Flexible configuration via files, environment variables, or command-line
-- **Test-Driven Development**: Comprehensive test coverage with clear examples
-- **Desktop App Focused**: Optimized for single-user desktop scenarios
+This achieves seamless conversion between different communication formats and JSON-RPC data.
+
+### Key Principles
+
+- **JSON-RPC 2.0** — Standard protocol with Request/Response/Notification
+- **Orthogonality** — Requests have `id`, notifications have no `id`, errors carry `code`+`message`
+- **Peer-to-Peer** — Server and Client can both initiate calls and push notifications
+- **Channel Extensibility** — IM platform adapters implement `channel.Channel`, automatically injected via `RegisterChannel`
+
+### Architecture
+
+```
+┌──────────────────┐   JSON-RPC over WebSocket   ┌──────────────────┐
+│  Client (mindx)  │ ◄─────────────────────────► │  Server (mindx)  │
+│                  │                             │                  │
+│  Call("agents")  │ ──── request ──────────────►│  methods["agents"]│
+│  ◄────────────── │ ──── response ───────────── │                  │
+│                  │                             │  Notify("table")  │
+│  On("table") ◄── │ ──── notification ───────── │                  │
+└──────────────────┘                             └──────────────────┘
+```
 
 ## Installation
 
@@ -45,9 +55,10 @@ go get github.com/DotNetAge/gort
 ### Prerequisites
 
 - Go 1.23 or higher
-- Make (optional, for using Makefile commands)
 
 ## Quick Start
+
+### Server
 
 ```go
 package main
@@ -55,331 +66,440 @@ package main
 import (
     "context"
     "log"
-    
-    "github.com/DotNetAge/gort/pkg/channel"
-    "github.com/DotNetAge/gort/pkg/config"
+
     "github.com/DotNetAge/gort/pkg/gateway"
-    "github.com/DotNetAge/gort/pkg/message"
-    "github.com/DotNetAge/gort/pkg/session"
 )
 
 func main() {
-    // Load configuration
-    cfg, err := config.Load("")
-    if err != nil {
-        log.Fatal(err)
-    }
-    
-    // Create session manager
-    sessionMgr := session.NewManager(session.Config{
-        OnMessage: func(clientID string, msg *message.Message) {
-            log.Printf("Received from %s: %s", clientID, msg.Content)
-        },
+    server := gateway.New(
+        gateway.WithAddr(":8081"),
+        gateway.WithPath("/ws"),
+    )
+
+    // Register a JSON-RPC method
+    server.RegisterMethod("echo", func(ctx context.Context, params json.RawMessage) (any, error) {
+        log.Printf("Received: %s", params)
+        return map[string]string{"echo": string(params)}, nil
     })
-    
-    // Create gateway
-    gw := gateway.New(gateway.Config{
-        WebSocketAddr: ":9000",
-        HTTPAddr:      ":8080",
-    })
-    
-    // Register channels
-    wechat := channel.NewMockChannel("wechat", channel.ChannelTypeWeChat)
-    gw.RegisterChannel(wechat)
-    
-    // Register message handler
-    gw.RegisterChannelHandler(func(ctx context.Context, msg *message.Message) error {
-        log.Printf("Channel message: %+v", msg)
-        return nil
-    })
-    
-    // Start gateway
-    if err := gw.Start(context.Background()); err != nil {
-        log.Fatal(err)
-    }
-    defer gw.Stop(context.Background())
-    
-    // Keep running...
+
+    // Register a command (convenience wrapper that auto-registers as JSON-RPC method)
+    server.RegisterCommand("agents", func(ctx *gateway.CommandContext) (any, error) {
+        agents := listAgents()
+        ctx.RespondWithType(gateway.RespTable, "Available Agents", map[string]interface{}{
+            "headers": []string{"Name", "Role"},
+            "rows":    toRows(agents),
+        })
+        return nil, nil
+    }, "List available agents")
+
+    // Start the server (blocking, use goroutine in production)
+    go server.Start()
+    defer server.Shutdown(context.Background())
+
     select {}
 }
 ```
 
-## Configuration
-
-### Configuration File
-
-gort supports JSON, YAML, and TOML configuration files. Create a `config.yaml` in your working directory:
-
-```yaml
-server:
-  http_port: 8080
-  ws_port: 8081
-  webhook_path: /webhook
-  read_timeout: 30
-  write_timeout: 30
-
-channels:
-  wechat:
-    enabled: true
-    app_id: your_app_id
-  dingtalk:
-    enabled: false
-  feishu:
-    enabled: false
-
-log:
-  level: info
-  format: text
-  output: stdout
-```
-
-### Environment Variables
-
-All configuration values can be overridden with environment variables using the `GORT_` prefix:
-
-```bash
-export GORT_SERVER_HTTP_PORT=9090
-export GORT_SERVER_WS_PORT=9091
-export GORT_LOG_LEVEL=debug
-export GORT_CHANNELS_WECHAT_TOKEN=your_token
-export GORT_CHANNELS_WECHAT_SECRET=your_secret
-```
-
-### Configuration Priority
-
-Configuration values are loaded with the following priority (highest to lowest):
-
-1. Command-line arguments
-2. Environment variables
-3. Configuration file
-4. Default values
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                         Gateway                              │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │                   Middleware Chain                    │   │
-│  │  [Logging] → [Trace] → [Auth] → [Your Middleware]   │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                            │                                │
-│         ┌──────────────────┼──────────────────┐            │
-│         ▼                  ▼                  ▼            │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    │
-│  │  WeChat     │    │  DingTalk   │    │   Feishu    │    │
-│  │  Channel    │    │  Channel    │    │  Channel    │    │
-│  └─────────────┘    └─────────────┘    └─────────────┘    │
-│         │                  │                  │            │
-└─────────┼──────────────────┼──────────────────┼───────────┘
-          ▼                  ▼                  ▼
-    ┌──────────┐       ┌──────────┐       ┌──────────┐
-    │  WeChat  │       │ DingTalk │       │  Feishu  │
-    │  Server  │       │  Server  │       │  Server  │
-    └──────────┘       └──────────┘       └──────────┘
-```
-
-### Components
-
-| Package          | Description                                                |
-| ---------------- | ---------------------------------------------------------- |
-| `pkg/gateway`    | Core coordinator that manages channels and message routing |
-| `pkg/channel`    | Protocol adapters for external IM platforms                |
-| `pkg/session`    | WebSocket connection manager                               |
-| `pkg/message`    | Standard message format                                    |
-| `pkg/middleware` | Middleware chain for cross-cutting concerns                |
-| `pkg/config`     | Configuration management with Viper                        |
-
-## Supported Channels
-
-| Channel          | Access Method            | Documentation                                      |
-| ---------------- | ------------------------ | -------------------------------------------------- |
-| DingTalk (钉钉)  | Webhook Robot            | [docs](https://gort.rayainfo.cn/channel/dingtalk)  |
-| Feishu (飞书)    | Self-built App + Token   | [docs](https://gort.rayainfo.cn/channel/feishu)    |
-| Telegram         | Bot Token                | [docs](https://gort.rayainfo.cn/channel/telegram)  |
-| WeChat (公众号)  | Official Account + Token | [docs](https://gort.rayainfo.cn/channel/wechat)    |
-| WhatsApp         | Business API             | [docs](https://gort.rayainfo.cn/channel/whatsapp)  |
-| iMessage         | macOS + imsg CLI         | [docs](https://gort.rayainfo.cn/channel/imessage)  |
-| Messenger        | Page Access Token        | [docs](https://gort.rayainfo.cn/channel/messenger) |
-| WeCom (企业微信) | Webhook Robot            | [docs](https://gort.rayainfo.cn/channel/wecom)     |
-| Slack            | Bot Token                | [docs](https://gort.rayainfo.cn/channel/slack)     |
-| Discord          | Bot Token                | [docs](https://gort.rayainfo.cn/channel/discord)   |
-
-## API Documentation
-
-### Message
+### Client
 
 ```go
-// Create a new message
-msg := message.NewMessage(
-    "msg_001",                    // ID
-    "wechat",                     // Channel ID
-    message.DirectionInbound,     // Direction
-    message.UserInfo{             // From
-        ID: "user_001",
-        Name: "Alice",
-        Platform: "wechat",
-    },
-    "Hello, World!",              // Content
-    message.MessageTypeText,      // Type
+package main
+
+import (
+    "context"
+    "log"
+
+    "github.com/DotNetAge/gort/pkg/gateway"
 )
 
-// Set metadata
-msg.SetMetadata("trace_id", "trace_123")
+func main() {
+    client := gateway.NewClient("ws://localhost:8081/ws")
+    defer client.Close()
 
-// Validate
-if err := msg.Validate(); err != nil {
-    log.Fatal(err)
+    // Connect
+    if err := client.Connect(context.Background()); err != nil {
+        log.Fatal(err)
+    }
+
+    // Call a server method (request-response)
+    result, err := client.Call(context.Background(), "agents", nil)
+    if err != nil {
+        log.Fatalf("call failed: %v", err)
+    }
+    log.Printf("Result: %s", result)
+
+    // Register a notification handler (server push)
+    client.On("table", func(ctx context.Context, params json.RawMessage) {
+        var table gateway.ResponseEnvelope
+        json.Unmarshal(params, &table)
+        log.Printf("Table pushed: %s", table.Title)
+    })
+
+    // Or use the convenience wrapper for commands
+    resp, err := client.SendCommand("agents", "")
+    if err != nil {
+        log.Fatalf("command failed: %v", err)
+    }
+    log.Printf("Command response: %s", resp)
+
+    select {}
 }
 ```
 
-### Channel
+## Server API
+
+### Constructor
 
 ```go
-// Create a channel
-ch := channel.NewMockChannel("wechat", channel.ChannelTypeWeChat)
+func New(opts ...Option) *Server
+```
 
-// Start the channel
-err := ch.Start(ctx, func(ctx context.Context, msg *message.Message) error {
-    // Handle incoming message
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `WithAddr(addr)` | string | `:8081` | Listen address (e.g., `0.0.0.0:9090`) |
+| `WithPort(port)` | int | `8081` | Port only (auto-formatted as `:{port}`) |
+| `WithPath(path)` | string | `/ws` | WebSocket endpoint path |
+| `WithHandler(h)` | MessageHandler | nil | Message handler for notifications |
+| `WithSessionTimeout(d)` | Duration | 30m | Session timeout |
+| `WithHeartbeat(cfg)` | *HeartbeatConfig | nil | Heartbeat monitoring |
+| `WithWSConfig(cfg)` | *WSConfig | localhost-only | WebSocket origin whitelist |
+| `WithChannels(chs)` | []channel.Channel | nil | Register channels at startup |
+
+### Lifecycle
+
+```go
+func (s *Server) Start() error
+func (s *Server) Shutdown(ctx context.Context) error
+func (s *Server) IsRunning() bool
+```
+
+`Start()` is blocking. Run it in a goroutine for most use cases.
+
+### Method Registration
+
+```go
+func (s *Server) RegisterMethod(method string, handler MethodHandler)
+```
+
+Registers a JSON-RPC method handler. The handler receives `context.Context` and `json.RawMessage` params, and returns `(any, error)`.
+
+```go
+server.RegisterMethod("users.list", func(ctx context.Context, params json.RawMessage) (any, error) {
+    return users, nil
+})
+```
+
+### Command Registration (Convenience)
+
+```go
+func (s *Server) RegisterCommand(name string, handler func(ctx *CommandContext) (any, error), description string)
+```
+
+Registers a command that automatically becomes a JSON-RPC method with the same name. The `CommandContext` provides:
+
+- `ctx.Args` — Command arguments as string
+- `ctx.ClientID` — The client ID that invoked the command
+- `ctx.RespondWithType(type, title, data)` — Push typed response to client
+- `ctx.Server()` — Reference to the Server instance
+
+```go
+server.RegisterCommand("models", func(ctx *gateway.CommandContext) (any, error) {
+    ctx.RespondWithType(gateway.RespTable, "Models", data)
+    return nil, nil
+}, "List available models")
+```
+
+Built-in method `command.list` is auto-registered — returns all registered commands with descriptions.
+
+### Client Operations
+
+```go
+func (s *Server) Notify(clientID, method string, params any) error
+func (s *Server) BroadcastNotification(method string, params any)
+func (s *Server) Call(ctx context.Context, clientID, method string, params any) (json.RawMessage, error)
+```
+
+- `Notify` — Push a notification to a specific client
+- `BroadcastNotification` — Push to all connected clients
+- `Call` — Call a method on a client and wait for response (server-initiated RPC)
+
+### Legacy Send Methods
+
+```go
+func (s *Server) Send(to string, message string)
+func (s *Server) Broadcast(message string)
+func (s *Server) BroadcastMessage(message string)
+func (s *Server) SendJSON(to string, v interface{}) error
+func (s *Server) BroadcastJSON(v interface{}) error
+func (s *Server) SendFile(to string, filename string) error
+func (s *Server) BroadcastFile(filename string) error
+func (s *Server) SendBatch(to string, msgs []*Message)
+func (s *Server) BroadcastBatch(msgs []*Message)
+```
+
+These are convenience wrappers around `Notify`. For example, `Send(to, msg)` sends `Notify(to, "message", {"text": msg})`.
+
+### Client Management
+
+```go
+func (s *Server) ClientCount() int
+func (s *Server) GetClient(clientID string) *client
+```
+
+### Channel Integration
+
+```
+┌──────────────────┐     inbound      ┌──────────────────────┐
+│  External IM     │ ──(webhook/poll)→ │  Channel Adapter       │
+│  (WeChat/DingTalk)│                 │  (channel.Channel)      │
+└──────────────────┘                  └──────┬───────────────┘
+                                           │ GatewaySender
+                                           ↓ (Broadcast/Send)
+┌──────────────────┐   JSON-RPC WS   ┌─────┴─────────────────┐
+│  Browser/App     │ ←─Request/Notif─→ │  Gateway Server        │
+│  (WebSocket)     │                │  (gateway.Server)       │
+└──────────────────┘                └──────┬───────────────┘
+                                           │ Notify/Call
+                                           ↓ outbound
+                                    ┌──────┴───────────────┐
+                                    │  Channel Adapter       │
+                                    │  (SendMessage)          │
+                                    └──────┬───────────────┘
+                                           │
+                                    ┌──────┴───────────────┐
+                                    │  External IM Platform   │
+                                    └───────────────────────┘
+```
+
+```go
+// 1. Create the gateway server
+server := gateway.New(gateway.WithAddr(":8081"))
+
+// 2. Create a DingTalk channel
+dingCh, _ := dingtalk.NewChannel("my-dingtalk", config)
+
+// 3. Register the channel to the gateway
+server.RegisterChannel(dingCh)
+
+// 4. Start the channel with a message handler
+dingCh.Start(ctx, func(ctx context.Context, msg *channel.Message) error {
+    // IM message received → broadcast to all WebSocket clients
+    server.Broadcast(msg.Content)
     return nil
 })
-
-// Send message to channel
-err := ch.SendMessage(ctx, msg)
-
-// Stop the channel
-err := ch.Stop(ctx)
 ```
 
-### Middleware
+**Supported Channel Types:**
+
+| ChannelType | Platform | Description |
+|-------------|----------|-------------|
+| `ChannelTypeWeChat` | WeChat Official | Official Account + Token |
+| `ChannelTypeDingTalk` | DingTalk | Webhook Bot |
+| `ChannelTypeFeishu` | Feishu | Self-built App + Token |
+| `ChannelTypeTelegram` | Telegram | Bot Token |
+| `ChannelTypeSlack` | Slack | Bot Token |
+| `ChannelTypeDiscord` | Discord | Bot Token |
+| `ChannelTypeWhatsApp` | WhatsApp | Business API |
+| `ChannelTypeMessenger` | Facebook Messenger | Page Access Token |
+| `ChannelTypeWeCom` | WeCom | Webhook Bot |
+| `ChannelTypeIMessage` | iMessage | macOS + imsg CLI |
 
 ```go
-// Create custom middleware
-type MyMiddleware struct{}
-
-func (m *MyMiddleware) Name() string {
-    return "MyMiddleware"
-}
-
-func (m *MyMiddleware) Handle(ctx context.Context, msg *message.Message, next middleware.Handler) error {
-    // Pre-processing
-    log.Printf("Processing message: %s", msg.ID)
-    
-    // Call next handler
-    err := next(ctx, msg)
-    
-    // Post-processing
-    log.Printf("Finished processing: %s", msg.ID)
-    
-    return err
-}
-
-// Register middleware
-gw.Use(&MyMiddleware{})
+func (s *Server) RegisterChannel(ch channel.Channel)
+func (s *Server) GetChannel(name string) (channel.Channel, bool)
+func (s *Server) Channels() map[string]channel.Channel
 ```
 
-## Testing
+## Client API
 
-### Run Tests
+### Constructor
 
-```bash
-# Run all tests
-go test ./... -v
-
-# Run tests with coverage
-go test ./... -cover
-
-# Run tests with coverage report
-go test ./... -coverprofile=coverage.out
-go tool cover -html=coverage.out
-
-# Run benchmarks
-go test ./... -bench=. -benchmem
+```go
+func NewClient(addr string) *Client
 ```
 
-### Test Coverage
+| Parameter | Description |
+|-----------|-------------|
+| `addr` | Full WebSocket URL (e.g., `ws://localhost:8081/ws`) |
 
-The project maintains high test coverage:
+### Connection
 
-| Package        | Coverage |
-| -------------- | -------- |
-| pkg/channel    | 100%     |
-| pkg/config     | 96%      |
-| pkg/gateway    | 84%      |
-| pkg/message    | 100%     |
-| pkg/middleware | 100%     |
-| pkg/session    | 95%      |
+```go
+func (c *Client) Connect(ctx context.Context) error
+func (c *Client) ConnectSync() error
+func (c *Client) Close() error
+func (c *Client) IsConnected() bool
+```
+
+`ConnectSync()` connects without context (for backward compatibility).
+
+### JSON-RPC Methods
+
+```go
+func (c *Client) Call(ctx context.Context, method string, params any) (json.RawMessage, error)
+```
+
+Send a request and wait for response. Uses `context.WithTimeout` for cancellation.
+
+```go
+func (c *Client) Notify(method string, params any) error
+```
+
+Send a notification (no response expected).
+
+```go
+func (c *Client) On(method string, handler NotificationHandler)
+```
+
+Register a handler for server-initiated notifications.
+
+### Legacy Compatibility
+
+```go
+func (c *Client) SendCommand(name string, args string) (string, error)
+```
+
+Convenience wrapper: calls the JSON-RPC method with the same name as `name`, passing `{"args": args}`.
+
+```go
+func (c *Client) OnResponse(responseType ResponseType, handler func(env *ResponseEnvelope, orig *Message))
+func (c *Client) OnReceived(handler func(message string))
+func (c *Client) GetCommands() ([]CommandInfo, error)
+```
+
+## JSON-RPC Protocol
+
+### Request
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "abc123",
+  "method": "agents",
+  "params": {"args": ""}
+}
+```
+
+### Response
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "abc123",
+  "result": [...]
+}
+```
+
+### Notification
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "table",
+  "params": {
+    "type": "table",
+    "title": "Agents",
+    "data": {"headers": ["Name"], "rows": [["writer"]]}
+  }
+}
+```
+
+### Error
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "abc123",
+  "error": {
+    "code": -32601,
+    "message": "Method not found: unknown_method"
+  }
+}
+```
+
+## Response Envelope
+
+For typed server-to-client notifications (table, options, todo, text):
+
+```go
+type ResponseEnvelope struct {
+    Type  ResponseType          `json:"type"`
+    Title string                `json:"title"`
+    Data  interface{}           `json:"data"`
+    Meta  map[string]interface{} `json:"meta,omitempty"`
+}
+
+const (
+    RespTable  ResponseType = "table"
+    RespOptions ResponseType = "options"
+    RespText    ResponseType = "text"
+    RespTodo   ResponseType = "todo"
+)
+```
+
+## Message Types
+
+```go
+type Message struct {
+    ID          string    `json:"id"`
+    ChannelID   string    `json:"channel_id"`
+    ClientID    string    `json:"client_id"`
+    SessionID   string    `json:"session_id"`
+    Direction   Direction `json:"direction"`
+    Data        []byte    `json:"data"`
+    ContentType string    `json:"content_type"`
+    Timestamp   time.Time `json:"timestamp"`
+}
+```
+
+## Connection State
+
+```go
+type ConnectionState string
+
+const (
+    StateDisconnected ConnectionState = "disconnected"
+    StateConnected    ConnectionState = "connected"
+)
+
+func (c *Client) OnStateChange(fn func(oldState, newState ConnectionState))
+```
 
 ## Project Structure
 
 ```
 gort/
 ├── pkg/
-│   ├── channel/          # Channel interface and implementations
-│   │   ├── channel.go    # Interface definitions
-│   │   ├── wechat/       # WeChat channel
-│   │   ├── dingtalk/     # DingTalk channel
-│   │   ├── feishu/       # Feishu channel
-│   │   ├── telegram/     # Telegram channel
-│   │   ├── wecom/        # WeCom channel
-│   │   ├── slack/        # Slack channel
-│   │   ├── discord/      # Discord channel
-│   │   ├── imessage/     # iMessage channel
-│   │   ├── whatsapp/     # WhatsApp channel
-│   │   └── messenger/    # Messenger channel
-│   ├── config/           # Configuration management
-│   │   ├── config.go
-│   │   └── config_test.go
-│   ├── gateway/          # Core gateway
-│   │   ├── gateway.go
-│   │   └── gateway_test.go
-│   ├── message/          # Message types
-│   │   ├── message.go
-│   │   ├── errors.go
-│   │   └── message_test.go
-│   ├── middleware/       # Middleware system
-│   │   ├── middleware.go
-│   │   └── middleware_test.go
-│   └── session/          # Session management
-│       ├── manager.go
-│       └── manager_test.go
+│   ├── gateway/
+│   │   ├── server.go          # Server: lifecycle, WebSocket, read/write pump
+│   │   ├── client.go          # Client: connect, Call, Notify, On
+│   │   ├── types.go           # JSON-RPC Request/Response/Notification/Error
+│   │   ├── message.go         # Message type + Direction enum
+│   │   ├── response_types.go  # ResponseEnvelope, ResponseType, CommandInfo
+│   │   ├── session.go         # SessionManager for message aggregation
+│   │   └── heartbeat.go       # Heartbeat monitoring
+│   └── channel/               # IM platform adapters (WeChat, DingTalk, etc.)
+│       ├── channel.go
+│       ├── dingtalk/
+│       ├── discord/
+│       ├── feishu/
+│       ├── imessage/
+│       ├── messenger/
+│       ├── slack/
+│       ├── telegram/
+│       ├── wechat/
+│       ├── wecom/
+│       ├── whatsapp/
+│       ├── httpclient/
+│       └── tokenmanager/
 ├── docs/
-│   └── design/           # Design documents
+│   ├── PROTOCOL_SPEC.md       # JSON-RPC 2.0 protocol specification
+│   └── gateway.md             # API documentation
 ├── go.mod
-├── go.sum
 ├── README.md
 └── README_zh-CN.md
 ```
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Write tests for your changes
-4. Ensure all tests pass (`go test ./...`)
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
-
-### Code Style
-
-- Follow [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments)
-- Run `go fmt` before committing
-- Ensure `go vet` passes
-- Maintain test coverage above 85%
-
-## Documentation
-
-For detailed documentation, please visit [gort.rayainfo.cn](https://gort.rayainfo.cn)
-
-- [Gateway Design](https://gort.rayainfo.cn/gateway)
-- [Channel Design](https://gort.rayainfo.cn/channel)
-- [Session Manager](https://gort.rayainfo.cn/session-manager)
-- [Middleware](https://gort.rayainfo.cn/middleware)
-- [Message Format](https://gort.rayainfo.cn/message)
-- [Configuration](https://gort.rayainfo.cn/config)
-
 ## License
 
-MIT License - see LICENSE file for details.
+MIT License — see LICENSE file for details.

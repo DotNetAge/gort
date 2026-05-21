@@ -45,7 +45,7 @@ func (m *Message) Text() string {
 }
 
 func (m *Message) IsSuccess() bool {
-	return m.Data != nil && len(m.Data) > 0
+	return len(m.Data) > 0
 }
 
 func (m *Message) ToJSON() ([]byte, error) {

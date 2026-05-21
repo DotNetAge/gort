@@ -33,6 +33,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -47,9 +48,9 @@ const (
 )
 
 var (
-	ErrInvalidSignature    = fmt.Errorf("invalid webhook signature")
-	ErrUserNotResponded    = fmt.Errorf("user has not responded within 24 hours")
-	ErrPageAccessTokenEmpty = fmt.Errorf("page access token is empty")
+	ErrInvalidSignature    = errors.New("invalid webhook signature")
+	ErrUserNotResponded    = errors.New("user has not responded within 24 hours")
+	ErrPageAccessTokenEmpty = errors.New("page access token is empty")
 )
 
 type Config struct {

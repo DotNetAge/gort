@@ -36,6 +36,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -503,11 +504,8 @@ func BuildEmbedFooter(text, iconURL string) map[string]interface{} {
 
 // urlEncodeEmoji URL encodes an emoji for use in API endpoints.
 func urlEncodeEmoji(emoji string) string {
-	// For custom emojis, format is name:id
-	// For Unicode emojis, they need to be URL encoded
 	if strings.Contains(emoji, ":") {
 		return emoji
 	}
-	// Simple URL encoding for Unicode emojis
-	return emoji
+	return url.PathEscape(emoji)
 }

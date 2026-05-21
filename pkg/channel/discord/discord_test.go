@@ -982,7 +982,7 @@ func TestUrlEncodeEmoji(t *testing.T) {
 		{
 			name:     "unicode emoji",
 			emoji:    "👍",
-			expected: "👍",
+			expected: "%F0%9F%91%8D",
 		},
 		{
 			name:     "custom emoji",
@@ -992,7 +992,7 @@ func TestUrlEncodeEmoji(t *testing.T) {
 		{
 			name:     "heart emoji",
 			emoji:    "❤️",
-			expected: "❤️",
+			expected: "%E2%9D%A4%EF%B8%8F",
 		},
 	}
 

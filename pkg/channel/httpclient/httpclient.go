@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 )
 
@@ -114,14 +116,15 @@ func (c *Client) PostJSON(ctx context.Context, endpoint string, payload interfac
 
 // PostForm sends a POST request with form data.
 func (c *Client) PostForm(ctx context.Context, endpoint string, formData map[string]string, headers map[string]string) ([]byte, error) {
-	url := c.baseURL + endpoint
+	reqURL := c.baseURL + endpoint
 
-	data := make(map[string][]string)
+	values := url.Values{}
 	for key, value := range formData {
-		data[key] = []string{value}
+		values.Set(key, value)
 	}
+	encoded := values.Encode()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader([]byte{}))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, strings.NewReader(encoded))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

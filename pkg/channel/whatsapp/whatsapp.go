@@ -39,6 +39,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -53,11 +54,11 @@ const (
 )
 
 var (
-	ErrInvalidSignature      = fmt.Errorf("invalid webhook signature")
-	ErrPhoneNumberIDEmpty    = fmt.Errorf("phone number ID is empty")
-	ErrAccessTokenEmpty      = fmt.Errorf("access token is empty")
-	ErrTemplateNotApproved   = fmt.Errorf("template message not approved")
-	ErrOutsideServiceWindow  = fmt.Errorf("outside 24-hour service window")
+	ErrInvalidSignature      = errors.New("invalid webhook signature")
+	ErrPhoneNumberIDEmpty    = errors.New("phone number ID is empty")
+	ErrAccessTokenEmpty      = errors.New("access token is empty")
+	ErrTemplateNotApproved   = errors.New("template message not approved")
+	ErrOutsideServiceWindow  = errors.New("outside 24-hour service window")
 )
 
 type Config struct {

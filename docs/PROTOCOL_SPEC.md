@@ -2,425 +2,562 @@
 
 ## 一、协议概述
 
-Gort 采用双层架构设计：
+Gort 采用 **JSON-RPC 2.0 over WebSocket** 协议，实现双向实时通信：
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      对象层 (Object Layer)                   │
-│  Client / Server - 面向对象API，高层抽象                      │
-│  Send() / SendJSON() / SendFile() / SendBatch()            │
-│  BeginSession() / EndSession() / OnReceived()               │
+│                   应用层 (Application Layer)                  │
+│  Server / Client - 面向对象API，高层抽象                      │
+│  Call() / Notify() / On() / RegisterMethod()                │
+│  RegisterCommand() / SendResponse() / Broadcast()           │
+│  Channel 扩展：IM 平台 ↔ JSON-RPC 数据转换                    │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                      协议层 (Protocol Layer)                 │
-│  BEGN / TEXT / JSON / FILE / FRAME / CLSE / OK / ERR       │
-│  基于文本指令 + JSON消息体的混合协议                          │
+│                   传输层 (Transport Layer)                   │
+│  JSON-RPC 2.0 over WebSocket                                │
+│  Request / Response / Notification                          │
 └─────────────────────────────────────────────────────────────┘
 ```
 
----
-
-## 二、协议层详细定义
-
-### 2.1 命令格式
-
-**通用格式**：
-```
-COMMAND|param1|param2|param3|param4
-```
-
-**响应格式**：
-```
-OK|||                    # 成功
-ERR|reason|||           # 错误
-```
-
-### 2.2 命令列表
-
-| 命令 | 方向 | 描述 | 参数格式 |
-|------|------|------|----------|
-| `BEGN` | C→S | 开始会话 | `BEGN|sessionId|||` |
-| `TEXT` | C→S | 文本消息 | `TEXT|sessionId|content` |
-| `JSON` | C→S | JSON消息 | `JSON|sessionId|jsonContent` |
-| `FILE` | C→S | 文件消息 | `FILE|sessionId|binaryData` |
-| `FRAME` | C→S | 分片传输 | `FRAME|sessionId|index|total|data` |
-| `CLSE` | C→S | 结束会话 | `CLSE|sessionId|||` |
-| `OK` | S→C | 成功响应 | `OK|||` |
-| `ERR` | S→C | 错误响应 | `ERR|reason|||` |
-
-### 2.3 会话流程
-
-#### 单消息模式（无会话）
-```
-Client                              Server
-   |                                   |
-   |-------- TEXT|content ------------>|  (立即处理)
-   |<-------- OK||| -------------------|
-   |                                   |
-```
-
-#### 会话模式（多消息）
-```
-Client                              Server
-   |                                   |
-   |-------- BEGN|sessId||| ---------->|  (创建会话)
-   |<-------- BEGN|sessId|OK|| --------|
-   |                                   |
-   |-------- TEXT|sessId|msg1 -------->|  (收集)
-   |<-------- OK||| -------------------|
-   |-------- JSON|sessId|{...} ------->|  (收集)
-   |<-------- OK||| -------------------|
-   |-------- FILE|sessId|binary ------>|  (收集)
-   |<-------- OK||| -------------------|
-   |                                   |
-   |-------- CLSE|sessId||| ---------->|  (触发handler)
-   |<-------- OK||| -------------------|
-   |                                   |
-```
-
-#### 分片传输模式
-```
-Client                              Server
-   |                                   |
-   |-------- BEGN|sessId||| ---------->|
-   |<-------- BEGN|sessId|OK|| --------|
-   |                                   |
-   |-------- FRAME|sessId|0|3|chunk0 ->|
-   |<-------- OK||| -------------------|
-   |-------- FRAME|sessId|1|3|chunk1 ->|
-   |<-------- OK||| -------------------|
-   |-------- FRAME|sessId|2|3|chunk2 ->|
-   |<-------- OK||| -------------------|
-   |                                   |
-   |-------- CLSE|sessId||| ---------->|  (组装后触发handler)
-   |<-------- OK||| -------------------|
-   |                                   |
-```
+Gort 的 JSON-RPC 网关还通过 **Channel** 机制对不同通信方式进行扩展，实现不同 IM 平台的消息格式与 JSON-RPC 数据之间的平滑转换。
 
 ---
 
-## 三、Message 对象设计（业务层视角）
+## 二、JSON-RPC 2.0 消息格式
 
-### 3.1 设计原则
+### 2.1 请求（Request）
 
-Message 对象是**业务层**与**协议层**之间的数据载体，严格排除协议层实现细节。
+客户端或服务端发起的请求，**必须包含 `"jsonrpc": "2.0"`**：
 
-### 3.2 Message 结构定义
-
-```go
-type Message struct {
-    ID          string    // 消息唯一标识 (UUID)
-    ClientID    string    // 来源客户端ID
-    SessionID   string    // 会话ID (关联消息时必填，独立消息可为空)
-    Direction   Direction // 传输方向: "inbound" | "outbound"
-    Data        []byte    // 消息载荷
-    ContentType string    // 内容类型: "text/plain" | "application/json" | "application/octet-stream"
-    Timestamp   time.Time // 时间戳
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "uuid-123",
+  "method": "agents",
+  "params": {"args": ""}
 }
 ```
 
-### 3.3 字段约束
+### 2.2 响应（Response）
 
-| 字段 | 类型 | 必填 | 约束 |
-|------|------|------|------|
-| ID | string | 是 | UUID v4 格式 |
-| ClientID | string | 是 | 非空，客户端连接时分配 |
-| SessionID | string | 否 | 独立消息可为空；会话消息必须匹配 |
-| Direction | Direction | 是 | 仅限 "inbound" / "outbound" |
-| Data | []byte | 是 | 最大 1MB |
-| ContentType | string | 否 | 默认 "application/octet-stream" |
-| Timestamp | time.Time | 是 | RFC3339 格式 |
+对请求的响应，**必须包含 `"jsonrpc": "2.0"`** 且 `id` 必须与请求相同：
 
-### 3.4 禁止出现的字段
-
-以下字段属于协议层实现细节，**严禁**出现在 Message 结构中：
-- `Cmd` - 协议命令标识
-- `Ack` - 协议确认状态
-- 其他协议控制字段
-
----
-
-## 四、对象层接口规范
-
-### 4.1 Server 端接口
-
-```go
-type MessageHandler func(msg *Message)  // 消息接收处理函数
-
-type Server interface {
-    // 生命周期管理
-    Start() error
-    Shutdown(ctx context.Context) error
-    IsRunning() bool
-    ClientCount() int
-
-    // 单消息发送
-    Send(toClientID string, msg *Message) error
-    SendJSON(toClientID string, v interface{}) error
-    SendFile(toClientID string, filename string) error
-
-    // 批量发送
-    SendBatch(messages []*Message) error
-
-    // 会话管理
-    BeginSession(clientID string) (sessionID string, err error)
-    EndSession(clientID, sessionID string) error
-
-    // 广播（等同于向所有客户端发送）
-    Broadcast(msg *Message) error
-
-    // 消息处理
-    OnReceived(handler MessageHandler)
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "uuid-123",
+  "result": [
+    {"name": "writer", "role": "writer", "description": "Professional writer"}
+  ]
 }
 ```
 
-### 4.2 Client 端接口
+### 2.3 通知（Notification）
 
-```go
-type AckHandler func(ack AckType, err error)  // 确认回调
+服务端主动推送的消息，**必须包含 `"jsonrpc": "2.0"`**，无 `id`，不期望响应：
 
-type Client interface {
-    // 生命周期管理
-    Connect(addr string) error
-    Disconnect() error
-    IsConnected() bool
-
-    // 单消息发送（带确认）
-    Send(msg *Message) error
-    SendJSON(v interface{}) error
-    SendFile(filename string) error
-
-    // 批量发送
-    SendBatch(messages []*Message) error
-
-    // 会话管理
-    BeginSession() (sessionID string, err error)
-    EndSession() error
-
-    // 消息接收
-    OnReceived(handler func(msg *Message))
-}
-```
-
-### 4.3 OnReceived 接口规范
-
-**核心原则**：
-- 接口中**不显式包含会话参数**
-- 接口中**不引入"会话"概念**
-- 通过 Message 的 SessionID 属性标识消息归属
-
-**正确示例**：
-```go
-// Server 端
-server.OnReceived(func(msg *Message) {
-    if msg.SessionID != "" {
-        // 处理关联消息
-    } else {
-        // 处理独立消息
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "table",
+  "params": {
+    "title": "Available Agents",
+    "type": "table",
+    "data": {
+      "headers": ["Name", "Role", "Description"],
+      "rows": [["writer", "writer", "Professional writer"]]
     }
-})
-
-// Client 端
-client.OnReceived(func(msg *Message) {
-    // 处理接收到的消息
-})
+  }
+}
 ```
+
+### 2.4 错误（Error）
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "uuid-123",
+  "error": {
+    "code": -32601,
+    "message": "Method not found: agents"
+  }
+}
+```
+
+### 2.5 标准错误码
+
+| 错误码 | 描述 | 场景 |
+|--------|------|------|
+| `-32700` | Parse error | JSON 解析失败 |
+| `-32600` | Invalid request | 不符合 JSON-RPC 规范 |
+| `-32601` | Method not found | 方法未注册 |
+| `-32602` | Invalid params | 参数错误 |
+| `-32603` | Internal error | 服务器内部错误 |
 
 ---
 
-## 五、错误处理机制
+## 三、通信模式
 
-### 5.1 错误码定义
-
-| 错误码 | 描述 | 处理策略 |
-|--------|------|----------|
-| `ERR_SESS_NOT_FOUND` | 会话不存在 | 创建新会话或返回错误 |
-| `ERR_SESS_EXISTS` | 会话已存在 | 使用现有会话 |
-| `ERR_INCOMPLETE_FRAME` | 分片不完整 | 等待更多分片或超时清理 |
-| `ERR_INVALID_FORMAT` | 消息格式错误 | 关闭连接 |
-| `ERR_MAX_SIZE` | 消息超限 | 拒绝并返回错误 |
-| `ERR_TIMEOUT` | 操作超时 | 重试或清理资源 |
-| `ERR_CLIENT_NOT_FOUND` | 客户端不存在 | 跳过或记录日志 |
-
-### 5.2 错误响应格式
+### 3.1 请求-响应模式（同步）
 
 ```
-ERR|<error_code>|<detail_message>|||
+Client                              Server
+   |                                   |
+   |--- {"id":"1","method":"agents"} -->|
+   |                                   |
+   |<-- {"id":"1","result":[...]} -----|
+   |                                   |
 ```
 
-### 5.3 错误处理策略
+**特点**：
+- 请求方设置 `id`，等待匹配 `id` 的响应
+- 被调用方处理请求，返回结果
+- 适用于：命令查询、数据获取
 
-| 场景 | 检测方法 | 处理策略 |
-|------|----------|----------|
-| 会话超时 | 10分钟无活动 | 自动清理会话 |
-| 分片丢失 | index 不连续 | 通知客户端重传 |
-| 消息超限 | Data > 1MB | 返回 ERR_MAX_SIZE |
-| 格式错误 | 解析失败 | 记录并关闭连接 |
+### 3.2 通知模式（异步推送）
+
+```
+Server                              Client
+   |                                   |
+   |-- {"method":"table",...} ------->|
+   |                                   |
+```
+
+**特点**：
+- 无 `id`，不期望响应
+- 适用于：主动推送表格、选项、思考过程等
+
+### 3.3 双向调用（对等通信）
+
+```
+Server                              Client
+   |                                   |
+   |-- {"id":"5","method":"client.show"} ->|
+   |                                   |
+   |<-- {"id":"5","result":{"ack":true}} -|
+   |                                   |
+```
+
+**特点**：
+- 服务端可以调用客户端方法
+- 客户端可以调用服务端方法
+- 完全对等，无主从之分
 
 ---
 
-## 六、数据格式约束
+## 四、API 设计
 
-### 6.1 消息大小限制
+### 4.1 Server 端
 
-| 类型 | 最大值 | 备注 |
-|------|--------|------|
-| 单条消息 Data | 1MB | 超过返回错误 |
-| 单条消息 Total | 10MB | 包含协议开销 |
-| 分片单片大小 | 1MB | 推荐 64KB |
-| 会话最大数量 | 1000 | 可配置 |
-
-### 6.2 字符编码
-
-- 所有文本使用 **UTF-8** 编码
-- 二进制数据使用 **Base64** 编码（仅用于协议传输层）
-
-### 6.3 时限约束
-
-| 操作 | 超时时间 | 备注 |
-|------|----------|------|
-| 连接建立 | 10s | |
-| 消息发送确认 | 30s | 可配置 |
-| 会话空闲 | 30min | 可配置 |
-| 分片传输总时间 | 5min | 可配置 |
-
----
-
-## 七、使用规范与最佳实践
-
-### 7.1 客户端使用规范
-
-**推荐流程**：
 ```go
-// 1. 建立连接
-client, _ := gateway.NewClient("ws://localhost:8081/ws")
-client.Connect()
-
-// 2. 设置消息处理
-client.OnReceived(func(msg *Message) {
-    fmt.Printf("Received: %s\n", msg.Text())
-})
-
-// 3. 发送消息（自动确认）
-client.Send(&Message{
-    Data: []byte("Hello"),
-    ContentType: "text/plain",
-})
-```
-
-### 7.2 服务端使用规范
-
-**推荐流程**：
-```go
-// 1. 创建服务器
+// 创建服务器
 server := gateway.New(
     gateway.WithAddr(":8081"),
     gateway.WithPath("/ws"),
 )
 
-// 2. 设置消息处理
-server.OnReceived(func(msg *Message) {
-    fmt.Printf("Received from %s: %s\n", msg.ClientID, msg.Text())
-    // 回复
-    server.Send(msg.ClientID, &Message{
-        Data: []byte("Acknowledged"),
-    })
+// 注册 JSON-RPC 方法
+server.RegisterMethod("echo", func(ctx context.Context, params json.RawMessage) (any, error) {
+    return map[string]string{"echo": string(params)}, nil
 })
 
-// 3. 启动服务
-server.Start()
+// 注册命令（自动注册为同名 JSON-RPC method）
+server.RegisterCommand("agents", func(ctx *gateway.CommandContext) (any, error) {
+    agents := listAgents()
+    ctx.RespondWithType(gateway.RespTable, "Available Agents", map[string]interface{}{
+        "headers": []string{"Name", "Role", "Description"},
+        "rows":    toRows(agents),
+    })
+    return nil, nil
+}, "显示智能体列表")
+
+// 发送通知
+server.Notify(clientID, "table", tableData)
+
+// 广播通知
+server.BroadcastNotification("update", updateData)
+
+// 调用客户端方法
+result, err := server.Call(ctx, clientID, "client.show", params)
+
+// 启动
+go server.Start()
+defer server.Shutdown(context.Background())
 ```
 
-### 7.3 禁忌操作
+### 4.2 Client 端
 
-| 禁忌 | 原因 | 后果 |
-|------|------|------|
-| 在 OnReceived 中同步发送大量消息 | 可能导致死锁 | 服务无响应 |
-| 发送大于 1MB 的单条消息 | 协议不支持 | 返回错误 |
-| 在多线程中直接访问同一 Client | 非线程安全 | 数据竞争 |
-| 不处理错误返回值 | 忽略错误 | 难以调试 |
-| 长时间持有 Session 不释放 | 占用服务器资源 | 内存泄漏 |
+```go
+// 创建客户端
+client := gateway.NewClient("ws://localhost:8081/ws")
 
-### 7.4 最佳实践
+// 连接
+client.Connect(context.Background())
+defer client.Close()
 
-1. **使用 SendJSON 发送结构化数据**
-2. **大文件使用分片传输**
-3. **及时调用 EndSession 释放资源**
-4. **实现重连机制处理网络故障**
-5. **对敏感数据进行加密后再发送**
+// 发送请求
+result, err := client.Call(ctx, "agents", nil)
 
----
+// 使用便捷命令包装
+resp, err := client.SendCommand("agents", "")
 
-## 八、时序图
-
-### 8.1 完整会话交互
-
-```
-Client                              Server
-   |                                   |
-   | [WebSocket Connection]             |
-   |-------- CONNECT ----------------->|
-   |                                   |
-   |-------- BEGN|sess-123||| -------->|
-   |<-------- BEGN|sess-123|OK|| ------|
-   |                                   |
-   |-------- JSON|sess-123|{...} ----->|
-   |<-------- OK||| -------------------|
-   |                                   |
-   |-------- TEXT|sess-123|Hello ----->|
-   |<-------- OK||| -------------------|
-   |                                   |
-   |-------- FILE|sess-123|{binary} -->|
-   |<-------- OK||| -------------------|
-   |                                   |
-   |-------- CLSE|sess-123||| -------->|
-   |<-------- OK||| -------------------|
-   |                                   |
-```
-
-### 8.2 服务端推送
-
-```
-Server                              Client
-   |                                   |
-   |<-------- {JSON Message} ----------|
-   |-------- OK||| ------------------>|
-   |                                   |
+// 注册通知处理器
+client.On("table", func(ctx context.Context, params json.RawMessage) {
+    var env gateway.ResponseEnvelope
+    json.Unmarshal(params, &env)
+    // 处理表格数据
+})
 ```
 
 ---
 
-## 九、协议版本
+## 五、ResponseEnvelope 设计
 
-当前版本：**1.0**
+服务端通过 ResponseEnvelope 推送类型化通知：
 
-版本历史：
-- 1.0: 初始版本，支持 BEGN/TEXT/JSON/FILE/FRAME/CLSE 命令
+```go
+type ResponseEnvelope struct {
+    Type  ResponseType          `json:"type"`
+    Title string                `json:"title"`
+    Data  interface{}           `json:"data"`
+    Meta  map[string]interface{} `json:"meta,omitempty"`
+}
+
+type ResponseType string
+
+const (
+    RespTable   ResponseType = "table"
+    RespOptions ResponseType = "options"
+    RespText    ResponseType = "text"
+    RespTodo    ResponseType = "todo"
+    RespFile    ResponseType = "file"
+    RespError   ResponseType = "error"
+    RespMarkdown ResponseType = "markdown"
+    // ... 更多类型见 response_types.go
+)
+```
+
+**传输示例**：
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "table",
+  "params": {
+    "type": "table",
+    "title": "Available Agents",
+    "data": {
+      "headers": ["Name", "Role"],
+      "rows": [["writer", "writer"]]
+    }
+  }
+}
+```
 
 ---
 
-## 十、附录
+## 六、Channel 扩展机制
 
-### A.1 完整命令列表
+### 6.1 设计理念
 
-| 命令 | 代码 | 方向 | 说明 |
-|------|------|------|------|
-| BEGN | 0x01 | C→S | 开始会话 |
-| TEXT | 0x02 | C→S | 文本消息 |
-| JSON | 0x03 | C→S | JSON消息 |
-| FILE | 0x04 | C→S | 文件消息 |
-| FRAME | 0x05 | C→S | 分片消息 |
-| CLSE | 0x06 | C→S | 结束会话 |
-| OK | 0x10 | S→C | 成功响应 |
-| ERR | 0x11 | S→C | 错误响应 |
+Gort 的 JSON-RPC 网关通过 **Channel** 机制对不同通信方式进行扩展。每个 IM 平台（微信、钉钉、飞书、Telegram 等）实现 `channel.Channel` 接口，完成以下转换：
 
-### A.2 ContentType 预定义值
+1. **入站**：IM 平台消息 → `channel.Message` → 转换为 JSON-RPC 格式 → 推送给 WebSocket Client
+2. **出站**：JSON-RPC Notification → 转换为 `channel.Message` → 发送到 IM 平台
 
-| 类型 | 值 | 用途 |
-|------|-----|------|
-| PlainText | text/plain | 纯文本 |
-| JSON | application/json | JSON数据 |
-| OctetStream | application/octet-stream | 二进制数据 |
-| FormData | multipart/form-data | 表单数据 |
+这样实现了不同通信格式与 JSON-RPC 数据之间的平滑转换。
+
+### 6.2 Channel 接口
+
+```go
+type Channel interface {
+    Name() string                              // 渠道实例唯一标识
+    Type() ChannelType                         // 平台类型（wechat/dingtalk/telegram 等）
+    Start(ctx context.Context, handler MessageHandler) error  // 启动并绑定消息处理器
+    Stop(ctx context.Context) error            // 优雅关闭
+    IsRunning() bool                           // 运行状态
+    SendMessage(ctx context.Context, msg *Message) error     // 发送消息到 IM 平台
+    GetStatus() Status                         // 详细状态
+}
+
+type MessageHandler func(ctx context.Context, msg *Message) error
+
+type Message struct {
+    ID        string                 // 消息唯一标识
+    ChannelID string                 // 关联的 Channel 名称
+    Type      MessageType            // 消息类型（text/image/file 等）
+    Direction Direction              // inbound/outbound
+    From      UserInfo               // 发送者信息
+    To        UserInfo               // 接收者信息
+    Content   string                 // 消息内容
+    Metadata  map[string]interface{} // 扩展元数据
+}
+```
+
+### 6.3 完整用法
+
+```go
+package main
+
+import (
+    "context"
+    "log"
+
+    "github.com/DotNetAge/gort/pkg/channel"
+    "github.com/DotNetAge/gort/pkg/channel/dingtalk"
+    "github.com/DotNetAge/gort/pkg/gateway"
+)
+
+func main() {
+    // 1. 创建 JSON-RPC Gateway Server
+    server := gateway.New(
+        gateway.WithAddr(":8081"),
+        gateway.WithPath("/ws"),
+    )
+
+    // 2. 注册业务命令
+    server.RegisterCommand("agents", func(ctx *gateway.CommandContext) (any, error) {
+        return listAgents(), nil
+    }, "显示智能体列表")
+
+    // 3. 启动 Gateway
+    go server.Start()
+    defer server.Shutdown(context.Background())
+
+    // 4. 创建 DingTalk Channel
+    dingCh, err := dingtalk.NewChannel("my-dingtalk", dingtalk.Config{
+        AppKey:    "your-app-key",
+        AppSecret: "your-app-secret",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // 5. 注册 Channel 到 Gateway
+    server.RegisterChannel(dingCh)
+
+    // 6. 启动 Channel 并绑定消息处理器
+    ctx := context.Background()
+    handler := func(ctx context.Context, msg *channel.Message) error {
+        // 收到 IM 平台消息后，广播给所有 WebSocket Client
+        server.Broadcast(msg.Content)
+
+        // 或通过 Channel 回复
+        return dingCh.SendMessage(ctx, &channel.Message{
+            ID:        "reply-001",
+            ChannelID: "my-dingtalk",
+            Direction: channel.DirectionOutbound,
+            Content:   "已收到你的消息",
+        })
+    }
+
+    if err := dingCh.Start(ctx, handler); err != nil {
+        log.Fatal(err)
+    }
+
+    select {}
+}
+```
+
+### 6.4 支持的 Channel 类型
+
+| ChannelType | 平台 | 说明 |
+|-------------|------|------|
+| `ChannelTypeWeChat` | 微信公众号 | 公众号 + Token |
+| `ChannelTypeDingTalk` | 钉钉 | Webhook 机器人 |
+| `ChannelTypeFeishu` | 飞书 | 自建应用 + Token |
+| `ChannelTypeTelegram` | Telegram | Bot Token |
+| `ChannelTypeSlack` | Slack | Bot Token |
+| `ChannelTypeDiscord` | Discord | Bot Token |
+| `ChannelTypeWhatsApp` | WhatsApp | Business API |
+| `ChannelTypeMessenger` | Facebook Messenger | Page Access Token |
+| `ChannelTypeWeCom` | 企业微信 | Webhook 机器人 |
+| `ChannelTypeIMessage` | iMessage | macOS + imsg CLI |
+
+### 6.5 Channel 与 JSON-RPC 的集成
+
+```
+┌──────────────────┐     inbound      ┌──────────────────────┐
+│  外部平台         │ ──(webhook/poll)→ │  Channel Adapter       │
+│  (微信/钉钉/飞书) │                  │  (channel.Channel)      │
+└──────────────────┘                  └──────┬───────────────┘
+                                           │ GatewaySender
+                                           ↓ (Broadcast/Send)
+┌──────────────────┐   JSON-RPC WS   ┌─────┴─────────────────┐
+│  浏览器/App 客户端  │ ←─Request/Notif─→ │  Gateway Server        │
+│  (WebSocket)      │                │  (gateway.Server)       │
+└──────────────────┘                └──────┬───────────────┘
+                                           │ Notify/Call
+                                           ↓ outbound
+                                    ┌──────┴───────────────┐
+                                    │  Channel Adapter       │
+                                    │  (SendMessage)          │
+                                    └──────┬───────────────┘
+                                           │
+                                    ┌──────┴───────────────┐
+                                    │  外部平台               │
+                                    └───────────────────────┘
+```
+
+---
+
+## 七、核心优势
+
+### 7.1 正交性
+
+| 通信模式 | JSON-RPC 特征 | 路由方式 |
+|----------|---------------|----------|
+| 请求-响应 | 有 `id` | 匹配 `pending[id]` |
+| 主动推送 | 无 `id` | 触发 `On(method)` handler |
+| 错误 | 有 `error` 字段 | 返回错误 |
+
+### 7.2 对等性
+
+- 客户端和服务端地位完全对等
+- 双方都可以发起请求和推送通知
+- 打破了传统的"客户端请求-服务端响应"模式
+
+### 7.3 标准化
+
+- 符合 JSON-RPC 2.0 规范
+- 与 LLM Tools 调用格式一致
+- 工具生态成熟（调试器、mock 服务器等）
+
+### 7.4 Channel 可扩展性
+
+- 每个 IM 平台独立实现 `channel.Channel` 接口
+- 通过 `RegisterChannel` 自动注入到 Gateway
+- Channel 消息通过 `Broadcast`/`Notify` 转换为 JSON-RPC 推送
+
+---
+
+## 八、错误处理
+
+### 8.1 连接错误
+
+| 场景 | 处理方法 |
+|------|----------|
+| 连接失败 | `Connect()` 返回错误 |
+| 连接断开 | 自动关闭所有 pending 请求 |
+| 超时 | `context.WithTimeout` 控制 |
+
+### 8.2 请求错误
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "uuid-123",
+  "error": {
+    "code": -32603,
+    "message": "agents failed: database connection lost"
+  }
+}
+```
+
+### 8.3 通知丢失
+
+通知不保证送达，适用于实时 UI 更新场景。
+
+---
+
+## 九、数据格式约束
+
+### 9.1 消息大小限制
+
+| 类型 | 最大值 | 备注 |
+|------|--------|------|
+| 单条消息 | 10MB | WebSocket 帧限制 |
+| JSON 序列化后 | 无限制 | 建议 < 1MB |
+
+### 9.2 字符编码
+
+- 所有文本使用 **UTF-8** 编码
+- JSON 序列化使用标准 `encoding/json`
+- `"jsonrpc": "2.0"` 为 JSON-RPC 2.0 规范的**必选字段**
+
+### 9.3 时限约束
+
+| 操作 | 超时时间 | 备注 |
+|------|----------|------|
+| 连接建立 | 10s | |
+| 请求-响应 | 30s | 可配置 context |
+| 心跳间隔 | 54s | 自动 ping/pong |
+
+---
+
+## 十、最佳实践
+
+### 10.1 使用请求-响应模式
+
+```go
+// 推荐：使用 Call 获取数据
+result, err := client.Call(ctx, "agents", nil)
+
+// 便捷方式：SendCommand 直接调用同名 method
+resp, err := client.SendCommand("agents", "")
+```
+
+### 10.2 使用通知模式推送
+
+```go
+// 服务端：推送表格更新
+server.Notify(clientID, "table", tableData)
+
+// 客户端：接收并处理
+client.On("table", func(ctx context.Context, params json.RawMessage) {
+    renderTable(params)
+})
+```
+
+### 10.3 Channel 集成
+
+```go
+// 创建 Channel 并注册到 Gateway
+ch := dingtalk.NewChannel("dingtalk", config)
+server.RegisterChannel(ch)
+
+// 启动 Channel，消息自动广播给 WebSocket Client
+ch.Start(ctx, func(ctx context.Context, msg *channel.Message) error {
+    server.Broadcast(msg.Content)
+    return nil
+})
+```
+
+### 10.4 资源清理
+
+```go
+// 确保连接关闭
+defer client.Close()
+
+// 使用 context 控制超时
+ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+defer cancel()
+```
+
+---
+
+## 十一、与 LLM Tools 调用的对应关系
+
+```
+LLM Tools 调用格式：
+{
+  "tool_calls": [{
+    "id": "call_abc123",
+    "function": {
+      "name": "get_weather",
+      "arguments": "{\"location\": \"Beijing\"}"
+    }
+  }]
+}
+
+对应 JSON-RPC：
+{
+  "jsonrpc": "2.0",
+  "id": "call_abc123",
+  "method": "get_weather",
+  "params": {"location": "Beijing"}
+}
+```
+
+**优势**：整个系统从 LLM → Gateway → Client 使用同一种通信范式！

@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/DotNetAge/gort/pkg/channel"
 	"github.com/stretchr/testify/assert"
@@ -90,28 +89,34 @@ func TestNewChannel(t *testing.T) {
 }
 
 func TestChannel_StartStop(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(APIResponse{Ok: true})
+	}))
+	defer server.Close()
+
+	origBaseURL := BaseURL
+	BaseURL = server.URL
+	defer func() { BaseURL = origBaseURL }()
+
 	ch, err := NewChannel("test", Config{
-		Token: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
+		Token:      "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
+		WebhookURL: server.URL + "/webhook",
 	})
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
+	ctx := context.Background()
 	handler := func(ctx context.Context, msg *channel.Message) error { return nil }
 
-	// Test Start
 	err = ch.Start(ctx, handler)
-	// May fail due to network, but should set running state
-	if err == nil {
-		assert.True(t, ch.IsRunning())
-		assert.Equal(t, channel.StatusRunning, ch.GetStatus())
+	require.NoError(t, err)
+	assert.True(t, ch.IsRunning())
+	assert.Equal(t, channel.StatusRunning, ch.GetStatus())
 
-		// Test Stop
-		err = ch.Stop(ctx)
-		assert.NoError(t, err)
-		assert.False(t, ch.IsRunning())
-	}
+	err = ch.Stop(ctx)
+	assert.NoError(t, err)
+	assert.False(t, ch.IsRunning())
 }
 
 func TestChannel_SendMessage_NotRunning(t *testing.T) {
@@ -131,8 +136,20 @@ func TestChannel_SendMessage_NotRunning(t *testing.T) {
 }
 
 func TestChannel_SendMessage_InvalidChatID(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(APIResponse{Ok: true})
+	}))
+	defer server.Close()
+
+	origBaseURL := BaseURL
+	BaseURL = server.URL
+	defer func() { BaseURL = origBaseURL }()
+
 	ch, err := NewChannel("test", Config{
-		Token: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
+		Token:      "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
+		WebhookURL: server.URL + "/webhook",
 	})
 	require.NoError(t, err)
 
@@ -369,8 +386,20 @@ func TestChannel_HandleWebhook(t *testing.T) {
 }
 
 func TestChannel_MessageTypes(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(APIResponse{Ok: true})
+	}))
+	defer server.Close()
+
+	origBaseURL := BaseURL
+	BaseURL = server.URL
+	defer func() { BaseURL = origBaseURL }()
+
 	ch, err := NewChannel("test", Config{
-		Token: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
+		Token:      "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
+		WebhookURL: server.URL + "/webhook",
 	})
 	require.NoError(t, err)
 
@@ -379,7 +408,6 @@ func TestChannel_MessageTypes(t *testing.T) {
 	require.NoError(t, err)
 	defer ch.Stop(ctx)
 
-	// Test different message types - they should handle gracefully
 	msgTypes := []channel.MessageType{
 		channel.MessageTypeText,
 		channel.MessageTypeImage,
@@ -395,8 +423,8 @@ func TestChannel_MessageTypes(t *testing.T) {
 				Content: "test content",
 				To:      channel.UserInfo{ID: "123456789"},
 			}
-			// This will fail due to network, but should not panic
-			_ = ch.SendMessage(ctx, msg)
+			err := ch.SendMessage(ctx, msg)
+			assert.NoError(t, err)
 		})
 	}
 }
@@ -405,11 +433,13 @@ func TestChannel_WebhookMode(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"ok": true,
-		})
+		json.NewEncoder(w).Encode(APIResponse{Ok: true})
 	}))
 	defer server.Close()
+
+	origBaseURL := BaseURL
+	BaseURL = server.URL
+	defer func() { BaseURL = origBaseURL }()
 
 	ch, err := NewChannel("test", Config{
 		Token:      "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
@@ -417,15 +447,11 @@ func TestChannel_WebhookMode(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
+	ctx := context.Background()
 	err = ch.Start(ctx, func(ctx context.Context, msg *channel.Message) error { return nil })
-	// May fail due to network, but should attempt webhook setup
-	if err == nil {
-		defer ch.Stop(ctx)
-		assert.True(t, ch.IsRunning())
-	}
+	require.NoError(t, err)
+	defer ch.Stop(ctx)
+	assert.True(t, ch.IsRunning())
 }
 
 func TestUpdate_Struct(t *testing.T) {

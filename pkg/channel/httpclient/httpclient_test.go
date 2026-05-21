@@ -92,6 +92,12 @@ func TestClient_PostForm(t *testing.T) {
 		assert.Equal(t, "POST", r.Method)
 		assert.Equal(t, "application/x-www-form-urlencoded", r.Header.Get("Content-Type"))
 
+		if err := r.ParseForm(); err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, "value1", r.FormValue("key1"))
+		assert.Equal(t, "value2", r.FormValue("key2"))
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})

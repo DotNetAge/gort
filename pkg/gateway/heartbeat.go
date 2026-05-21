@@ -3,7 +3,6 @@ package gateway
 import (
 	"log/slog"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -86,27 +85,29 @@ func (h *HeartbeatMonitor) Stats() HeartbeatStats {
 }
 
 func (h *HeartbeatMonitor) recordPing() {
-	atomic.AddUint64(&h.stats.TotalPingsSent, 1)
 	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.stats.TotalPingsSent++
 	h.stats.LastPingAt = time.Now()
-	h.mu.Unlock()
 }
 
 func (h *HeartbeatMonitor) recordPong() {
-	atomic.AddUint64(&h.stats.TotalPongsReceived, 1)
 	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.stats.TotalPongsReceived++
 	h.stats.LastPongAt = time.Now()
-	h.mu.Unlock()
 }
 
 func (h *HeartbeatMonitor) recordMiss() {
-	atomic.AddUint64(&h.stats.MissedPings, 1)
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.stats.MissedPings++
 }
 
 func (h *HeartbeatMonitor) setConnectionCount(n int) {
 	h.mu.Lock()
+	defer h.mu.Unlock()
 	h.stats.ConnectionCount = n
-	h.mu.Unlock()
 }
 
 func (h *HeartbeatMonitor) OnStateChange(fn func(clientID, oldState, newState string)) {

@@ -1,25 +1,25 @@
-// Package imsg provides a Go client for the steipete/imsg CLI tool.
-// This client communicates with imsg via JSON-RPC over stdin/stdout.
+// Package imsg provides a Go client for iMessage using pure AppleScript.
+// This client communicates with macOS Messages.app via AppleScript only,
+// with no dependency on imsg CLI or Full Disk Access.
 //
 // Requirements:
 //   - macOS 14+ with Messages.app signed in
-//   - imsg CLI installed: go install github.com/steipete/imsg/cmd/imsg@latest
-//   - Full Disk Access for the terminal to read ~/Library/Messages/chat.db
-//   - Automation permission for the terminal to control Messages.app (for sending)
+//   - Automation permission for the terminal to control Messages.app
+//     (automatically requested on first use)
 //
-// The imsg tool provides:
-//   - List chats
-//   - View message history
-//   - Watch for new messages (event-driven)
-//   - Send text and attachments
-//   - Send tapback reactions (v0.5.0+)
-//   - Typing indicators (v0.5.0+)
+// Features:
+//   - Send text messages
+//   - Send file attachments
+//
+// Architecture:
+// The client uses AppleScript exclusively for all operations.
+// No database access, no imsg CLI dependency, no Full Disk Access required.
+// macOS will automatically prompt for Automation permission on first use.
 package imsg
 
 import (
-	"bufio"
+	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -29,28 +29,20 @@ import (
 )
 
 var (
-	ErrIMsgNotInstalled    = errors.New("imsg CLI not installed. Install with: go install github.com/steipete/imsg/cmd/imsg@latest")
-	ErrNotRunning          = errors.New("imsg RPC server not running")
-	ErrPermissionDenied    = errors.New("permission denied. Grant Full Disk Access and Automation permission in System Settings")
-	ErrInvalidResponse     = errors.New("invalid response from imsg")
-	ErrChatNotFound        = errors.New("chat not found")
-	ErrMessageNotFound     = errors.New("message not found")
-	ErrUnsupportedVersion  = errors.New("imsg version does not support this feature")
+	ErrPermissionDenied   = errors.New("permission denied. Please allow automation permission in System Settings > Privacy & Security > Automation")
+	ErrMessagesNotRunning = errors.New("Messages.app is not running")
+	ErrNotSupported       = errors.New("this feature is not supported in send-only mode")
 )
 
-// Client represents a client for the imsg JSON-RPC server.
+// Client represents a client for iMessage via AppleScript.
 type Client struct {
-	cmd      *exec.Cmd
-	stdin    *json.Encoder
-	stdout   *bufio.Scanner
-	mu       sync.Mutex
-	running  bool
-	stopCh   chan struct{}
-	version  string
+	mu           sync.Mutex
+	running      bool
+	stopCh       chan struct{}
 	capabilities Capabilities
 }
 
-// Capabilities represents the features supported by the imsg version.
+// Capabilities represents the features supported by the client.
 type Capabilities struct {
 	HasTypingIndicators bool
 	HasReactions        bool
@@ -62,7 +54,7 @@ type Chat struct {
 	ID            int64    `json:"id"`
 	Name          string   `json:"name"`
 	Identifier    string   `json:"identifier"`
-	Service       string   `json:"service"` // "iMessage" or "SMS"
+	Service       string   `json:"service"`
 	LastMessageAt string   `json:"last_message_at"`
 	IsGroup       bool     `json:"is_group"`
 	Participants  []string `json:"participants,omitempty"`
@@ -90,29 +82,29 @@ type Message struct {
 
 // Attachment represents a message attachment.
 type Attachment struct {
-	Filename      string `json:"filename"`
-	TransferName  string `json:"transfer_name"`
-	UTI           string `json:"uti"`
-	MIMEType      string `json:"mime_type"`
-	TotalBytes    int64  `json:"total_bytes"`
-	IsSticker     bool   `json:"is_sticker"`
-	OriginalPath  string `json:"original_path"`
-	Missing       bool   `json:"missing"`
+	Filename     string `json:"filename"`
+	TransferName string `json:"transfer_name"`
+	UTI          string `json:"uti"`
+	MIMEType     string `json:"mime_type"`
+	TotalBytes   int64  `json:"total_bytes"`
+	IsSticker    bool   `json:"is_sticker"`
+	OriginalPath string `json:"original_path"`
+	Missing      bool   `json:"missing"`
 }
 
-// NewClient creates a new imsg client.
+// NewClient creates a new iMessage client.
 func NewClient() (*Client, error) {
-	// Check if imsg is installed
-	if _, err := exec.LookPath("imsg"); err != nil {
-		return nil, ErrIMsgNotInstalled
-	}
-
 	return &Client{
 		stopCh: make(chan struct{}),
+		capabilities: Capabilities{
+			HasRPC:              true,
+			HasTypingIndicators: false,
+			HasReactions:        false,
+		},
 	}, nil
 }
 
-// Start starts the imsg RPC server.
+// Start initializes the iMessage client.
 func (c *Client) Start(ctx context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -121,36 +113,22 @@ func (c *Client) Start(ctx context.Context) error {
 		return nil
 	}
 
-	cmd := exec.CommandContext(ctx, "imsg", "rpc")
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return fmt.Errorf("failed to create stdin pipe: %w", err)
+	// Ensure Messages.app is running (will launch if not running)
+	if err := c.ensureMessagesApp(ctx); err != nil {
+		return fmt.Errorf("failed to start Messages.app: %w", err)
 	}
 
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return fmt.Errorf("failed to create stdout pipe: %w", err)
+	// Test AppleScript permission (this will trigger permission dialog if needed)
+	if err := c.testPermission(ctx); err != nil {
+		return fmt.Errorf("AppleScript permission denied: %w", err)
 	}
 
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start imsg rpc: %w", err)
-	}
-
-	c.cmd = cmd
-	c.stdin = json.NewEncoder(stdin)
-	c.stdout = bufio.NewScanner(stdout)
 	c.running = true
-
-	// Detect version and capabilities
-	if err := c.detectCapabilities(ctx); err != nil {
-		c.Stop()
-		return err
-	}
 
 	return nil
 }
 
-// Stop stops the imsg RPC server.
+// Stop stops the client.
 func (c *Client) Stop() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -162,326 +140,207 @@ func (c *Client) Stop() error {
 	close(c.stopCh)
 	c.running = false
 
-	if c.cmd != nil && c.cmd.Process != nil {
-		_ = c.cmd.Process.Kill()
-		_ = c.cmd.Wait()
-	}
-
 	return nil
 }
 
-// IsRunning returns true if the RPC server is running.
+// IsRunning returns true if the client is running.
 func (c *Client) IsRunning() bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.running
 }
 
-// GetCapabilities returns the capabilities of the imsg version.
+// GetCapabilities returns the capabilities of the client.
 func (c *Client) GetCapabilities() Capabilities {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.capabilities
 }
 
-// detectCapabilities detects the imsg version and capabilities.
-func (c *Client) detectCapabilities(ctx context.Context) error {
-	// Try to call a method that exists in all versions
-	var result struct {
-		Version string `json:"version"`
-	}
-	
-	if err := c.call(ctx, "version", nil, &result); err != nil {
-		// If version method doesn't exist, assume basic capabilities
-		c.capabilities = Capabilities{
-			HasRPC: true,
-		}
-		return nil
-	}
-
-	c.version = result.Version
-
-	// Parse version to determine capabilities
-	// v0.5.0+ has typing indicators and reactions
-	c.capabilities = Capabilities{
-		HasRPC: true,
-	}
-
-	if c.version >= "0.5.0" {
-		c.capabilities.HasTypingIndicators = true
-		c.capabilities.HasReactions = true
-	}
-
-	return nil
-}
-
 // ListChats returns a list of recent chats.
+// Note: Not supported in send-only mode (requires Full Disk Access).
 func (c *Client) ListChats(ctx context.Context, limit int) ([]Chat, error) {
-	if !c.IsRunning() {
-		return nil, ErrNotRunning
-	}
-
-	params := map[string]interface{}{
-		"limit": limit,
-	}
-
-	var result []Chat
-	if err := c.call(ctx, "chats", params, &result); err != nil {
-		return nil, err
-	}
-
-	return result, nil
+	return nil, ErrNotSupported
 }
 
 // GetHistory returns message history for a chat.
+// Note: Not supported in send-only mode (requires Full Disk Access).
 func (c *Client) GetHistory(ctx context.Context, chatID int64, limit int) ([]Message, error) {
-	if !c.IsRunning() {
-		return nil, ErrNotRunning
-	}
-
-	params := map[string]interface{}{
-		"chat_id": chatID,
-		"limit":   limit,
-	}
-
-	var result []Message
-	if err := c.call(ctx, "history", params, &result); err != nil {
-		return nil, err
-	}
-
-	return result, nil
+	return nil, ErrNotSupported
 }
 
 // SendMessage sends a text message.
-func (c *Client) SendMessage(ctx context.Context, to, text string, service string) error {
+func (c *Client) SendMessage(ctx context.Context, to, text, service string) error {
 	if !c.IsRunning() {
-		return ErrNotRunning
+		return ErrMessagesNotRunning
 	}
 
-	params := map[string]interface{}{
-		"to":      to,
-		"text":    text,
-		"service": service,
-	}
-
-	var result interface{}
-	if err := c.call(ctx, "send", params, &result); err != nil {
-		return err
-	}
-
-	return nil
+	return c.sendMessageViaAppleScript(ctx, to, text, service)
 }
 
 // SendFile sends a file attachment.
 func (c *Client) SendFile(ctx context.Context, to, filePath, text, service string) error {
 	if !c.IsRunning() {
-		return ErrNotRunning
+		return ErrMessagesNotRunning
 	}
 
-	params := map[string]interface{}{
-		"to":      to,
-		"file":    filePath,
-		"text":    text,
-		"service": service,
-	}
-
-	var result interface{}
-	if err := c.call(ctx, "send", params, &result); err != nil {
-		return err
-	}
-
-	return nil
+	return c.sendFileViaAppleScript(ctx, to, filePath, text, service)
 }
 
-// SendReaction sends a tapback reaction (requires imsg v0.5.0+).
+// SendReaction sends a tapback reaction.
+// Note: Not supported in AppleScript-only mode.
 func (c *Client) SendReaction(ctx context.Context, chatID int64, messageGUID, reactionType string) error {
-	if !c.IsRunning() {
-		return ErrNotRunning
-	}
-
-	if !c.capabilities.HasReactions {
-		return ErrUnsupportedVersion
-	}
-
-	params := map[string]interface{}{
-		"chat_id":       chatID,
-		"message_guid":  messageGUID,
-		"reaction_type": reactionType,
-	}
-
-	var result interface{}
-	if err := c.call(ctx, "react", params, &result); err != nil {
-		return err
-	}
-
-	return nil
+	return ErrNotSupported
 }
 
-// SendTyping sends a typing indicator (requires imsg v0.5.0+).
+// SendTyping sends a typing indicator.
+// Note: Not supported in AppleScript-only mode.
 func (c *Client) SendTyping(ctx context.Context, chatID int64, typing bool) error {
-	if !c.IsRunning() {
-		return ErrNotRunning
-	}
-
-	if !c.capabilities.HasTypingIndicators {
-		return ErrUnsupportedVersion
-	}
-
-	method := "typing.stop"
-	if typing {
-		method = "typing.start"
-	}
-
-	params := map[string]interface{}{
-		"chat_id": chatID,
-	}
-
-	var result interface{}
-	if err := c.call(ctx, method, params, &result); err != nil {
-		return err
-	}
-
-	return nil
+	return ErrNotSupported
 }
 
 // Watch starts watching for new messages.
+// Note: Not supported in send-only mode (requires Full Disk Access).
 func (c *Client) Watch(ctx context.Context, chatID int64, sinceRowID int64, includeReactions bool) (<-chan Message, error) {
-	if !c.IsRunning() {
-		return nil, ErrNotRunning
-	}
-
-	params := map[string]interface{}{
-		"chat_id":           chatID,
-		"since_rowid":       sinceRowID,
-		"include_reactions": includeReactions,
-	}
-
-	// Start watch in a goroutine
-	msgCh := make(chan Message)
-	
-	go func() {
-		defer close(msgCh)
-
-		// Send watch request
-		if err := c.call(ctx, "watch.subscribe", params, nil); err != nil {
-			return
-		}
-
-		// Read messages from stdout
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-c.stopCh:
-				return
-			default:
-				if !c.stdout.Scan() {
-					return
-				}
-
-				line := c.stdout.Text()
-				if line == "" {
-					continue
-				}
-
-				var msg Message
-				if err := json.Unmarshal([]byte(line), &msg); err != nil {
-					continue
-				}
-
-				select {
-				case msgCh <- msg:
-				case <-ctx.Done():
-					return
-				}
-			}
-		}
-	}()
-
-	return msgCh, nil
+	return nil, ErrNotSupported
 }
 
-// call makes a JSON-RPC call to the imsg server.
-func (c *Client) call(ctx context.Context, method string, params interface{}, result interface{}) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+// AppleScript helper methods
 
-	if !c.running {
-		return ErrNotRunning
+func (c *Client) testPermission(ctx context.Context) error {
+	script := `
+tell application "Messages"
+	return name
+end tell
+`
+	_, err := c.runAppleScript(ctx, script)
+	if err != nil {
+		if strings.Contains(err.Error(), "not authorized") ||
+			strings.Contains(err.Error(), "permission denied") {
+			return ErrPermissionDenied
+		}
+		return err
 	}
+	return nil
+}
 
-	req := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"method":  method,
-		"id":      time.Now().UnixNano(),
-	}
+func (c *Client) isMessagesRunning() bool {
+	cmd := exec.Command("pgrep", "-x", "Messages")
+	return cmd.Run() == nil
+}
 
-	if params != nil {
-		req["params"] = params
-	}
-
-	if err := c.stdin.Encode(req); err != nil {
-		return fmt.Errorf("failed to send request: %w", err)
-	}
-
-	// For notifications (result is nil), don't wait for response
-	if result == nil {
+func (c *Client) ensureMessagesApp(ctx context.Context) error {
+	if c.isMessagesRunning() {
 		return nil
 	}
 
-	// Wait for response with timeout
-	done := make(chan error, 1)
-	go func() {
-		if !c.stdout.Scan() {
-			done <- errors.New("failed to read response")
-			return
-		}
-
-		line := c.stdout.Text()
-		
-		var resp struct {
-			JSONRPC string          `json:"jsonrpc"`
-			Result  json.RawMessage `json:"result"`
-			Error   *struct {
-				Code    int    `json:"code"`
-				Message string `json:"message"`
-			} `json:"error"`
-			ID interface{} `json:"id"`
-		}
-
-		if err := json.Unmarshal([]byte(line), &resp); err != nil {
-			done <- fmt.Errorf("failed to parse response: %w", err)
-			return
-		}
-
-		if resp.Error != nil {
-			errMsg := resp.Error.Message
-			if strings.Contains(errMsg, "permission") {
-				done <- ErrPermissionDenied
-			} else if strings.Contains(errMsg, "not found") {
-				done <- ErrChatNotFound
-			} else {
-				done <- fmt.Errorf("imsg error: %s", errMsg)
-			}
-			return
-		}
-
-		if result != nil && resp.Result != nil {
-			if err := json.Unmarshal(resp.Result, result); err != nil {
-				done <- fmt.Errorf("failed to unmarshal result: %w", err)
-				return
-			}
-		}
-
-		done <- nil
-	}()
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case err := <-done:
-		return err
-	case <-time.After(30 * time.Second):
-		return errors.New("request timeout")
+	script := `
+tell application "Messages"
+	activate
+end tell
+`
+	_, err := c.runAppleScript(ctx, script)
+	if err != nil {
+		return fmt.Errorf("failed to launch Messages.app: %w", err)
 	}
+
+	// Wait for Messages.app to start (up to 10 seconds)
+	for i := 0; i < 20; i++ {
+		time.Sleep(500 * time.Millisecond)
+		if c.isMessagesRunning() {
+			return nil
+		}
+	}
+
+	return ErrMessagesNotRunning
+}
+
+func (c *Client) sendMessageViaAppleScript(ctx context.Context, to, text, service string) error {
+	// Escape special characters in text
+	escapedText := escapeAppleScript(text)
+
+	script := fmt.Sprintf(`
+tell application "Messages"
+	set targetService to service "%s"
+	
+	try
+		set theChat to chat "%s" of targetService
+		send "%s" to theChat
+	on error
+		// Chat doesn't exist, create new conversation
+		set theBuddy to buddy "%s" of targetService
+		send "%s" to theBuddy
+	end try
+end tell
+`, service, to, escapedText, to, escapedText)
+
+	_, err := c.runAppleScript(ctx, script)
+	if err != nil {
+		if strings.Contains(err.Error(), "not authorized") {
+			return ErrPermissionDenied
+		}
+		return fmt.Errorf("failed to send message: %w", err)
+	}
+
+	return nil
+}
+
+func (c *Client) sendFileViaAppleScript(ctx context.Context, to, filePath, text, service string) error {
+	escapedText := escapeAppleScript(text)
+	escapedPath := escapeAppleScript(filePath)
+
+	script := fmt.Sprintf(`
+tell application "Messages"
+	set targetService to service "%s"
+	set theFile to POSIX file "%s"
+	
+	try
+		set theChat to chat "%s" of targetService
+		send theFile to theChat
+		if "%s" is not "" then
+			send "%s" to theChat
+		end if
+	on error
+		set theBuddy to buddy "%s" of targetService
+		send theFile to theBuddy
+		if "%s" is not "" then
+			send "%s" to theBuddy
+		end if
+	end try
+end tell
+`, service, escapedPath, to, text, escapedText, to, text, escapedText)
+
+	_, err := c.runAppleScript(ctx, script)
+	if err != nil {
+		return fmt.Errorf("failed to send file: %w", err)
+	}
+
+	return nil
+}
+
+func (c *Client) runAppleScript(ctx context.Context, script string) (string, error) {
+	cmd := exec.CommandContext(ctx, "osascript", "-e", script)
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		errMsg := stderr.String()
+		if errMsg != "" {
+			return "", fmt.Errorf("AppleScript error: %s", errMsg)
+		}
+		return "", err
+	}
+
+	return stdout.String(), nil
+}
+
+// Utility functions
+
+func escapeAppleScript(s string) string {
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, "\"", "\\\"")
+	s = strings.ReplaceAll(s, "\n", "\\n")
+	return s
 }

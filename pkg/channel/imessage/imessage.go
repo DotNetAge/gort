@@ -1,29 +1,26 @@
-// Package imessage provides a Channel adapter for Apple iMessage using the steipete/imsg library.
+// Package imessage provides a Channel adapter for Apple iMessage using AppleScript.
 //
-// This adapter integrates with the steipete/imsg CLI tool via JSON-RPC to provide full iMessage
-// functionality including sending/receiving messages, typing indicators, and tapback reactions.
+// This adapter integrates with macOS Messages.app via AppleScript to provide iMessage
+// functionality including sending/receiving messages, file attachments, and chat history.
 //
 // Requirements:
 //   - macOS 14+ with Messages.app signed in
-//   - imsg CLI installed: go install github.com/steipete/imsg/cmd/imsg@latest
 //   - Full Disk Access for the terminal to read ~/Library/Messages/chat.db
-//   - Automation permission for the terminal to control Messages.app (for sending)
+//   - Automation permission for the terminal to control Messages.app
+//     (automatically requested on first use)
 //
 // Features:
 //   - Send and receive iMessage/SMS text messages
 //   - Send file attachments
-//   - Real-time message watching
-//   - Typing indicators (imsg v0.5.0+)
-//   - Tapback reactions (imsg v0.5.0+)
+//   - Polling-based message watching
 //   - Chat listing and history
 //
 // Architecture:
-// The adapter communicates with the imsg CLI via JSON-RPC over stdin/stdout.
-// The imsg CLI reads from the Messages.app SQLite database and uses AppleScript
-// to send messages.
+// The adapter uses AppleScript for sending messages (which properly triggers macOS
+// permission dialogs) and reads from the Messages.app SQLite database for reading
+// messages and chat history.
 //
 // Official Documentation:
-//   - imsg CLI: https://github.com/steipete/imsg
 //   - Apple Messages Framework: https://developer.apple.com/documentation/messages
 package imessage
 
@@ -121,7 +118,7 @@ func (c *Channel) Start(ctx context.Context, handler channel.MessageHandler) err
 
 	c.msgHandler = handler
 
-	// Start the imsg RPC client
+	// Start the imsg client
 	if err := c.client.Start(ctx); err != nil {
 		if errors.Is(err, imsg.ErrPermissionDenied) {
 			return ErrPermissionDenied
@@ -129,12 +126,15 @@ func (c *Channel) Start(ctx context.Context, handler channel.MessageHandler) err
 		return fmt.Errorf("failed to start imsg client: %w", err)
 	}
 
-	// Load existing chats
+	// Load existing chats (skip if not supported in send-only mode)
 	if err := c.loadChats(ctx); err != nil {
-		return fmt.Errorf("failed to load chats: %w", err)
+		if !errors.Is(err, imsg.ErrNotSupported) {
+			return fmt.Errorf("failed to load chats: %w", err)
+		}
+		// Send-only mode doesn't support chat listing, which is OK
 	}
 
-	// Start watching for messages
+	// Start watching for messages (skip if not supported in send-only mode)
 	if c.config.WatchAllChats {
 		c.wg.Add(1)
 		go c.watchAllChats(ctx)

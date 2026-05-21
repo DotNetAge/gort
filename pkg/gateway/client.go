@@ -1,13 +1,11 @@
 package gateway
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
-	"net/url"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -16,501 +14,384 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type ClientOption func(*Client)
-
-func WithClientAddr(addr string) ClientOption {
-	return func(c *Client) { c.addr = addr }
-}
-
-func WithClientPort(port int) ClientOption {
-	return func(c *Client) { c.addr = fmt.Sprintf("localhost:%d", port) }
-}
-
-func WithClientPath(path string) ClientOption {
-	return func(c *Client) { c.path = path }
-}
-
-type MessageHandlerClient func(msg *Message)
+// ---------------------------------------------------------------------------
+// Client Configuration
+// ---------------------------------------------------------------------------
 
 type Client struct {
 	addr      string
-	path      string
-	handler   MessageHandlerClient
 	conn      *websocket.Conn
 	send      chan []byte
-	mu        sync.RWMutex
-	running   bool
 	done      chan struct{}
 	once      sync.Once
 	sendMu    sync.Mutex
-	respCh    chan string
-	waitMu    sync.RWMutex
-	waiting   bool
-	sessionID string
+	respMu    sync.RWMutex
+	pending   map[any]chan *Response // ID → response channel
+	running   bool
 	clientID  string
+	sessionID string
 
-	reconnectCfg      *ReconnectConfig
-	reconnectMu       sync.RWMutex
-	reconnectAttempts int
-	onReconnectFail   func(err error)
+	// Notification handlers
+	handlerMu sync.RWMutex
+	handlers  map[string]NotificationHandler // method → handler
 
-	stateChangeMu      sync.RWMutex
-	stateChangeHandler func(oldState, newState ConnectionState)
+	// Connection state
+	stateMu       sync.RWMutex
+	state         ConnectionState
+	onStateChange func(oldState, newState ConnectionState)
 }
 
-func NewClient(opts ...ClientOption) *Client {
-	c := &Client{
-		addr:   "localhost:8081",
-		path:   "/ws",
-		send:   make(chan []byte, 256),
-		done:   make(chan struct{}),
-		respCh: make(chan string, 16),
+// NewClient creates a new JSON-RPC WebSocket client.
+func NewClient(addr string) *Client {
+	return &Client{
+		addr:     addr,
+		pending:  make(map[any]chan *Response),
+		handlers: make(map[string]NotificationHandler),
+		send:     make(chan []byte, 256),
+		done:     make(chan struct{}),
+		state:    StateDisconnected,
 	}
-	for _, opt := range opts {
-		opt(c)
+}
+
+// ---------------------------------------------------------------------------
+// Connection Management
+// ---------------------------------------------------------------------------
+
+// Connect establishes the WebSocket connection.
+func (c *Client) Connect(ctx context.Context) error {
+	dialer := websocket.Dialer{
+		HandshakeTimeout: 10 * time.Second,
 	}
-	return c
-}
 
-func (c *Client) Connect() error {
-	return c.connect()
-}
-
-func (c *Client) connect() error {
-	u := url.URL{Scheme: "ws", Host: c.addr, Path: c.path}
-	header := http.Header{"Origin": {"ws://" + c.addr}}
-	conn, _, err := websocket.DefaultDialer.Dial(u.String(), header)
+	header := http.Header{}
+	conn, _, err := dialer.DialContext(ctx, c.addr, header)
 	if err != nil {
-		return err
+		return fmt.Errorf("websocket connect failed: %w", err)
 	}
-	c.conn = conn
-	c.mu.Lock()
-	c.running = true
-	c.mu.Unlock()
 
-	go c.readPump()
-	go c.writePump()
+	c.conn = conn
+	c.running = true
+	c.setState(StateConnected)
+
+	go c.readLoop()
+	go c.writeLoop()
+
+	slog.Info("connected to gateway", "addr", c.addr)
 	return nil
+}
+
+// ConnectSync connects without requiring a context (for backward compatibility).
+func (c *Client) ConnectSync() error {
+	return c.Connect(context.Background())
 }
 
 func (c *Client) Close() error {
-	c.once.Do(func() { close(c.done) })
-	c.mu.Lock()
-	c.running = false
-	c.mu.Unlock()
-	if c.conn != nil {
-		return c.conn.Close()
+	if c.conn == nil {
+		return nil
 	}
-	return nil
+
+	c.setState(StateDisconnected)
+	c.running = false
+
+	// Signal all goroutines to exit
+	close(c.done)
+
+	// Cancel all pending requests
+	c.respMu.Lock()
+	for id, ch := range c.pending {
+		close(ch)
+		delete(c.pending, id)
+	}
+	c.respMu.Unlock()
+
+	return c.conn.Close()
 }
 
 func (c *Client) IsConnected() bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.running
+	c.stateMu.RLock()
+	defer c.stateMu.RUnlock()
+	return c.running && c.state == StateConnected
 }
 
-func (c *Client) OnReceived(h MessageHandlerClient) {
-	c.handler = h
+func (c *Client) Port() int {
+	parts := strings.Split(c.addr, ":")
+	if len(parts) == 2 {
+		var port int
+		fmt.Sscanf(parts[1], "%d", &port)
+		return port
+	}
+	return 0
 }
 
-func (c *Client) Send(msg *Message) error {
-	return c.sendMessage(msg)
-}
+// ---------------------------------------------------------------------------
+// JSON-RPC Methods
+// ---------------------------------------------------------------------------
 
-// SendCommand sends a CMD protocol message and returns the raw response text.
-// The caller is responsible for parsing the response.
-func (c *Client) SendCommand(name, args string) (string, error) {
-	payload := args
-	protocolCmd := fmt.Sprintf("%s|%s|%s|||", CmdCmd, name, payload)
-	return c.sendAndWaitForResponse(protocolCmd, 30*time.Second)
-}
+// Call sends a request and waits for a response.
+func (c *Client) Call(ctx context.Context, method string, params any) (json.RawMessage, error) {
+	id := uuid.New().String()
+	ch := make(chan *Response, 1)
 
-func (c *Client) SendJSON(v interface{}) error {
-	data, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-	msg := &Message{
-		ID:          uuid.New().String(),
-		Direction:   DirectionOutbound,
-		Data:        data,
-		ContentType: "application/json",
-		Timestamp:   time.Now(),
-	}
-	return c.sendMessage(msg)
-}
+	c.respMu.Lock()
+	c.pending[id] = ch
+	c.respMu.Unlock()
 
-func (c *Client) SendFile(filename string) error {
-	f, err := os.Open(filename)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	data, err := io.ReadAll(f)
-	if err != nil {
-		return err
-	}
-	msg := &Message{
-		ID:          uuid.New().String(),
-		Direction:   DirectionOutbound,
-		Data:        data,
-		ContentType: "application/octet-stream",
-		Timestamp:   time.Now(),
-	}
-	return c.sendMessage(msg)
-}
+	defer func() {
+		c.respMu.Lock()
+		delete(c.pending, id)
+		c.respMu.Unlock()
+	}()
 
-func (c *Client) sendMessage(msg *Message) error {
-	var cmd string
-	var payload string
-
-	switch msg.ContentType {
-	case "application/json":
-		cmd = "JSON"
-		payload = string(msg.Data)
-	case "application/octet-stream":
-		cmd = "FILE"
-		payload = string(msg.Data)
-	default:
-		cmd = "TEXT"
-		payload = string(msg.Data)
-	}
-
-	protocolCmd := fmt.Sprintf("%s|%s|%s|||", cmd, c.sessionID, payload)
-	return c.sendAndWaitAck(protocolCmd, 30*time.Second)
-}
-
-func (c *Client) sendAndWaitAck(cmd string, timeout time.Duration) error {
-	c.sendMu.Lock()
-	defer c.sendMu.Unlock()
-
-	c.setWaiting(true)
-	defer c.setWaiting(false)
-
-	if err := c.writeCommand(cmd); err != nil {
-		return err
-	}
-
-	resp, err := c.waitResponse(timeout)
-	if err != nil {
-		return err
-	}
-
-	return parseAckResponse(resp)
-}
-
-// sendAndWaitForResponse sends a command and waits for any response (not just ACK).
-// Used for CMD protocol where the response is a JSON payload, not a simple ACK.
-func (c *Client) sendAndWaitForResponse(cmd string, timeout time.Duration) (string, error) {
-	c.sendMu.Lock()
-	defer c.sendMu.Unlock()
-
-	c.setWaiting(true)
-	defer c.setWaiting(false)
-
-	if err := c.writeCommand(cmd); err != nil {
-		return "", err
-	}
-
-	resp, err := c.waitResponse(timeout)
-	if err != nil {
-		return "", err
-	}
-
-	return resp, nil
-}
-
-func parseAckResponse(resp string) error {
-	parts := strings.Split(resp, "|")
-	if len(parts) < 1 {
-		return fmt.Errorf("invalid response: %s", resp)
-	}
-
-	switch parts[0] {
-	case "OK":
-		return nil
-	case "ERR":
-		if len(parts) >= 2 {
-			return fmt.Errorf("server error: %s", parts[1])
+	var paramsBytes json.RawMessage
+	if params != nil {
+		var err error
+		paramsBytes, err = json.Marshal(params)
+		if err != nil {
+			return nil, fmt.Errorf("marshal params failed: %w", err)
 		}
-		return fmt.Errorf("server error")
-	default:
-		return fmt.Errorf("unexpected response: %s", resp)
+	}
+
+	req := Request{
+		JSONRPC: "2.0",
+		ID:      id,
+		Method:  method,
+		Params:  paramsBytes,
+	}
+
+	c.sendMu.Lock()
+	if err := c.conn.WriteJSON(req); err != nil {
+		c.sendMu.Unlock()
+		return nil, fmt.Errorf("send failed: %w", err)
+	}
+	c.sendMu.Unlock()
+
+	slog.Debug("call", "method", method, "id", id)
+
+	select {
+	case resp := <-ch:
+		if resp == nil {
+			return nil, fmt.Errorf("connection closed")
+		}
+		if resp.Error != nil {
+			return nil, fmt.Errorf("rpc error %d: %s", resp.Error.Code, resp.Error.Message)
+		}
+		slog.Debug("response received", "id", id, "method", method)
+		return resp.Result, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-c.done:
+		return nil, fmt.Errorf("connection closed")
 	}
 }
 
-func (c *Client) BeginSession() (string, error) {
-	c.sendMu.Lock()
-	defer c.sendMu.Unlock()
-
-	sessionID := uuid.New().String()
-	cmd := fmt.Sprintf("BEGN|%s|||", sessionID)
-
-	c.setWaiting(true)
-	defer c.setWaiting(false)
-
-	if err := c.writeCommand(cmd); err != nil {
-		return "", err
+// Notify sends a notification (no response expected).
+func (c *Client) Notify(method string, params any) error {
+	paramsBytes, err := json.Marshal(params)
+	if err != nil {
+		return fmt.Errorf("marshal params failed: %w", err)
 	}
 
-	resp, err := c.waitResponse(30 * time.Second)
+	notif := Notification{
+		JSONRPC: "2.0",
+		Method:  method,
+		Params:  paramsBytes,
+	}
+
+	c.sendMu.Lock()
+	err = c.conn.WriteJSON(notif)
+	c.sendMu.Unlock()
+
+	if err != nil {
+		return fmt.Errorf("notify failed: %w", err)
+	}
+
+	slog.Debug("notify", "method", method)
+	return nil
+}
+
+// On registers a handler for server-initiated notifications.
+func (c *Client) On(method string, handler NotificationHandler) {
+	c.handlerMu.Lock()
+	defer c.handlerMu.Unlock()
+	c.handlers[method] = handler
+}
+
+// ---------------------------------------------------------------------------
+// Legacy Compatibility API (for mindx migration)
+// ---------------------------------------------------------------------------
+
+// SendCommand sends a command to the server and returns the raw response.
+// Each command is called as a direct JSON-RPC method (e.g., "agents", "help").
+func (c *Client) SendCommand(name string, args string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	params := map[string]string{
+		"args": args,
+	}
+
+	result, err := c.Call(ctx, name, params)
 	if err != nil {
 		return "", err
 	}
 
-	parts := strings.Split(resp, "|")
-	if len(parts) >= 3 && parts[2] == "OK" {
-		c.sessionID = sessionID
-		return sessionID, nil
-	}
-
-	if len(parts) >= 2 {
-		return "", fmt.Errorf("failed to begin session: %s", parts[1])
-	}
-	return "", fmt.Errorf("failed to begin session")
+	return string(result), nil
 }
 
-func (c *Client) EndSession() error {
-	c.sendMu.Lock()
-	defer c.sendMu.Unlock()
+// Done returns a channel that is closed when the client connection is dropped.
+// This allows consumers (e.g., TUI wait loops) to detect disconnection
+// and unblock waiting goroutines instead of hanging forever.
+func (c *Client) Done() <-chan struct{} {
+	return c.done
+}
 
-	if c.sessionID == "" {
-		return nil
-	}
+// OnReceived registers a handler for all incoming messages (legacy).
+func (c *Client) OnReceived(handler func(message string)) {
+	c.On("message", func(ctx context.Context, params json.RawMessage) {
+		var msg struct {
+			Text string `json:"text"`
+		}
+		if err := json.Unmarshal(params, &msg); err != nil {
+			slog.Warn("failed to parse message notification", "error", err)
+			return
+		}
+		handler(msg.Text)
+	})
+}
 
-	cmd := fmt.Sprintf("CLSE|%s|||", c.sessionID)
+// OnResponse registers a typed response handler (legacy compatibility).
+// This dispatches based on the ResponseEnvelope.Type field.
+func (c *Client) OnResponse(responseType ResponseType, handler func(env *ResponseEnvelope, orig *Message)) {
+	c.On(string(responseType), func(ctx context.Context, params json.RawMessage) {
+		var env ResponseEnvelope
+		if err := json.Unmarshal(params, &env); err != nil {
+			slog.Warn("failed to parse response envelope", "error", err)
+			return
+		}
+		handler(&env, nil)
+	})
+}
 
-	c.setWaiting(true)
-	defer c.setWaiting(false)
+// GetCommands returns the list of registered commands with metadata.
+// This calls the "command.list" method on the server.
+func (c *Client) GetCommands() ([]CommandMeta, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	if err := c.writeCommand(cmd); err != nil {
-		return err
-	}
-
-	resp, err := c.waitResponse(30 * time.Second)
+	result, err := c.Call(ctx, "command.list", nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	parts := strings.Split(resp, "|")
-	if len(parts) >= 1 && parts[0] == "OK" {
-		c.sessionID = ""
-		return nil
+	var cmds []CommandMeta
+	if err := json.Unmarshal(result, &cmds); err != nil {
+		return nil, err
 	}
-
-	if len(parts) >= 2 {
-		return fmt.Errorf("failed to end session: %s", parts[1])
-	}
-	return fmt.Errorf("failed to end session")
+	return cmds, nil
 }
 
-func (c *Client) writeCommand(cmd string) error {
-	c.mu.RLock()
-	running := c.running
-	conn := c.conn
-	c.mu.RUnlock()
-
-	if !running || conn == nil {
-		return fmt.Errorf("client not connected")
-	}
-	select {
-	case c.send <- []byte(cmd):
-		return nil
-	case <-c.done:
-		return fmt.Errorf("client closed")
-	default:
-		return fmt.Errorf("send buffer full")
-	}
+// OnResponseFallback registers a fallback handler for untyped responses (for backward compatibility).
+func (c *Client) OnResponseFallback(handler func(env *ResponseEnvelope, orig *Message)) {
+	// This is a no-op in the new JSON-RPC client.
+	// Use On() for specific response types instead.
 }
 
-func (c *Client) setWaiting(waiting bool) {
-	c.waitMu.Lock()
-	c.waiting = waiting
-	c.waitMu.Unlock()
+// Send sends a text message to a specific client (server-side compatibility).
+// This is a no-op on the client side.
+func (c *Client) Send(to string, message string) {
+	c.Notify("message", map[string]string{"to": to, "text": message})
 }
 
-func (c *Client) isWaiting() bool {
-	c.waitMu.RLock()
-	defer c.waitMu.RUnlock()
-	return c.waiting
-}
+// ---------------------------------------------------------------------------
+// Read Loop
+// ---------------------------------------------------------------------------
 
-func (c *Client) waitResponse(timeout time.Duration) (string, error) {
-	select {
-	case resp := <-c.respCh:
-		return resp, nil
-	case <-time.After(timeout):
-		return "", fmt.Errorf("response timeout")
-	case <-c.done:
-		return "", fmt.Errorf("client closed")
-	}
-}
-
-func (c *Client) readPump() {
-	defer c.doReconnectIfNeeded()
+func (c *Client) readLoop() {
+	defer c.Close()
 
 	c.conn.SetReadLimit(10 << 20)
-	c.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	c.conn.SetReadDeadline(time.Now().Add(10 * time.Minute))
 	c.conn.SetPongHandler(func(string) error {
-		c.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		c.conn.SetReadDeadline(time.Now().Add(10 * time.Minute))
 		return nil
 	})
 
 	for {
-		select {
-		case <-c.done:
-			return
-		default:
-		}
-
-		c.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
-		typ, raw, err := c.conn.ReadMessage()
+		_, raw, err := c.conn.ReadMessage()
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				slog.Error("client read error", "error", err)
+			if c.running {
+				slog.Debug("read error", "error", err)
 			}
 			return
 		}
 
-		// Server writePump may batch multiple protocol messages into a single
-		// WebSocket frame separated by newlines. Split them and process each one.
+		slog.Debug("recv", "size", len(raw), "preview", truncatePreview(string(raw), 200))
+
+		// A single WebSocket message may contain multiple JSON-RPC messages
+		// separated by newlines (sent by writePump batching).
 		lines := strings.Split(string(raw), "\n")
 		for _, line := range lines {
 			line = strings.TrimSpace(line)
 			if line == "" {
 				continue
 			}
-			c.processMessage(typ, []byte(line))
+
+			// Determine message type
+			if IsNotification([]byte(line)) {
+				c.handleNotification([]byte(line))
+			} else if HasResultOrError([]byte(line)) {
+				c.handleResponse([]byte(line))
+			} else {
+				slog.Warn("unknown message type", "raw", line)
+			}
 		}
 	}
 }
 
-func (c *Client) processMessage(typ int, raw []byte) {
-	if typ != websocket.TextMessage {
+func (c *Client) handleResponse(raw []byte) {
+	var resp Response
+	if err := json.Unmarshal(raw, &resp); err != nil {
+		slog.Warn("failed to parse response", "error", err)
 		return
 	}
 
-	text := string(raw)
-	waiting := c.isWaiting()
+	c.respMu.RLock()
+	ch, ok := c.pending[resp.ID]
+	c.respMu.RUnlock()
 
-	// When waiting for a response, check for CMD JSON responses first.
-	// CMD responses are JSON: {"cmd":"CMD","name":"...","data":...}
-	if waiting && strings.HasPrefix(text, "{") {
-		var cmdResp commandResponse
-		if json.Unmarshal(raw, &cmdResp) == nil && cmdResp.Cmd == "CMD" {
-			select {
-			case c.respCh <- text:
-			default:
-				slog.Warn("response channel full, dropping CMD response", "name", cmdResp.Name)
-			}
-			return
-		}
-	}
-
-	// Check for pipe-format ACK/ERR responses.
-	if waiting {
-		parts := strings.Split(text, "|")
-		if len(parts) >= 3 && (parts[2] == "OK" || parts[2] == "ERR") {
-			select {
-			case c.respCh <- text:
-			default:
-				slog.Warn("response channel full, dropping ACK response", "response", text)
-			}
-			return
-		}
-		if len(parts) >= 1 && (parts[0] == "OK" || parts[0] == "ERR") {
-			select {
-			case c.respCh <- text:
-			default:
-				slog.Warn("response channel full, dropping ACK response", "response", text)
-			}
-			return
-		}
-	}
-
-	// Regular Message handling.
-	var msg Message
-	if err := json.Unmarshal(raw, &msg); err != nil {
-		return
-	}
-
-	if c.clientID == "" && msg.ClientID != "" {
-		c.clientID = msg.ClientID
-	}
-
-	if c.handler != nil {
-		c.handler(&msg)
-	}
-}
-
-func (c *Client) doReconnectIfNeeded() {
-	c.reconnectMu.RLock()
-	cfg := c.reconnectCfg
-	c.reconnectMu.RUnlock()
-
-	if cfg == nil || !cfg.Enabled {
-		return
-	}
-
-	c.notifyStateChange(StateConnected, StateReconnecting)
-
-	var lastErr error
-	for attempt := 0; attempt < cfg.MaxRetries; attempt++ {
-		c.reconnectMu.Lock()
-		c.reconnectAttempts = attempt + 1
-		c.reconnectMu.Unlock()
-
-		delay := cfg.calcDelay(attempt)
-		slog.Info("attempting reconnect", "attempt", attempt+1, "max", cfg.MaxRetries, "delay", delay)
-
+	if ok {
 		select {
-		case <-time.After(delay):
-		case <-c.done:
-			c.notifyStateChange(StateReconnecting, StateDisconnected)
-			return
+		case ch <- &resp:
+		default:
 		}
-
-		c.mu.Lock()
-		c.running = false
-		c.mu.Unlock()
-
-		err := c.connect()
-		if err == nil {
-			c.reconnectMu.Lock()
-			c.reconnectAttempts = 0
-			c.reconnectMu.Unlock()
-			c.notifyStateChange(StateReconnecting, StateConnected)
-			slog.Info("reconnected successfully", "attempt", attempt+1)
-			if cfg.OnConnected != nil {
-				cfg.OnConnected()
-			}
-			return
-		}
-		lastErr = err
-		slog.Warn("reconnect attempt failed", "attempt", attempt+1, "error", err)
-	}
-
-	c.notifyStateChange(StateReconnecting, StateDisconnected)
-	c.reconnectMu.RLock()
-	onFail := c.onReconnectFail
-	c.reconnectMu.RUnlock()
-	if onFail != nil {
-		onFail(fmt.Errorf("all %d reconnect attempts failed, last error: %w", cfg.MaxRetries, lastErr))
 	}
 }
 
-func (c *Client) notifyStateChange(oldState, newState ConnectionState) {
-	c.stateChangeMu.RLock()
-	fn := c.stateChangeHandler
-	c.stateChangeMu.RUnlock()
-	if fn != nil {
-		go fn(oldState, newState)
+func (c *Client) handleNotification(raw []byte) {
+	var notif Notification
+	if err := json.Unmarshal(raw, &notif); err != nil {
+		slog.Warn("failed to parse notification", "error", err)
+		return
+	}
+
+	c.handlerMu.RLock()
+	handler, ok := c.handlers[notif.Method]
+	c.handlerMu.RUnlock()
+
+	if ok {
+		handler(context.Background(), notif.Params)
+	} else {
+		slog.Debug("no handler for notification", "method", notif.Method)
 	}
 }
 
-func (c *Client) writePump() {
-	ticker := time.NewTicker(54 * time.Second)
+// ---------------------------------------------------------------------------
+// Write Loop
+// ---------------------------------------------------------------------------
+
+func (c *Client) writeLoop() {
+	pingPeriod := 54 * time.Second
+	ticker := time.NewTicker(pingPeriod)
 	defer ticker.Stop()
 
 	for {
@@ -542,19 +423,21 @@ func (c *Client) writePump() {
 	}
 }
 
-func (c *Client) ClientID() string {
-	return c.clientID
-}
+// ---------------------------------------------------------------------------
+// Connection State
+// ---------------------------------------------------------------------------
 
-func (c *Client) SessionID() string {
-	return c.sessionID
-}
+func (c *Client) setState(state ConnectionState) {
+	c.stateMu.Lock()
+	old := c.state
+	c.state = state
+	c.stateMu.Unlock()
 
-func (c *Client) SendBatch(msgs []*Message) error {
-	for _, msg := range msgs {
-		if err := c.Send(msg); err != nil {
-			return err
-		}
+	if c.onStateChange != nil && old != state {
+		c.onStateChange(old, state)
 	}
-	return nil
+}
+
+func (c *Client) OnStateChange(fn func(oldState, newState ConnectionState)) {
+	c.onStateChange = fn
 }

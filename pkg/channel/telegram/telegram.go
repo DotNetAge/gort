@@ -46,8 +46,8 @@ import (
 )
 
 // API endpoints for Telegram Bot API.
-const (
-	BaseURL = "https://api.telegram.org/bot%s"
+var (
+	BaseURL = "https://api.telegram.org"
 
 	EndpointSendMessage      = "/sendMessage"
 	EndpointSendPhoto        = "/sendPhoto"
@@ -109,7 +109,7 @@ func NewChannel(name string, config Config) (*Channel, error) {
 	return &Channel{
 		BaseChannel: channel.NewBaseChannel(name, channel.ChannelTypeTelegram),
 		config:      config,
-		baseURL:     fmt.Sprintf(BaseURL, config.Token),
+		baseURL:     BaseURL + "/bot" + config.Token,
 		httpClient:  &http.Client{Timeout: 60 * time.Second},
 	}, nil
 }
@@ -120,13 +120,13 @@ func (c *Channel) Start(ctx context.Context, handler channel.MessageHandler) err
 		return channel.ErrChannelAlreadyRunning
 	}
 
-	c.SetHandler(handler)
-
 	ctx, cancel := context.WithCancel(ctx)
 	c.cancel = cancel
 
 	if c.config.WebhookURL != "" {
 		if err := c.setWebhook(ctx); err != nil {
+			cancel()
+			c.cancel = nil
 			return fmt.Errorf("failed to set webhook: %w", err)
 		}
 	} else {
@@ -134,6 +134,7 @@ func (c *Channel) Start(ctx context.Context, handler channel.MessageHandler) err
 		go c.pollUpdates(ctx)
 	}
 
+	c.SetHandler(handler)
 	c.SetStatus(channel.StatusRunning)
 	return nil
 }
