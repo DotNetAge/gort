@@ -115,6 +115,42 @@ const (
 	// Data should be: {"summary": "...", "input_tokens": N, "output_tokens": N}
 	RespTaskSummary ResponseType = "task_summary"
 
+	// --- Session & Memory RPC response types ---
+
+	// RespSessionList indicates the response contains a list of sessions.
+	// Data should be: []SessionInfo
+	RespSessionList ResponseType = "session_list"
+
+	// RespSessionInfo indicates detailed information about a single session.
+	// Data should be: SessionInfo
+	RespSessionInfo ResponseType = "session_info"
+
+	// RespMemoryResult indicates memory query/search results.
+	// Data should be: []MemoryRecord
+	RespMemoryResult ResponseType = "memory_result"
+
+	// RespMemoryStored indicates a memory record was successfully stored.
+	// Data should be: {"id": "..."}
+	RespMemoryStored ResponseType = "memory_stored"
+
+	// --- Agent/Model/Skill RPC response types ---
+
+	// RespAgentList indicates the response contains a list of agents.
+	// Data should be: []AgentConfig
+	RespAgentList ResponseType = "agent_list"
+
+	// RespAgentUpdated indicates an agent config was successfully updated.
+	// Data should be: {"status": "ok", "agent_name": "..."}
+	RespAgentUpdated ResponseType = "agent_updated"
+
+	// RespModelList indicates the response contains a list of models.
+	// Data should be: []ModelConfig
+	RespModelList ResponseType = "model_list"
+
+	// RespSkillList indicates the response contains a list of skills.
+	// Data should be: []Skill
+	RespSkillList ResponseType = "skill_list"
+
 	// --- Compatibility ---
 
 	// RespUnknown is the zero value used when no type is specified (backward compat).
