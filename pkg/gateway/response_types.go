@@ -137,6 +137,10 @@ const (
 	// Data should be: {"turns_completed": N, "max_turns": N, "suggestion": "..."}
 	RespMaxTurnsReached ResponseType = "max_turns_reached"
 
+	// RespTokenUsageRecorded indicates an LLM call completed and its token usage
+	// has been recorded. Data should be a TokenUsageRecord JSON object.
+	RespTokenUsageRecorded ResponseType = "token_usage_recorded"
+
 	// RespFileModified indicates files in the session's workspace have been modified
 	// by a Write/FileEdit tool execution. This event is broadcast to all clients so
 	// they can update their ModifyFiles list and show diff toolbars in real time.
