@@ -118,6 +118,10 @@ func WithHeartbeat(cfg *HeartbeatConfig) Option {
 	}
 }
 
+func WithDisconnectHandler(h func(clientID string)) Option {
+	return func(s *Server) { s.disconnectHandler = h }
+}
+
 // ---------------------------------------------------------------------------
 // Handler Types
 // ---------------------------------------------------------------------------
@@ -156,8 +160,9 @@ type Server struct {
 	sessionTimeout time.Duration
 	heartbeatCfg   *HeartbeatConfig
 	hbMonitor      *HeartbeatMonitor
-	wsConfig       *WSConfig
-	upgrader       *websocket.Upgrader
+	wsConfig         *WSConfig
+	upgrader         *websocket.Upgrader
+	disconnectHandler func(clientID string)
 
 	mu       sync.RWMutex
 	server   *http.Server
@@ -742,6 +747,9 @@ func (s *Server) writePump(c *client) {
 // ---------------------------------------------------------------------------
 
 func (s *Server) removeClient(id string) {
+	if s.disconnectHandler != nil {
+		s.disconnectHandler(id)
+	}
 	s.mu.Lock()
 	c, ok := s.clients[id]
 	if ok {

@@ -54,30 +54,36 @@ const (
 	RespMarkdown ResponseType = "markdown"
 
 	// --- Agent (GoReact) event response types ---
+	// NOTE: These are strictly aligned with goreact/events/types.go ReactEventType.
+	// The event_dispatcher performs a transparent 1:1 passthrough — no type mutation,
+	// no semantic rewriting. If GoReact emits "tool_exec_start", the gateway sends
+	// "tool_exec_start". Clients receive the exact same event name and data shape
+	// as the GoReact runtime produces.
 
 	// RespThinkingDelta indicates a streaming fragment of the agent's thinking process.
 	// Data should be a plain text string (the thinking fragment).
+	// Aligned with: goreact ReactEventType ThinkingDelta
 	RespThinkingDelta ResponseType = "thinking_delta"
 
 	// RespThinkingDone indicates the agent completed a thinking cycle.
-	// Data should be: {"reasoning": "...", "decision": "...", "confidence": 0.0}
+	// Aligned with: goreact ReactEventType ThinkingDone
 	RespThinkingDone ResponseType = "thinking_done"
 
-	// RespActionStart indicates the agent is about to execute a tool.
-	// Data should be: {"tool_name": "...", "params": {...}}
-	RespActionStart ResponseType = "action_start"
+	// RespToolUseDelta indicates streaming tool call argument fragments from LLM response.
+	// Data should be: {"index": N, "id": "...", "name": "...", "arguments": "..."}
+	// Aligned with: goreact ReactEventType ToolUseDelta → ToolUseDeltaData
+	RespToolUseDelta ResponseType = "tool_use_delta"
 
-	// RespActionProgress indicates intermediate progress of a long-running tool.
-	// Data should be a plain text string (progress description).
-	RespActionProgress ResponseType = "action_progress"
+	// RespToolExecStart indicates a tool is about to begin execution.
+	// Data should be: {"tool_name": "...", "params": {...}, "predicted_tokens": N}
+	// Aligned with: goreact ReactEventType ToolExecStart → ToolExecStartData
+	RespToolExecStart ResponseType = "tool_exec_start"
 
-	// RespActionResult indicates a tool execution completed.
-	// Data should be: {"tool_name": "...", "result": "...", "error": "...", "duration_ms": N, "success": true}
-	RespActionResult ResponseType = "action_result"
-
-	// RespActionEnd indicates the entire action (all tool calls) has completed.
-	// Data should be: {"total": N, "success": N, "failed": N, "summary": "..."}
-	RespActionEnd ResponseType = "action_end"
+	// RespToolExecEnd indicates tool execution finished (success or failure).
+	// Data should be: {"tool_name": "...", "tool_call_id": "...", "success": bool,
+	//                  "result": "...", "error": "...", "duration_ms": N}
+	// Aligned with: goreact ReactEventType ToolExecEnd → ToolExecEndData
+	RespToolExecEnd ResponseType = "tool_exec_end"
 
 	// RespSubtaskSpawned indicates a subagent task has been created.
 	// Data should be: {"task_id": "...", "agent_name": "...", "description": "..."}
@@ -115,6 +121,33 @@ const (
 	// Data should be: {"summary": "...", "input_tokens": N, "output_tokens": N}
 	RespTaskSummary ResponseType = "task_summary"
 
+	// RespAgentTalkStart indicates a multi-agent conversation is about to begin.
+	// Data should be: {"to": "...", "session_id": "...", "message": "..."}
+	RespAgentTalkStart ResponseType = "agent_talk_start"
+
+	// RespAgentTalkEnd indicates a multi-agent conversation has completed.
+	// Data should be: {"to": "...", "session_id": "...", "reply": "...", "error": "..."}
+	RespAgentTalkEnd ResponseType = "agent_talk_end"
+
+	// RespCompaction indicates the session context window was compacted.
+	// Data should be: {"session_id": "...", "messages_slid": N, "remaining_after": N, "window_size": N}
+	RespCompaction ResponseType = "compaction"
+
+	// RespMaxTurnsReached indicates the Think-Act loop reached its max turn limit.
+	// Data should be: {"turns_completed": N, "max_turns": N, "suggestion": "..."}
+	RespMaxTurnsReached ResponseType = "max_turns_reached"
+
+	// RespFileModified indicates files in the session's workspace have been modified
+	// by a Write/FileEdit tool execution. This event is broadcast to all clients so
+	// they can update their ModifyFiles list and show diff toolbars in real time.
+	//
+	// Data should be:
+	//   {"files": ["path1", "path2", ...], "action": "tracked"}
+	// where action is one of: "tracked", "confirmed", "rolled_back".
+	//
+	// Aligned with: goreact session.FileModifyEvent
+	RespFileModified ResponseType = "file_modified"
+
 	// --- Session & Memory RPC response types ---
 
 	// RespSessionList indicates the response contains a list of sessions.
@@ -150,6 +183,16 @@ const (
 	// RespSkillList indicates the response contains a list of skills.
 	// Data should be: []Skill
 	RespSkillList ResponseType = "skill_list"
+
+	// --- Filesystem RPC response types ---
+
+	// RespFSList indicates the response contains a directory listing.
+	// Data should be: []FSEntry
+	RespFSList ResponseType = "fs_list"
+
+	// RespFSHome indicates the response contains the user's home directory path.
+	// Data should be: {"path": "..."}
+	RespFSHome ResponseType = "fs_home"
 
 	// --- Compatibility ---
 
