@@ -53,36 +53,36 @@ const (
 	// code blocks, etc.). Data should be a raw Markdown string.
 	RespMarkdown ResponseType = "markdown"
 
-	// --- Agent (GoReact) event response types ---
-	// NOTE: These are strictly aligned with goreact/events/types.go ReactEventType.
+	// --- Agent (goharness) event response types ---
+	// NOTE: These are strictly aligned with goharness/events/types.go ReactEventType.
 	// The event_dispatcher performs a transparent 1:1 passthrough — no type mutation,
-	// no semantic rewriting. If GoReact emits "tool_exec_start", the gateway sends
+	// no semantic rewriting. If goharness emits "tool_exec_start", the gateway sends
 	// "tool_exec_start". Clients receive the exact same event name and data shape
-	// as the GoReact runtime produces.
+	// as the goharness runtime produces.
 
 	// RespThinkingDelta indicates a streaming fragment of the agent's thinking process.
 	// Data should be a plain text string (the thinking fragment).
-	// Aligned with: goreact ReactEventType ThinkingDelta
+	// Aligned with: goharness ReactEventType ThinkingDelta
 	RespThinkingDelta ResponseType = "thinking_delta"
 
 	// RespThinkingDone indicates the agent completed a thinking cycle.
-	// Aligned with: goreact ReactEventType ThinkingDone
+	// Aligned with: goharness ReactEventType ThinkingDone
 	RespThinkingDone ResponseType = "thinking_done"
 
 	// RespToolUseDelta indicates streaming tool call argument fragments from LLM response.
 	// Data should be: {"index": N, "id": "...", "name": "...", "arguments": "..."}
-	// Aligned with: goreact ReactEventType ToolUseDelta → ToolUseDeltaData
+	// Aligned with: goharness ReactEventType ToolUseDelta → ToolUseDeltaData
 	RespToolUseDelta ResponseType = "tool_use_delta"
 
 	// RespToolExecStart indicates a tool is about to begin execution.
 	// Data should be: {"tool_name": "...", "params": {...}, "predicted_tokens": N}
-	// Aligned with: goreact ReactEventType ToolExecStart → ToolExecStartData
+	// Aligned with: goharness ReactEventType ToolExecStart → ToolExecStartData
 	RespToolExecStart ResponseType = "tool_exec_start"
 
 	// RespToolExecEnd indicates tool execution finished (success or failure).
 	// Data should be: {"tool_name": "...", "tool_call_id": "...", "success": bool,
 	//                  "result": "...", "error": "...", "duration_ms": N}
-	// Aligned with: goreact ReactEventType ToolExecEnd → ToolExecEndData
+	// Aligned with: goharness ReactEventType ToolExecEnd → ToolExecEndData
 	RespToolExecEnd ResponseType = "tool_exec_end"
 
 	// RespSubtaskSpawned indicates a subagent task has been created.
@@ -149,7 +149,7 @@ const (
 	//   {"files": ["path1", "path2", ...], "action": "tracked"}
 	// where action is one of: "tracked", "confirmed", "rolled_back".
 	//
-	// Aligned with: goreact session.FileModifyEvent
+	// Aligned with: goharness session.FileModifyEvent
 	RespFileModified ResponseType = "file_modified"
 
 	// --- Session & Memory RPC response types ---
