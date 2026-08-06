@@ -75,13 +75,15 @@ const (
 	RespToolUseDelta ResponseType = "tool_use_delta"
 
 	// RespToolExecStart indicates a tool is about to begin execution.
-	// Data should be: {"tool_name": "...", "params": {...}, "predicted_tokens": N}
+	// Data should be: {"tool_name": "...", "params": {...}}
 	// Aligned with: goharness ReactEventType ToolExecStart → ToolExecStartData
 	RespToolExecStart ResponseType = "tool_exec_start"
 
 	// RespToolExecEnd indicates tool execution finished (success or failure).
 	// Data should be: {"tool_name": "...", "tool_call_id": "...", "success": bool,
-	//                  "result": "...", "error": "...", "duration_ms": N}
+	//                  "result": "...", "error": "...", "duration_ms": N,
+	//                  "prompt_tokens": N, "completion_tokens": N, "total_tokens": N,
+	//                  "cached_tokens": N}
 	// Aligned with: goharness ReactEventType ToolExecEnd → ToolExecEndData
 	RespToolExecEnd ResponseType = "tool_exec_end"
 
@@ -121,14 +123,6 @@ const (
 	// Data should be: {"summary": "...", "input_tokens": N, "output_tokens": N}
 	RespTaskSummary ResponseType = "task_summary"
 
-	// RespAgentTalkStart indicates a multi-agent conversation is about to begin.
-	// Data should be: {"to": "...", "session_id": "...", "message": "..."}
-	RespAgentTalkStart ResponseType = "agent_talk_start"
-
-	// RespAgentTalkEnd indicates a multi-agent conversation has completed.
-	// Data should be: {"to": "...", "session_id": "...", "reply": "...", "error": "..."}
-	RespAgentTalkEnd ResponseType = "agent_talk_end"
-
 	// RespCompaction indicates the session context window was compacted.
 	// Data should be: {"session_id": "...", "messages_slid": N, "remaining_after": N, "window_size": N}
 	RespCompaction ResponseType = "compaction"
@@ -137,9 +131,17 @@ const (
 	// Data should be: {"turns_completed": N, "max_turns": N, "suggestion": "..."}
 	RespMaxTurnsReached ResponseType = "max_turns_reached"
 
+	// RespLLMCancelled indicates the LLM call was cancelled by the user (not a timeout).
+	// Data should be: {"elapsed_ns": N}
+	RespLLMCancelled ResponseType = "llm_cancelled"
+
 	// RespTokenUsageRecorded indicates an LLM call completed and its token usage
 	// has been recorded. Data should be a TokenUsageRecord JSON object.
 	RespTokenUsageRecorded ResponseType = "token_usage_recorded"
+
+	// RespContextUsage indicates the session's context window usage stats.
+	// Data should be: {"window_tokens": N, "max_window_size": N, "usage_ratio": F, ...}
+	RespContextUsage ResponseType = "context_usage"
 
 	// RespFileModified indicates files in the session's workspace have been modified
 	// by a Write/FileEdit tool execution. This event is broadcast to all clients so
@@ -151,6 +153,25 @@ const (
 	//
 	// Aligned with: goharness session.FileModifyEvent
 	RespFileModified ResponseType = "file_modified"
+
+	// RespUserMessageSaved indicates a real user message has been appended to
+	// the session and persisted. Emitted right after the append (magic words
+	// are not appended so they don't trigger this). The frontend stores the
+	// carried Timestamp as metadata.backendTimestamp to enable real-time
+	// "undo this round" via session.delete_round.
+	// Data should be: {"timestamp": N}
+	// Aligned with: goharness ReactEventType UserMessageSaved → UserMessageSavedData
+	RespUserMessageSaved ResponseType = "user_message_saved"
+
+	// RespMessageQueued 表示用户消息已进入同一会话的串行执行队列，
+	// 正在等待上一轮执行完成（见 mindx svc.sessionQueue）。
+	// Data should be: {"timestamp": N}
+	RespMessageQueued ResponseType = "message_queued"
+
+	// RespMessageProcessing 表示排队中的用户消息已开始执行，
+	// 前端应把「排队中」状态切换为「处理中」。
+	// Data should be: {"timestamp": N}
+	RespMessageProcessing ResponseType = "message_processing"
 
 	// --- Session & Memory RPC response types ---
 

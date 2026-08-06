@@ -159,6 +159,12 @@ func WithDisconnectHandler(h func(clientID string)) Option {
 	return func(s *Server) { s.disconnectHandler = h }
 }
 
+// WithConnectHandler 设置新客户端建立连接时的回调。
+// 用于断连恢复场景：客户端重连后可据此补发在途会话的挂起状态（如权限请求）。
+func WithConnectHandler(h func(clientID string)) Option {
+	return func(s *Server) { s.connectHandler = h }
+}
+
 // ---------------------------------------------------------------------------
 // Handler Types
 // ---------------------------------------------------------------------------
@@ -191,15 +197,16 @@ type client struct {
 }
 
 type Server struct {
-	addr           string
-	path           string
-	handler        MessageHandler
-	sessionTimeout time.Duration
-	heartbeatCfg   *HeartbeatConfig
-	hbMonitor      *HeartbeatMonitor
-	wsConfig         *WSConfig
-	upgrader         *websocket.Upgrader
+	addr              string
+	path              string
+	handler           MessageHandler
+	sessionTimeout    time.Duration
+	heartbeatCfg      *HeartbeatConfig
+	hbMonitor         *HeartbeatMonitor
+	wsConfig          *WSConfig
+	upgrader          *websocket.Upgrader
 	disconnectHandler func(clientID string)
+	connectHandler    func(clientID string)
 
 	mu       sync.RWMutex
 	server   *http.Server
@@ -212,17 +219,17 @@ type Server struct {
 	methods   map[string]MethodHandler
 	methodsMu sync.RWMutex
 
-	commands   map[string]MethodHandler
-	commandsMu sync.RWMutex
+	commands    map[string]MethodHandler
+	commandsMu  sync.RWMutex
 	commandMeta map[string]CommandMeta
 }
 
 // CommandContext provides context for command execution.
 type CommandContext struct {
-	ClientID   string
-	SessionID  string
-	Args       string
-	server     *Server
+	ClientID  string
+	SessionID string
+	Args      string
+	server    *Server
 }
 
 // ---- Context helpers ----
@@ -256,6 +263,7 @@ func SessionIDFromContext(ctx context.Context) string {
 	}
 	return ""
 }
+
 // CommandHandler is the signature for command handlers (backward compatibility alias).
 type CommandHandler = func(ctx *CommandContext) (any, error)
 
@@ -474,6 +482,10 @@ func (s *Server) hubLoop() {
 		s.mu.Lock()
 		s.clients[c.id] = c
 		s.mu.Unlock()
+
+		if s.connectHandler != nil {
+			s.connectHandler(c.id)
+		}
 
 		if s.hbMonitor != nil {
 			s.hbMonitor.setConnectionCount(len(s.clients))
