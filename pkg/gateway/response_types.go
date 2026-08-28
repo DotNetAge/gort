@@ -115,9 +115,9 @@ const (
 	// Data should be: {"total_iterations": N, "tool_calls": N, "tools_used": [...], "total_duration_ms": N, "tokens_used": N}
 	RespExecutionSummary ResponseType = "execution_summary"
 
-	// RespCycleEnd indicates one T-A-O cycle has ended.
+	// RespLoopEnd indicates one Think-Act loop has ended.
 	// Data should be: {"iteration": N, "duration_ms": N, "termination_reason": "..."}
-	RespCycleEnd ResponseType = "cycle_end"
+	RespLoopEnd ResponseType = "loop_end"
 
 	// RespTaskSummary indicates a natural-language summary of the completed task.
 	// Data should be: {"summary": "...", "input_tokens": N, "output_tokens": N}

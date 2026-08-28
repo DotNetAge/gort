@@ -48,6 +48,9 @@ func defaultWSConfig() *WSConfig {
 			"http://127.0.0.1:*",
 			"ws://localhost:*",
 			"ws://127.0.0.1:*",
+			// Wails 壳（mindx-app）的 WebView 页面 origin：dev 带端口、生产无端口
+			"wails://wails.localhost:*",
+			"wails://wails.localhost",
 			// Allow common LAN subnets
 			"http://192.168.*:*",
 			"ws://192.168.*:*",
