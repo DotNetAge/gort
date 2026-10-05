@@ -86,25 +86,33 @@ func (c *Client) ConnectSync() error {
 }
 
 func (c *Client) Close() error {
-	if c.conn == nil {
-		return nil
-	}
+	var err error
 
-	c.setState(StateDisconnected)
-	c.running = false
+	// Close 会被两条路径并发调用（调用方 defer 与 readLoop 退出时的 defer），
+	// 整个清理过程必须幂等：done 只允许关闭一次，重复 close 会 panic；
+	// conn 重复关闭虽不 panic 但会返回 use of closed connection 错误。
+	c.once.Do(func() {
+		if c.conn == nil {
+			return
+		}
+		c.setState(StateDisconnected)
+		c.running = false
 
-	// Signal all goroutines to exit
-	close(c.done)
+		// Signal all goroutines to exit
+		close(c.done)
 
-	// Cancel all pending requests
-	c.respMu.Lock()
-	for id, ch := range c.pending {
-		close(ch)
-		delete(c.pending, id)
-	}
-	c.respMu.Unlock()
+		// Cancel all pending requests
+		c.respMu.Lock()
+		for id, ch := range c.pending {
+			close(ch)
+			delete(c.pending, id)
+		}
+		c.respMu.Unlock()
 
-	return c.conn.Close()
+		err = c.conn.Close()
+	})
+
+	return err
 }
 
 func (c *Client) IsConnected() bool {

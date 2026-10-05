@@ -475,15 +475,15 @@ func (s *Server) IsRunning() bool {
 
 func (s *Server) hubLoop() {
 	for c := range s.register {
-		s.mu.RLock()
+		s.mu.Lock()
 		if !s.running {
-			s.mu.RUnlock()
+			s.mu.Unlock()
 			return
 		}
-		s.mu.RUnlock()
-
-		s.mu.Lock()
 		s.clients[c.id] = c
+		// 连接数必须在锁内读取：锁外 len(s.clients) 与 removeClient 的
+		// map 写构成数据竞争（race detector 实测报警）
+		total := len(s.clients)
 		s.mu.Unlock()
 
 		if s.connectHandler != nil {
@@ -491,11 +491,11 @@ func (s *Server) hubLoop() {
 		}
 
 		if s.hbMonitor != nil {
-			s.hbMonitor.setConnectionCount(len(s.clients))
+			s.hbMonitor.setConnectionCount(total)
 			s.hbMonitor.notifyStateChange(c.id, StateDisconnected.String(), StateConnected.String())
 		}
 
-		slog.Info("client connected", "id", c.id, "total", len(s.clients))
+		slog.Info("client connected", "id", c.id, "total", total)
 	}
 }
 
@@ -807,6 +807,8 @@ func (s *Server) removeClient(id string) {
 	if ok {
 		delete(s.clients, id)
 	}
+	// 连接数必须在锁内读取，理由同 hubLoop
+	total := len(s.clients)
 	s.mu.Unlock()
 
 	if ok {
@@ -814,7 +816,7 @@ func (s *Server) removeClient(id string) {
 			close(c.send)
 		})
 	}
-	slog.Info("client disconnected", "id", id, "total", len(s.clients))
+	slog.Info("client disconnected", "id", id, "total", total)
 }
 
 func (s *Server) ClientCount() int {
