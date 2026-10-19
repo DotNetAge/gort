@@ -47,6 +47,10 @@ const (
 	InternalError  = -32603
 )
 
+// AuthFailed 认证失败（-32001，服务端自定义区段 -32000..-32099）：
+// 首条消息认证未通过或连接凭证无效。
+const AuthFailed = -32001
+
 // IsNotification returns true if the message is a notification (no ID).
 func IsNotification(raw json.RawMessage) bool {
 	var msg struct {

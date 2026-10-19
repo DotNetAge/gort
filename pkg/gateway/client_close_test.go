@@ -50,3 +50,52 @@ func TestCloseAfterServerDisconnect(t *testing.T) {
 		t.Fatalf("close after server disconnect: %v", err)
 	}
 }
+
+// DisconnectClient 主动断连：服务端按 clientID 强制关闭在线连接，
+// 客户端感知断开、服务端摘除该连接（吊销即断连场景）。
+func TestDisconnectClient(t *testing.T) {
+	env := setupTestEnv(t)
+
+	cl := NewClient("ws://" + env.addr + "/ws")
+	if err := cl.ConnectSync(); err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+
+	// 等客户端注册进服务端连接表（同包可读私有字段）
+	var clientID string
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		env.gw.mu.RLock()
+		for id := range env.gw.clients {
+			clientID = id
+		}
+		env.gw.mu.RUnlock()
+		if clientID != "" {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if clientID == "" {
+		t.Fatal("客户端未注册到服务端连接表")
+	}
+
+	if !env.gw.DisconnectClient(clientID) {
+		t.Fatal("连接存在时 DisconnectClient 应返回 true")
+	}
+	if env.gw.DisconnectClient("no-such-client") {
+		t.Fatal("不存在的客户端应返回 false")
+	}
+
+	// 服务端应随后摘除该连接
+	deadline = time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		env.gw.mu.RLock()
+		_, still := env.gw.clients[clientID]
+		env.gw.mu.RUnlock()
+		if !still {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("断开后客户端应被从连接表摘除")
+}

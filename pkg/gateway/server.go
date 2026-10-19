@@ -168,6 +168,27 @@ func WithConnectHandler(h func(clientID string)) Option {
 	return func(s *Server) { s.connectHandler = h }
 }
 
+// WithAuthenticator 设置 WebSocket 升级前的握手鉴权钩子（可选）。
+// 返回非 nil 时拒绝升级（HTTP 401，错误文案回给连接方），nil 放行；
+// 未设置时不做任何校验（保持向后兼容）。
+func WithAuthenticator(h func(*http.Request) error) Option {
+	return func(s *Server) { s.authenticator = h }
+}
+
+// WithMessageAuthenticator 启用首条消息认证（可选）。
+// 背景：浏览器端 WebSocket API 不支持自定义升级请求头，凭证无法走
+// Authorization 头，只能连上后以首条消息携带（OWASP WebSocket 备选方案）。
+// 启用后：升级鉴权钩子拒绝的连接不再立即 401，而是升级为「待认证」连接，
+// 首条消息交给钩子校验——nil 放行进入正常消息分发（计时停止），非 nil
+// 把失败原因回给连接方并断开；超时未认证的连接强制断开（防连接洪泛
+// 占满握手资源）。升级鉴权已放行的连接（私网/环回）不受影响。
+func WithMessageAuthenticator(h func(clientID string, msg []byte) error, timeout time.Duration) Option {
+	return func(s *Server) {
+		s.msgAuthenticator = h
+		s.msgAuthTimeout = timeout
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Handler Types
 // ---------------------------------------------------------------------------
@@ -192,6 +213,10 @@ type client struct {
 	done     context.CancelFunc
 	sessions *SessionManager
 	closed   sync.Once // ensures cleanup runs once
+	// pendingAuth 首条消息认证待定态：升级鉴权未过但启用消息认证时为 true，
+	// 首条消息经 msgAuthenticator 校验通过后置 false（仅 readPump 单协程读写）。
+	pendingAuth bool
+	authTimer   *time.Timer // 认证超时计时器（认证成功即停）
 
 	mu        sync.RWMutex
 	pending   map[any]chan *Response // ID → response channel
@@ -210,6 +235,9 @@ type Server struct {
 	upgrader          *websocket.Upgrader
 	disconnectHandler func(clientID string)
 	connectHandler    func(clientID string)
+	authenticator     func(*http.Request) error // 升级前握手鉴权（可选，nil = 不校验）
+	msgAuthenticator  func(clientID string, msg []byte) error // 首条消息认证（可选，nil = 不启用）
+	msgAuthTimeout    time.Duration
 
 	mu       sync.RWMutex
 	server   *http.Server
@@ -511,6 +539,23 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 		"origin", r.Header.Get("Origin"),
 	)
 
+	// 升级鉴权钩子：拒绝时默认 HTTP 401（错误文案直传连接方，不建立会话）；
+	// 启用首条消息认证时转为「待认证」连接——升级放行，凭首条消息过闸。
+	var pendingAuth bool
+	if s.authenticator != nil {
+		if err := s.authenticator(r); err != nil {
+			if s.msgAuthenticator == nil {
+				slog.Warn("ws handshake rejected by authenticator",
+					"remote", r.RemoteAddr,
+					"error", err,
+				)
+				http.Error(w, err.Error(), http.StatusUnauthorized)
+				return
+			}
+			pendingAuth = true
+		}
+	}
+
 	conn, err := s.upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		slog.Error("ws upgrade failed", "error", err)
@@ -519,15 +564,29 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 
 	ctx, done := context.WithCancel(context.Background())
 	c := &client{
-		id:       uuid.New().String(),
-		send:     make(chan []byte, 256),
-		conn:     conn,
-		ctx:      ctx,
-		done:     done,
-		sessions: newSessionManager(s.sessionTimeout),
-		pending:  make(map[any]chan *Response),
+		id:          uuid.New().String(),
+		send:        make(chan []byte, 256),
+		conn:        conn,
+		ctx:         ctx,
+		done:        done,
+		sessions:    newSessionManager(s.sessionTimeout),
+		pending:     make(map[any]chan *Response),
+		pendingAuth: pendingAuth,
 	}
-	slog.Debug("ws client connected, starting pumps", "client_id", c.id)
+	// 待认证连接限时：超时未认证即断开（认证成功由 dispatchMessage 停表）
+	if pendingAuth && s.msgAuthTimeout > 0 {
+		timeout := s.msgAuthTimeout
+		client := c
+		client.authTimer = time.AfterFunc(timeout, func() {
+			slog.Warn("ws pending auth timed out, disconnecting",
+				"client_id", client.id,
+				"remote", r.RemoteAddr,
+				"timeout", timeout,
+			)
+			_ = client.conn.Close()
+		})
+	}
+	slog.Debug("ws client connected, starting pumps", "client_id", c.id, "pending_auth", pendingAuth)
 	s.register <- c
 	go s.writePump(c)
 	go s.readPump(c)
@@ -598,6 +657,36 @@ func (s *Server) readPump(c *client) {
 }
 
 func (s *Server) dispatchMessage(c *client, raw []byte) {
+	// 待认证连接：首条消息交认证钩子过闸，不进入常规分发
+	//（通过则摘除待定态、停超时计时；失败则回告原因并断开）
+	if c.pendingAuth {
+		if s.msgAuthenticator == nil {
+			return
+		}
+		if err := s.msgAuthenticator(c.id, raw); err != nil {
+			slog.Warn("first-message auth failed",
+				"client_id", c.id,
+				"error", err,
+			)
+			s.sendToClient(c, &Response{
+				JSONRPC: "2.0",
+				ID:      nil,
+				Error: &Error{
+					Code:    AuthFailed,
+					Message: err.Error(),
+				},
+			})
+			_ = c.conn.Close()
+			return
+		}
+		c.pendingAuth = false
+		if c.authTimer != nil {
+			c.authTimer.Stop()
+		}
+		slog.Debug("first-message auth passed", "client_id", c.id)
+		return
+	}
+
 	// Check if it's a JSON-RPC message
 	if !strings.HasPrefix(strings.TrimSpace(string(raw)), "{") {
 		slog.Warn("non-JSON message rejected", "id", c.id)
@@ -829,6 +918,19 @@ func (s *Server) GetClient(clientID string) *client {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.clients[clientID]
+}
+
+// DisconnectClient 主动断开指定客户端的存活连接（吊销即断连场景：
+// 凭证被吊销/设备被拉黑时，服务端强制关闭其在线连接）。
+// 断连走正常关闭链路——readPump 读到连接关闭后退出，依次触发
+// disconnectHandler、会话清理与客户端摘除。返回连接是否存在。
+func (s *Server) DisconnectClient(clientID string) bool {
+	c := s.GetClient(clientID)
+	if c == nil {
+		return false
+	}
+	_ = c.conn.Close()
+	return true
 }
 
 // ---------------------------------------------------------------------------
