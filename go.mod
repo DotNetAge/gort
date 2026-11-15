@@ -2,6 +2,8 @@ module github.com/DotNetAge/gort
 
 go 1.23.0
 
+toolchain go1.26.11
+
 require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.1
