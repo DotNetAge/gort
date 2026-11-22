@@ -218,6 +218,12 @@ type client struct {
 	pendingAuth bool
 	authTimer   *time.Timer // 认证超时计时器（认证成功即停）
 
+	// sendMu 保护 send 通道的关闭与写入：客户端断连时 close(c.send)，
+	// 若此时仍有 handler 协程回写结果，会触发 "send on closed channel" panic，
+	// 直接拖垮整个 daemon。写入与关闭必须互斥。
+	sendMu     sync.RWMutex
+	sendClosed bool
+
 	mu        sync.RWMutex
 	pending   map[any]chan *Response // ID → response channel
 	handlers  map[string]NotificationHandler
@@ -902,7 +908,10 @@ func (s *Server) removeClient(id string) {
 
 	if ok {
 		c.closed.Do(func() {
+			c.sendMu.Lock()
+			c.sendClosed = true
 			close(c.send)
+			c.sendMu.Unlock()
 		})
 	}
 	slog.Info("client disconnected", "id", id, "total", total)
@@ -941,6 +950,16 @@ func (s *Server) sendToClient(c *client, v any) {
 	data, err := json.Marshal(v)
 	if err != nil {
 		slog.Error("failed to marshal message", "error", err)
+		return
+	}
+	// 与 removeClient 的 close(c.send) 互斥：持读锁期间通道保证未关闭。
+	c.sendMu.RLock()
+	defer c.sendMu.RUnlock()
+	if c.sendClosed {
+		slog.Debug("send to closed client, dropping message",
+			"client_id", c.id,
+			"size", len(data),
+		)
 		return
 	}
 	select {
